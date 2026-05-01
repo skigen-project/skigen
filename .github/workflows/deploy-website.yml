@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 The Skigen Contributors
 #
-# Website deployment is handled by the skigen-project.github.io repository.
-# This workflow triggers it after doc/website changes land on main.
+# Builds the Docusaurus website and pushes the generated files to
+# skigen-project.github.io so that the deployed content is inspectable.
 
 name: Deploy Website
 
@@ -14,13 +14,42 @@ on:
   workflow_dispatch:
 
 jobs:
-  trigger-deploy:
-    name: Trigger skigen-project.github.io rebuild
+  deploy:
+    name: Build & Deploy
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger deployment
-        uses: peter-evans/repository-dispatch@v3
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
         with:
-          token: ${{ secrets.DEPLOY_PAT }}
-          repository: skigen-project/skigen-project.github.io
-          event-type: deploy-website
+          node-version: 20
+          cache: npm
+          cache-dependency-path: doc/website/package-lock.json
+
+      - name: Install dependencies
+        working-directory: doc/website
+        run: npm ci
+
+      - name: Build
+        working-directory: doc/website
+        run: npm run build
+
+      - name: Deploy to skigen-project.github.io
+        env:
+          GIT_CREDENTIALS: ${{ secrets.GIT_CREDENTIALS }}
+        run: |
+          git config --global user.email "deploy@skigen-project.github.io"
+          git config --global user.name "skigen-deploy"
+          git clone -b main --single-branch "https://${GIT_CREDENTIALS}@github.com/skigen-project/skigen-project.github.io.git"
+          cd skigen-project.github.io
+
+          # Remove everything except .git
+          find . -maxdepth 1 ! -name '.git' ! -name '.' -exec rm -rf {} +
+
+          # Copy the Docusaurus build output
+          cp -r ../doc/website/build/. .
+          touch .nojekyll
+
+          git add .
+          git commit -m "Deploy website from skigen@${GITHUB_SHA::8}" --allow-empty
+          git push origin main
