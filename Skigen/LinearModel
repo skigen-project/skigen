@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 The Skigen Contributors
+//
+// Skigen/LinearModel — Linear regression and classification models.
+//
+// Usage:
+//   #include <Skigen/LinearModel>
+
+#ifndef SKIGEN_LINEAR_MODEL
+#define SKIGEN_LINEAR_MODEL
+
+#include "Core"
+#include "src/LinearModel/LinearRegression.h"
+#include "src/LinearModel/Ridge.h"
+
+#endif // SKIGEN_LINEAR_MODEL

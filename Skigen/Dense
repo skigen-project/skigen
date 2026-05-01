@@ -11,5 +11,6 @@
 
 #include "Core"
 #include "Preprocessing"
+#include "LinearModel"
 
 #endif // SKIGEN_DENSE

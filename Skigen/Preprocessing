@@ -11,5 +11,10 @@
 
 #include "Core"
 #include "src/Preprocessing/StandardScaler.h"
+#include "src/Preprocessing/MinMaxScaler.h"
+#include "src/Preprocessing/MaxAbsScaler.h"
+#include "src/Preprocessing/RobustScaler.h"
+#include "src/Preprocessing/Normalizer.h"
+#include "src/Preprocessing/LabelEncoder.h"
 
 #endif // SKIGEN_PREPROCESSING
