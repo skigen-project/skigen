@@ -64,6 +64,10 @@ const config: Config = {
         },
         navbar: {
             title: 'Skigen',
+            logo: {
+                alt: 'Skigen Logo',
+                src: 'img/skigen-logo.png',
+            },
             items: [
                 {
                     type: 'docSidebar',

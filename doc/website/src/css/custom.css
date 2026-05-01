@@ -1,34 +1,38 @@
 :root {
-    --ifm-color-primary: #00b894;
-    --ifm-color-primary-dark: #00a583;
-    --ifm-color-primary-darker: #009c7c;
-    --ifm-color-primary-darkest: #008066;
-    --ifm-color-primary-light: #00cba5;
-    --ifm-color-primary-lighter: #00d4ac;
-    --ifm-color-primary-lightest: #00f0c3;
+    --ifm-color-primary: #7c3aed;
+    --ifm-color-primary-dark: #6d28d9;
+    --ifm-color-primary-darker: #5b21b6;
+    --ifm-color-primary-darkest: #4c1d95;
+    --ifm-color-primary-light: #8b5cf6;
+    --ifm-color-primary-lighter: #a78bfa;
+    --ifm-color-primary-lightest: #c4b5fd;
+    --sk-cyan: #06b6d4;
+    --sk-purple: #a855f7;
+    --sk-gradient: linear-gradient(135deg, #06b6d4, #7c3aed, #a855f7);
     --ifm-code-font-size: 95%;
-    --docusaurus-highlighted-code-line-bg: rgba(0, 184, 148, 0.1);
+    --docusaurus-highlighted-code-line-bg: rgba(124, 58, 237, 0.1);
 }
 
 [data-theme='dark'] {
-    --ifm-color-primary: #55efc4;
-    --ifm-color-primary-dark: #36ebb7;
-    --ifm-color-primary-darker: #27e9b0;
-    --ifm-color-primary-darkest: #12d99d;
-    --ifm-color-primary-light: #74f3d1;
-    --ifm-color-primary-lighter: #83f5d7;
-    --ifm-color-primary-lightest: #b1f9e6;
-    --ifm-background-color: #0d1117;
-    --ifm-background-surface-color: #161b22;
-    --ifm-navbar-background-color: #010409;
-    --ifm-footer-background-color: #010409;
-    --docusaurus-highlighted-code-line-bg: rgba(85, 239, 196, 0.15);
+    --ifm-color-primary: #a78bfa;
+    --ifm-color-primary-dark: #8b5cf6;
+    --ifm-color-primary-darker: #7c3aed;
+    --ifm-color-primary-darkest: #6d28d9;
+    --ifm-color-primary-light: #c4b5fd;
+    --ifm-color-primary-lighter: #ddd6fe;
+    --ifm-color-primary-lightest: #ede9fe;
+    --ifm-background-color: #0c0a1a;
+    --ifm-background-surface-color: #140f2a;
+    --ifm-navbar-background-color: #0a0818;
+    --ifm-footer-background-color: #080614;
+    --docusaurus-highlighted-code-line-bg: rgba(167, 139, 250, 0.15);
 }
 
 html {
     scroll-behavior: smooth;
 }
 
+/* GitHub icon in navbar */
 .header-github-link::before {
     content: '';
     width: 24px;
