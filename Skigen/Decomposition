@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 The Skigen Contributors
+
+#ifndef SKIGEN_DECOMPOSITION
+#define SKIGEN_DECOMPOSITION
+
+#include "src/Decomposition/PCA.h"
+
+#endif // SKIGEN_DECOMPOSITION

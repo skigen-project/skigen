@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 The Skigen Contributors
+
+#ifndef SKIGEN_NEIGHBORS
+#define SKIGEN_NEIGHBORS
+
+#include "src/Neighbors/KNeighbors.h"
+
+#endif // SKIGEN_NEIGHBORS

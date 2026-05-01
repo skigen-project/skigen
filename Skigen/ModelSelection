@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 The Skigen Contributors
+
+#ifndef SKIGEN_MODEL_SELECTION
+#define SKIGEN_MODEL_SELECTION
+
+#include "src/ModelSelection/TrainTestSplit.h"
+
+#endif // SKIGEN_MODEL_SELECTION

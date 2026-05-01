@@ -12,5 +12,11 @@
 #include "Core"
 #include "Preprocessing"
 #include "LinearModel"
+#include "Decomposition"
+#include "Cluster"
+#include "Neighbors"
+#include "Tree"
+#include "ModelSelection"
+#include "Metrics"
 
 #endif // SKIGEN_DENSE

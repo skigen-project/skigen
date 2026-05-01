@@ -35,3 +35,75 @@ target_link_libraries(skigen_test_linear_model PRIVATE Skigen::Skigen)
 target_compile_options(skigen_test_linear_model PRIVATE ${SKIGEN_WARNING_FLAGS})
 
 add_test(NAME skigen_test_linear_model COMMAND skigen_test_linear_model)
+
+# ---------------------------------------------------------------------------
+# Decomposition tests (PCA)
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_decomposition
+    test_decomposition.cpp
+)
+
+target_link_libraries(skigen_test_decomposition PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_decomposition PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_test(NAME skigen_test_decomposition COMMAND skigen_test_decomposition)
+
+# ---------------------------------------------------------------------------
+# Cluster tests (KMeans)
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_cluster
+    test_cluster.cpp
+)
+
+target_link_libraries(skigen_test_cluster PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_cluster PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_test(NAME skigen_test_cluster COMMAND skigen_test_cluster)
+
+# ---------------------------------------------------------------------------
+# Neighbors tests (KNeighborsClassifier, KNeighborsRegressor)
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_neighbors
+    test_neighbors.cpp
+)
+
+target_link_libraries(skigen_test_neighbors PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_neighbors PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_test(NAME skigen_test_neighbors COMMAND skigen_test_neighbors)
+
+# ---------------------------------------------------------------------------
+# Tree tests (DecisionTreeClassifier, DecisionTreeRegressor)
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_tree
+    test_tree.cpp
+)
+
+target_link_libraries(skigen_test_tree PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_tree PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_test(NAME skigen_test_tree COMMAND skigen_test_tree)
+
+# ---------------------------------------------------------------------------
+# Model selection tests (TrainTestSplit)
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_model_selection
+    test_model_selection.cpp
+)
+
+target_link_libraries(skigen_test_model_selection PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_model_selection PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_test(NAME skigen_test_model_selection COMMAND skigen_test_model_selection)
+
+# ---------------------------------------------------------------------------
+# Metrics tests
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_metrics
+    test_metrics.cpp
+)
+
+target_link_libraries(skigen_test_metrics PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_metrics PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_test(NAME skigen_test_metrics COMMAND skigen_test_metrics)
