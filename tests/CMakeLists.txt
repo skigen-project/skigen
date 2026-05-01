@@ -107,3 +107,16 @@ target_link_libraries(skigen_test_metrics PRIVATE Skigen::Skigen)
 target_compile_options(skigen_test_metrics PRIVATE ${SKIGEN_WARNING_FLAGS})
 
 add_test(NAME skigen_test_metrics COMMAND skigen_test_metrics)
+
+# ---------------------------------------------------------------------------
+# Remaining v1.0.0 tests (PolynomialFeatures, Lasso, ElasticNet,
+# LogisticRegression, SGD, TruncatedSVD, MiniBatchKMeans, CrossVal, Pipeline)
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_remaining
+    test_remaining.cpp
+)
+
+target_link_libraries(skigen_test_remaining PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_remaining PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_test(NAME skigen_test_remaining COMMAND skigen_test_remaining)

@@ -17,6 +17,7 @@
 #include "Neighbors"
 #include "Tree"
 #include "ModelSelection"
+#include "Pipeline"
 #include "Metrics"
 
 #endif // SKIGEN_DENSE

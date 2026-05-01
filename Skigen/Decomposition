@@ -5,5 +5,6 @@
 #define SKIGEN_DECOMPOSITION
 
 #include "src/Decomposition/PCA.h"
+#include "src/Decomposition/TruncatedSVD.h"
 
 #endif // SKIGEN_DECOMPOSITION

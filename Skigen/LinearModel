@@ -12,5 +12,9 @@
 #include "Core"
 #include "src/LinearModel/LinearRegression.h"
 #include "src/LinearModel/Ridge.h"
+#include "src/LinearModel/Lasso.h"
+#include "src/LinearModel/ElasticNet.h"
+#include "src/LinearModel/LogisticRegression.h"
+#include "src/LinearModel/SGD.h"
 
 #endif // SKIGEN_LINEAR_MODEL

@@ -86,38 +86,31 @@ Skigen follows the same convention as Eigen — module headers without file exte
 Skigen/                     # Header library (Eigen-style)
 ├── Core                    # Module header — base classes, traits, concepts
 ├── Preprocessing           # Module header — scalers, normalizers, ...
+├── LinearModel             # Module header — regression, classification
+├── Decomposition           # Module header — PCA, TruncatedSVD
+├── Cluster                 # Module header — KMeans, MiniBatchKMeans
+├── Neighbors               # Module header — KNN classifier/regressor
+├── Tree                    # Module header — decision trees
+├── ModelSelection          # Module header — train/test split, cross-validation
+├── Pipeline                # Module header — compile-time pipeline composition
+├── Metrics                 # Module header — regression, classification, pairwise
 ├── Dense                   # Convenience header — bundles all modules
 └── src/                    # Internal headers (.h)
     ├── Core/               # Traits, Concepts, Base, Validation, EigenHelpers
-    ├── Preprocessing/      # StandardScaler, MinMaxScaler, ...
-    ├── LinearModel/        # LinearRegression, Ridge, Lasso, ...
+    ├── Preprocessing/      # StandardScaler, MinMaxScaler, MaxAbsScaler, ...
+    ├── LinearModel/        # LinearRegression, Ridge, Lasso, ElasticNet, ...
     ├── Decomposition/      # PCA, TruncatedSVD
     ├── Cluster/            # KMeans, MiniBatchKMeans
     ├── Neighbors/          # KNeighborsClassifier, KNeighborsRegressor
     ├── Tree/               # DecisionTreeClassifier, DecisionTreeRegressor
     ├── ModelSelection/     # TrainTestSplit, CrossValidation
-    ├── Pipeline/           # Compile-time pipeline composition
+    ├── Pipeline/           # Pipeline (compile-time)
     └── Metrics/            # Regression, Classification, Pairwise
 tests/                      # Unit + parity tests
 benchmarks/                 # Performance benchmarks
 examples/                   # Usage examples
 doc/                        # Requirements + Docusaurus website
 ```
-
-## v1.0.0 Scope
-
-| Module | Components | Status |
-|---|---|---|
-| **Core** | CRTP bases, concepts, type traits, validation | ✅ Done |
-| **Preprocessing** | `StandardScaler` | ✅ Done |
-| **Preprocessing** | `MinMaxScaler`, `MaxAbsScaler`, `RobustScaler`, `Normalizer`, `LabelEncoder`, `PolynomialFeatures` | Planned |
-| **Linear Models** | `LinearRegression`, `Ridge`, `Lasso`, `ElasticNet`, `LogisticRegression`, `SGDClassifier`, `SGDRegressor` | Planned |
-| **Decomposition** | `PCA`, `TruncatedSVD` | Planned |
-| **Clustering** | `KMeans`, `MiniBatchKMeans` | Planned |
-| **Neighbors** | `KNeighborsClassifier`, `KNeighborsRegressor` | Planned |
-| **Trees** | `DecisionTreeClassifier`, `DecisionTreeRegressor` | Planned |
-| **Model Selection** | `train_test_split`, `cross_val_score`, `Pipeline` | Planned |
-| **Metrics** | MSE, MAE, R², accuracy, precision, recall, F1, pairwise distances | Planned |
 
 ## Requirements
 

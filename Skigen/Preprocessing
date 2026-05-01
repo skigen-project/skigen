@@ -16,5 +16,6 @@
 #include "src/Preprocessing/RobustScaler.h"
 #include "src/Preprocessing/Normalizer.h"
 #include "src/Preprocessing/LabelEncoder.h"
+#include "src/Preprocessing/PolynomialFeatures.h"
 
 #endif // SKIGEN_PREPROCESSING
