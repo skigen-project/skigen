@@ -1,5 +1,8 @@
 <p align="center">
-  <strong>Skigen</strong><br>
+  <img src="doc/website/static/img/skigen-logo.svg" alt="Skigen" width="400">
+</p>
+
+<p align="center">
   <em>Energy-efficient machine learning, native to C++ and Eigen.</em>
 </p>
 

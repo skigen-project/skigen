@@ -1,0 +1,41 @@
+---
+sidebar_position: 4
+title: MaxAbsScaler
+---
+
+# MaxAbsScaler
+
+Feature scaling by dividing each feature by its maximum absolute value. Scales to [-1, 1] with optional clipping.
+
+Mirrors [`sklearn.preprocessing.MaxAbsScaler`](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MaxAbsScaler.html).
+
+## Constructor
+
+```cpp
+Skigen::MaxAbsScaler<Scalar> scaler(bool clip = false);
+```
+
+## Methods
+
+| Method | Description |
+|--------|-------------|
+| `fit(X)` | Compute per-feature max absolute value |
+| `transform(X)` | Scale to [-1, 1] |
+| `inverse_transform(Z)` | Recover original scale |
+| `transform_inplace(X)` | Scale in-place |
+
+## Fitted Attributes
+
+| Accessor | Type | Description |
+|----------|------|-------------|
+| `max_abs()` | `RowVectorType` | Per-feature max absolute value |
+| `scale()` | `RowVectorType` | Per-feature scale factor |
+
+## Example
+
+```cpp
+#include <Skigen/Preprocessing>
+
+Skigen::MaxAbsScaler scaler;
+auto X_scaled = scaler.fit_transform(X);
+```

@@ -1,0 +1,58 @@
+---
+sidebar_position: 10
+title: LinearRegression
+---
+
+# LinearRegression
+
+Ordinary Least Squares linear regression via ColPivHouseholderQR decomposition.
+
+Mirrors [`sklearn.linear_model.LinearRegression`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html).
+
+## Constructor
+
+```cpp
+Skigen::LinearRegression<Scalar> model(bool fit_intercept = true);
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `fit_intercept` | `true` | Whether to calculate the intercept |
+
+## Methods
+
+| Method | Description |
+|--------|-------------|
+| `fit(X, y)` | Fit the model to training data |
+| `predict(X)` | Predict using the linear model |
+| `score(X, y)` | Return R² score |
+
+## Fitted Attributes
+
+| Accessor | Type | Description |
+|----------|------|-------------|
+| `coef()` | `RowVectorType` | Estimated coefficients |
+| `intercept()` | `Scalar` | Intercept term |
+| `rank()` | `IndexType` | Rank of the design matrix |
+
+## Example
+
+```cpp
+#include <Skigen/LinearModel>
+#include <Eigen/Dense>
+#include <iostream>
+
+int main() {
+    Eigen::MatrixXd X(4, 2);
+    X << 1, 1,  1, 2,  2, 2,  2, 3;
+    Eigen::VectorXd y(4);
+    y << 6, 8, 9, 11;
+
+    Skigen::LinearRegression model;
+    model.fit(X, y);
+
+    std::cout << "Coef: " << model.coef() << "\n";
+    std::cout << "Intercept: " << model.intercept() << "\n";
+    std::cout << "R²: " << model.score(X, y) << "\n";
+}
+```

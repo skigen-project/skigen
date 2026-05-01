@@ -1,0 +1,62 @@
+---
+sidebar_position: 30
+title: KMeans
+---
+
+# KMeans
+
+K-Means clustering with Lloyd's algorithm and k-means++ initialization.
+
+Mirrors [`sklearn.cluster.KMeans`](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html).
+
+## Constructor
+
+```cpp
+Skigen::KMeans<Scalar> km(int n_clusters = 8, int max_iter = 300,
+                           int n_init = 10, unsigned int random_state = 42);
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `n_clusters` | `8` | Number of clusters |
+| `max_iter` | `300` | Maximum iterations per run |
+| `n_init` | `10` | Number of initializations (best kept) |
+| `random_state` | `42` | Random seed for reproducibility |
+
+## Methods
+
+| Method | Description |
+|--------|-------------|
+| `fit(X)` | Compute k-means clustering |
+| `predict(X)` | Predict closest cluster for each sample |
+| `transform(X)` | Transform to cluster-distance space |
+| `fit_predict(X)` | Fit and return cluster labels |
+
+## Fitted Attributes
+
+| Accessor | Type | Description |
+|----------|------|-------------|
+| `cluster_centers()` | `MatrixType` | Centroid coordinates |
+| `labels()` | `IndexVector` | Cluster labels of training data |
+| `inertia()` | `Scalar` | Sum of squared distances to centroids |
+| `n_iter()` | `int` | Iterations run in best init |
+
+## Example
+
+```cpp
+#include <Skigen/Cluster>
+#include <Eigen/Dense>
+#include <iostream>
+
+int main() {
+    Eigen::MatrixXd X = Eigen::MatrixXd::Random(200, 3);
+
+    Skigen::KMeans km(4);
+    km.fit(X);
+
+    std::cout << "Inertia: " << km.inertia() << "\n";
+    std::cout << "Centers:\n" << km.cluster_centers() << "\n";
+
+    auto labels = km.predict(X);
+}
+```

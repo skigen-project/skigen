@@ -1,0 +1,40 @@
+---
+sidebar_position: 40
+title: DecisionTree
+---
+
+# DecisionTreeClassifier
+
+CART decision tree classifier using Gini impurity with recursive binary splits.
+
+Mirrors [`sklearn.tree.DecisionTreeClassifier`](https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html).
+
+## Constructor
+
+```cpp
+Skigen::DecisionTreeClassifier<Scalar> tree(int max_depth = -1,
+                                             int min_samples_split = 2);
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `max_depth` | `-1` | Maximum tree depth (-1 = unlimited) |
+| `min_samples_split` | `2` | Minimum samples to split a node |
+
+## Methods
+
+| Method | Description |
+|--------|-------------|
+| `fit(X, y)` | Build the decision tree |
+| `predict(X)` | Predict class labels |
+| `score(X, y)` | Return accuracy score |
+
+## Example
+
+```cpp
+#include <Skigen/Tree>
+
+Skigen::DecisionTreeClassifier tree(/*max_depth=*/5);
+tree.fit(X_train, y_train);
+std::cout << "Accuracy: " << tree.score(X_test, y_test) << "\n";
+```

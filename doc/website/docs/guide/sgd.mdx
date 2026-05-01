@@ -1,0 +1,41 @@
+---
+sidebar_position: 15
+title: SGDClassifier
+---
+
+# SGDClassifier / SGDRegressor
+
+Stochastic Gradient Descent linear models for classification (Hinge or Log loss) and regression.
+
+Mirrors [`sklearn.linear_model.SGDClassifier`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.SGDClassifier.html).
+
+## Constructor
+
+```cpp
+Skigen::SGDClassifier<Scalar> clf(
+    Loss loss = Loss::Hinge,
+    Scalar alpha = 1e-4, int max_iter = 1000, Scalar tol = 1e-3,
+    Scalar eta0 = 0.01, unsigned int random_state = 42);
+
+Skigen::SGDRegressor<Scalar> reg(
+    Scalar alpha = 1e-4, int max_iter = 1000, Scalar tol = 1e-3,
+    Scalar eta0 = 0.01, unsigned int random_state = 42);
+```
+
+## Methods
+
+| Method | Description |
+|--------|-------------|
+| `fit(X, y)` | Fit model with SGD |
+| `predict(X)` | Predict labels / values |
+| `score(X, y)` | Accuracy (classifier) or R² (regressor) |
+
+## Example
+
+```cpp
+#include <Skigen/LinearModel>
+
+Skigen::SGDClassifier clf(Skigen::SGDClassifier<>::Loss::Log);
+clf.fit(X_train, y_train);
+std::cout << "Accuracy: " << clf.score(X_test, y_test) << "\n";
+```

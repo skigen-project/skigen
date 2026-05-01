@@ -1,0 +1,61 @@
+---
+sidebar_position: 11
+title: LogisticRegression
+---
+
+# LogisticRegression
+
+L2-regularized logistic regression classifier with IRLS solver. Supports binary and multiclass (one-vs-rest) classification.
+
+Mirrors [`sklearn.linear_model.LogisticRegression`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html).
+
+## Constructor
+
+```cpp
+Skigen::LogisticRegression<Scalar> model(Scalar C = 1, bool fit_intercept = true,
+                                          int max_iter = 100, Scalar tol = 1e-4);
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `C` | `1` | Inverse regularization strength |
+| `fit_intercept` | `true` | Whether to calculate the intercept |
+| `max_iter` | `100` | Maximum IRLS iterations |
+| `tol` | `1e-4` | Convergence tolerance |
+
+## Methods
+
+| Method | Description |
+|--------|-------------|
+| `fit(X, y)` | Fit the classifier to training data |
+| `predict(X)` | Predict class labels |
+| `predict_proba(X)` | Predict class probabilities |
+| `score(X, y)` | Return accuracy score |
+
+## Fitted Attributes
+
+| Accessor | Type | Description |
+|----------|------|-------------|
+| `coef()` | `MatrixType` | Coefficient matrix |
+| `intercept()` | `VectorType` | Intercept vector |
+| `classes()` | `std::vector<int>` | Unique class labels |
+
+## Example
+
+```cpp
+#include <Skigen/LinearModel>
+#include <Eigen/Dense>
+
+int main() {
+    Eigen::MatrixXd X(6, 2);
+    X << 1,2, 2,3, 3,4, 5,6, 6,7, 7,8;
+    Eigen::VectorXi y(6);
+    y << 0, 0, 0, 1, 1, 1;
+
+    Skigen::LogisticRegression model(/*C=*/1.0);
+    model.fit(X, y);
+
+    auto predictions = model.predict(X);
+    std::cout << "Accuracy: " << model.score(X, y) << "\n";
+}
+```

@@ -1,0 +1,46 @@
+---
+sidebar_position: 12
+title: Ridge
+---
+
+# Ridge
+
+L2-regularized least squares solved via Cholesky decomposition on the normal equation.
+
+Mirrors [`sklearn.linear_model.Ridge`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Ridge.html).
+
+## Constructor
+
+```cpp
+Skigen::Ridge<Scalar> model(Scalar alpha = 1, bool fit_intercept = true);
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `alpha` | `1` | Regularization strength |
+| `fit_intercept` | `true` | Whether to calculate the intercept |
+
+## Methods
+
+| Method | Description |
+|--------|-------------|
+| `fit(X, y)` | Fit the model to training data |
+| `predict(X)` | Predict using the linear model |
+| `score(X, y)` | Return R² score |
+
+## Fitted Attributes
+
+| Accessor | Type | Description |
+|----------|------|-------------|
+| `coef()` | `RowVectorType` | Estimated coefficients |
+| `intercept()` | `Scalar` | Intercept term |
+
+## Example
+
+```cpp
+#include <Skigen/LinearModel>
+
+Skigen::Ridge model(/*alpha=*/0.5);
+model.fit(X, y);
+auto predictions = model.predict(X_test);
+```

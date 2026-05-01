@@ -69,7 +69,7 @@ export default function Home(): React.JSX.Element {
             <header className={styles.hero}>
                 <HexGrid />
                 <div className={styles.heroInner}>
-                    <img src="img/skigen-logo.png" alt="Skigen" className={styles.heroLogo} />
+                    <img src="img/skigen-logo.svg" alt="Skigen" className={styles.heroLogo} />
                     <p className={styles.heroTagline}>{siteConfig.tagline}</p>
                     <div className={styles.heroCta}>
                         <Link className="button button--primary button--lg" to="/docs/getting-started">

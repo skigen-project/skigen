@@ -1,0 +1,46 @@
+---
+sidebar_position: 41
+title: KNeighbors
+---
+
+# KNeighborsClassifier / KNeighborsRegressor
+
+Brute-force k-nearest neighbors with majority voting (classifier) or averaging (regressor).
+
+Mirrors [`sklearn.neighbors.KNeighborsClassifier`](https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsClassifier.html).
+
+## Constructor
+
+```cpp
+Skigen::KNeighborsClassifier<Scalar> clf(int n_neighbors = 5);
+Skigen::KNeighborsRegressor<Scalar>  reg(int n_neighbors = 5);
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `n_neighbors` | `5` | Number of neighbors to use |
+
+## Methods (Classifier)
+
+| Method | Description |
+|--------|-------------|
+| `fit(X, y)` | Store training data |
+| `predict(X)` | Predict class labels by majority vote |
+| `score(X, y)` | Return accuracy score |
+
+## Methods (Regressor)
+
+| Method | Description |
+|--------|-------------|
+| `fit(X, y)` | Store training data |
+| `predict(X)` | Predict by averaging neighbors |
+
+## Example
+
+```cpp
+#include <Skigen/Neighbors>
+
+Skigen::KNeighborsClassifier clf(3);
+clf.fit(X_train, y_train);
+std::cout << "Accuracy: " << clf.score(X_test, y_test) << "\n";
+```

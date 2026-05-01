@@ -1,0 +1,38 @@
+---
+sidebar_position: 5
+title: Normalizer
+---
+
+# Normalizer
+
+Row-wise normalization to unit norm (L1, L2, or max). Stateless transformer.
+
+Mirrors [`sklearn.preprocessing.Normalizer`](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.Normalizer.html).
+
+## Constructor
+
+```cpp
+Skigen::Normalizer<Scalar> normalizer(Norm norm = Norm::L2);
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `norm` | `L2` | Norm to use: `L1`, `L2`, or `Max` |
+
+## Methods
+
+| Method | Description |
+|--------|-------------|
+| `fit(X)` | No-op (stateless) |
+| `transform(X)` | Normalize each row |
+| `transform_inplace(X)` | Normalize in-place |
+
+## Example
+
+```cpp
+#include <Skigen/Preprocessing>
+
+Skigen::Normalizer normalizer(Skigen::Normalizer<>::Norm::L2);
+auto X_normed = normalizer.fit_transform(X);
+// Each row now has unit L2 norm
+```

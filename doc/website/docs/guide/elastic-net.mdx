@@ -1,0 +1,46 @@
+---
+sidebar_position: 14
+title: ElasticNet
+---
+
+# ElasticNet
+
+Combined L1 and L2 regularization via coordinate descent.
+
+$$\min_w \frac{1}{2n} \|Xw - y\|_2^2 + \alpha \left( \rho \|w\|_1 + \frac{1-\rho}{2} \|w\|_2^2 \right)$$
+
+Mirrors [`sklearn.linear_model.ElasticNet`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.ElasticNet.html).
+
+## Constructor
+
+```cpp
+Skigen::ElasticNet<Scalar> model(Scalar alpha = 1, Scalar l1_ratio = 0.5,
+                                  bool fit_intercept = true,
+                                  int max_iter = 1000, Scalar tol = 1e-4);
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `alpha` | `1` | Overall regularization strength |
+| `l1_ratio` | `0.5` | Mix ratio (1 = Lasso, 0 = Ridge) |
+| `fit_intercept` | `true` | Whether to calculate the intercept |
+| `max_iter` | `1000` | Maximum iterations |
+| `tol` | `1e-4` | Convergence tolerance |
+
+## Methods
+
+| Method | Description |
+|--------|-------------|
+| `fit(X, y)` | Fit the model to training data |
+| `predict(X)` | Predict using the linear model |
+| `score(X, y)` | Return R² score |
+
+## Example
+
+```cpp
+#include <Skigen/LinearModel>
+
+Skigen::ElasticNet model(/*alpha=*/0.5, /*l1_ratio=*/0.7);
+model.fit(X, y);
+auto predictions = model.predict(X_test);
+```

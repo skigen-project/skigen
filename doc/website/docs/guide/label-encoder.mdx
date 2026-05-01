@@ -1,0 +1,46 @@
+---
+sidebar_position: 7
+title: LabelEncoder
+---
+
+# LabelEncoder
+
+Encodes categorical labels to contiguous integer indices [0, n_classes).
+
+Mirrors [`sklearn.preprocessing.LabelEncoder`](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.LabelEncoder.html).
+
+## Constructor
+
+```cpp
+Skigen::LabelEncoder<Label> encoder;
+```
+
+| Template | Default | Description |
+|----------|---------|-------------|
+| `Label` | `int` | Label type |
+
+## Methods
+
+| Method | Description |
+|--------|-------------|
+| `fit(y)` | Learn label-to-index mapping |
+| `transform(y)` | Encode labels to integers |
+| `fit_transform(y)` | Fit and transform in one call |
+| `inverse_transform(y)` | Decode back to original labels |
+
+## Fitted Attributes
+
+| Accessor | Type | Description |
+|----------|------|-------------|
+| `classes()` | `std::vector<Label>` | Sorted unique classes |
+| `n_classes()` | `Eigen::Index` | Number of classes |
+
+## Example
+
+```cpp
+#include <Skigen/Preprocessing>
+
+Skigen::LabelEncoder encoder;
+auto encoded = encoder.fit_transform(labels);
+auto decoded = encoder.inverse_transform(encoded);
+```

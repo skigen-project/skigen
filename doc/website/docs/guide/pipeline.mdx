@@ -1,0 +1,51 @@
+---
+sidebar_position: 50
+title: Pipeline
+---
+
+# Pipeline
+
+Compile-time pipeline chaining transformers and a final estimator. All steps are type-checked at compile time.
+
+Mirrors [`sklearn.pipeline.Pipeline`](https://scikit-learn.org/stable/modules/generated/sklearn.pipeline.Pipeline.html).
+
+## Construction
+
+```cpp
+auto pipe = Skigen::make_pipeline(step1, step2, ..., estimator);
+```
+
+Or explicitly:
+
+```cpp
+Skigen::Pipeline<StandardScaler<>, PCA<>, LinearRegression<>> pipe(scaler, pca, model);
+```
+
+## Methods
+
+| Method | Description |
+|--------|-------------|
+| `fit(X, y)` | Fit all steps sequentially |
+| `predict(X)` | Transform through all steps, then predict |
+| `score(X, y)` | Transform and score |
+| `get<I>()` | Access step at index `I` |
+
+## Example
+
+```cpp
+#include <Skigen/Pipeline>
+#include <Skigen/Preprocessing>
+#include <Skigen/LinearModel>
+
+auto pipe = Skigen::make_pipeline(
+    Skigen::StandardScaler<>(),
+    Skigen::LinearRegression<>()
+);
+
+pipe.fit(X_train, y_train);
+std::cout << "R²: " << pipe.score(X_test, y_test) << "\n";
+
+// Access fitted scaler
+auto& scaler = pipe.get<0>();
+std::cout << "Mean: " << scaler.mean() << "\n";
+```

@@ -1,0 +1,47 @@
+---
+sidebar_position: 21
+title: TruncatedSVD
+---
+
+# TruncatedSVD
+
+Dimensionality reduction via truncated SVD without centering. Suitable for sparse matrices.
+
+Mirrors [`sklearn.decomposition.TruncatedSVD`](https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.TruncatedSVD.html).
+
+## Constructor
+
+```cpp
+Skigen::TruncatedSVD<Scalar> svd(Eigen::Index n_components = 2);
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `n_components` | `2` | Number of components to keep |
+
+## Methods
+
+| Method | Description |
+|--------|-------------|
+| `fit(X)` | Fit the model with X |
+| `transform(X)` | Apply dimensionality reduction |
+| `fit_transform(X)` | Fit and transform in one call |
+| `inverse_transform(X)` | Transform data back to original space |
+
+## Fitted Attributes
+
+| Accessor | Type | Description |
+|----------|------|-------------|
+| `components()` | `MatrixType` | Components (rows) |
+| `explained_variance()` | `VectorType` | Variance per component |
+| `explained_variance_ratio()` | `VectorType` | Ratio of variance per component |
+| `singular_values()` | `VectorType` | Singular values |
+
+## Example
+
+```cpp
+#include <Skigen/Decomposition>
+
+Skigen::TruncatedSVD svd(5);
+auto X_reduced = svd.fit_transform(X);  // Project to 5 dimensions
+```

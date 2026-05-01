@@ -1,0 +1,63 @@
+---
+sidebar_position: 70
+title: Metrics
+---
+
+# Metrics
+
+Evaluation metrics for regression and classification tasks.
+
+## Regression Metrics
+
+```cpp
+#include <Skigen/Metrics>
+
+Skigen::Metrics::mean_squared_error(y_true, y_pred);
+Skigen::Metrics::root_mean_squared_error(y_true, y_pred);
+Skigen::Metrics::mean_absolute_error(y_true, y_pred);
+Skigen::Metrics::r2_score(y_true, y_pred);
+```
+
+| Function | Description |
+|----------|-------------|
+| `mean_squared_error` | Mean of squared errors |
+| `root_mean_squared_error` | Square root of MSE |
+| `mean_absolute_error` | Mean of absolute errors |
+| `r2_score` | Coefficient of determination |
+
+## Classification Metrics
+
+```cpp
+#include <Skigen/Metrics>
+
+Skigen::Metrics::accuracy_score(y_true, y_pred);
+Skigen::Metrics::precision_score(y_true, y_pred);
+Skigen::Metrics::recall_score(y_true, y_pred);
+Skigen::Metrics::f1_score(y_true, y_pred);
+auto cm = Skigen::Metrics::confusion_matrix(y_true, y_pred);
+```
+
+| Function | Description |
+|----------|-------------|
+| `accuracy_score` | Fraction of correct predictions |
+| `precision_score` | Precision (positive predictive value) |
+| `recall_score` | Recall (sensitivity) |
+| `f1_score` | Harmonic mean of precision and recall |
+| `confusion_matrix` | N×N confusion matrix |
+
+## Example
+
+```cpp
+#include <Skigen/LinearModel>
+#include <Skigen/Metrics>
+#include <Skigen/ModelSelection>
+
+auto [X_train, X_test, y_train, y_test] = Skigen::train_test_split(X, y);
+
+Skigen::LinearRegression model;
+model.fit(X_train, y_train);
+auto y_pred = model.predict(X_test);
+
+std::cout << "MSE: " << Skigen::Metrics::mean_squared_error(y_test, y_pred) << "\n";
+std::cout << "R²:  " << Skigen::Metrics::r2_score(y_test, y_pred) << "\n";
+```

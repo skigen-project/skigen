@@ -1,0 +1,50 @@
+---
+sidebar_position: 3
+title: RobustScaler
+---
+
+# RobustScaler
+
+Scaling using median centering and IQR-based scaling, robust to outliers.
+
+Mirrors [`sklearn.preprocessing.RobustScaler`](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.RobustScaler.html).
+
+## Constructor
+
+```cpp
+Skigen::RobustScaler<Scalar> scaler(bool with_centering = true,
+                                     bool with_scaling = true,
+                                     {q_min, q_max} = {25, 75});
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `with_centering` | `true` | Center by median |
+| `with_scaling` | `true` | Scale by IQR |
+| `quantile_range` | `{25, 75}` | Quantile range for scaling |
+
+## Methods
+
+| Method | Description |
+|--------|-------------|
+| `fit(X)` | Compute median and IQR |
+| `transform(X)` | Scale using median and IQR |
+| `inverse_transform(Z)` | Recover original scale |
+| `transform_inplace(X)` | Scale in-place |
+
+## Fitted Attributes
+
+| Accessor | Type | Description |
+|----------|------|-------------|
+| `center()` | `RowVectorType` | Per-feature median |
+| `scale()` | `RowVectorType` | Per-feature IQR |
+
+## Example
+
+```cpp
+#include <Skigen/Preprocessing>
+
+Skigen::RobustScaler scaler;
+scaler.fit(X);
+auto X_scaled = scaler.transform(X);
+```

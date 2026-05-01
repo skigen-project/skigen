@@ -40,7 +40,20 @@ const config: Config = {
         ],
     ],
 
-    themes: ['@docusaurus/theme-mermaid'],
+    themes: [
+        '@docusaurus/theme-mermaid',
+        [
+            '@easyops-cn/docusaurus-search-local',
+            {
+                hashed: true,
+                indexDocs: true,
+                indexBlog: false,
+                docsRouteBasePath: '/docs',
+                searchBarShortcutHint: true,
+                searchBarPosition: 'right',
+            },
+        ],
+    ],
 
     markdown: {
         format: 'mdx',
@@ -66,7 +79,7 @@ const config: Config = {
             title: 'Skigen',
             logo: {
                 alt: 'Skigen Logo',
-                src: 'img/skigen-logo.png',
+                src: 'img/skigen-logo.svg',
             },
             items: [
                 {
@@ -83,7 +96,6 @@ const config: Config = {
                 },
                 {
                     href: 'https://github.com/skigen-project/skigen',
-                    label: 'GitHub',
                     position: 'right',
                     className: 'header-github-link',
                     'aria-label': 'GitHub repository',

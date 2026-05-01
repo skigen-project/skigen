@@ -1,0 +1,50 @@
+---
+sidebar_position: 13
+title: Lasso
+---
+
+# Lasso
+
+L1-regularized linear regression using coordinate descent with soft-thresholding.
+
+Mirrors [`sklearn.linear_model.Lasso`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Lasso.html).
+
+## Constructor
+
+```cpp
+Skigen::Lasso<Scalar> model(Scalar alpha = 1, bool fit_intercept = true,
+                             int max_iter = 1000, Scalar tol = 1e-4);
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `alpha` | `1` | Regularization strength |
+| `fit_intercept` | `true` | Whether to calculate the intercept |
+| `max_iter` | `1000` | Maximum iterations |
+| `tol` | `1e-4` | Convergence tolerance |
+
+## Methods
+
+| Method | Description |
+|--------|-------------|
+| `fit(X, y)` | Fit the model to training data |
+| `predict(X)` | Predict using the linear model |
+| `score(X, y)` | Return R² score |
+
+## Fitted Attributes
+
+| Accessor | Type | Description |
+|----------|------|-------------|
+| `coef()` | `RowVectorType` | Estimated coefficients (sparse) |
+| `intercept()` | `Scalar` | Intercept term |
+
+## Example
+
+```cpp
+#include <Skigen/LinearModel>
+
+Skigen::Lasso model(/*alpha=*/0.1);
+model.fit(X, y);
+std::cout << "Non-zero coefs: "
+          << (model.coef().array().abs() > 1e-10).count() << "\n";
+```

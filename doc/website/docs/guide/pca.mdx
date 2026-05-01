@@ -1,0 +1,58 @@
+---
+sidebar_position: 20
+title: PCA
+---
+
+# PCA
+
+Principal Component Analysis using full SVD with centering and explained variance computation.
+
+Mirrors [`sklearn.decomposition.PCA`](https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html).
+
+## Constructor
+
+```cpp
+Skigen::PCA<Scalar> pca(Eigen::Index n_components = 0);
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `n_components` | `0` | Number of components to keep (0 = all) |
+
+## Methods
+
+| Method | Description |
+|--------|-------------|
+| `fit(X)` | Fit the model with X |
+| `transform(X)` | Apply dimensionality reduction |
+| `fit_transform(X)` | Fit and transform in one call |
+| `inverse_transform(X)` | Transform data back to original space |
+
+## Fitted Attributes
+
+| Accessor | Type | Description |
+|----------|------|-------------|
+| `components()` | `MatrixType` | Principal axes (rows) |
+| `explained_variance()` | `VectorType` | Variance per component |
+| `explained_variance_ratio()` | `VectorType` | Percentage of variance per component |
+| `singular_values()` | `VectorType` | Singular values |
+| `mean()` | `RowVectorType` | Per-feature mean |
+
+## Example
+
+```cpp
+#include <Skigen/Decomposition>
+#include <Eigen/Dense>
+#include <iostream>
+
+int main() {
+    Eigen::MatrixXd X = Eigen::MatrixXd::Random(100, 10);
+
+    Skigen::PCA pca(3);  // keep 3 components
+    pca.fit(X);
+
+    Eigen::MatrixXd X_reduced = pca.transform(X);  // 100 x 3
+    std::cout << "Explained variance ratio: "
+              << pca.explained_variance_ratio().transpose() << "\n";
+}
+```

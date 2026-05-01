@@ -1,0 +1,48 @@
+---
+sidebar_position: 6
+title: PolynomialFeatures
+---
+
+# PolynomialFeatures
+
+Generates polynomial and interaction features up to specified degree.
+
+Mirrors [`sklearn.preprocessing.PolynomialFeatures`](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.PolynomialFeatures.html).
+
+## Constructor
+
+```cpp
+Skigen::PolynomialFeatures<Scalar> poly(int degree = 2,
+                                         bool include_bias = true,
+                                         bool interaction_only = false);
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `degree` | `2` | Maximum polynomial degree |
+| `include_bias` | `true` | Include a bias column of ones |
+| `interaction_only` | `false` | Only interaction features (no powers) |
+
+## Methods
+
+| Method | Description |
+|--------|-------------|
+| `fit(X)` | Compute output feature structure |
+| `transform(X)` | Generate polynomial features |
+| `fit_transform(X)` | Fit and transform in one call |
+
+## Fitted Attributes
+
+| Accessor | Type | Description |
+|----------|------|-------------|
+| `n_output_features()` | `Eigen::Index` | Number of output features |
+
+## Example
+
+```cpp
+#include <Skigen/Preprocessing>
+
+// X has 2 features → degree=2 generates: 1, x1, x2, x1², x1·x2, x2²
+Skigen::PolynomialFeatures poly(2);
+auto X_poly = poly.fit_transform(X);
+```

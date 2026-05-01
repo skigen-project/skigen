@@ -1,0 +1,51 @@
+---
+sidebar_position: 2
+title: MinMaxScaler
+---
+
+# MinMaxScaler
+
+Feature scaling to a specified range [min, max] with optional clipping.
+
+Mirrors [`sklearn.preprocessing.MinMaxScaler`](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MinMaxScaler.html).
+
+## Constructor
+
+```cpp
+Skigen::MinMaxScaler<Scalar> scaler({min, max}, bool clip = false);
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `feature_range` | `{0, 1}` | Target range |
+| `clip` | `false` | Clip to range after transform |
+
+## Methods
+
+| Method | Description |
+|--------|-------------|
+| `fit(X)` | Compute per-feature min and max |
+| `transform(X)` | Scale to target range |
+| `fit_transform(X)` | Fit and transform in one call |
+| `inverse_transform(Z)` | Recover original scale |
+| `transform_inplace(X)` | Scale in-place |
+| `inverse_transform_inplace(Z)` | Recover in-place |
+
+## Fitted Attributes
+
+| Accessor | Type | Description |
+|----------|------|-------------|
+| `data_min()` | `RowVectorType` | Per-feature minimum |
+| `data_max()` | `RowVectorType` | Per-feature maximum |
+| `scale()` | `RowVectorType` | Per-feature scale factor |
+
+## Example
+
+```cpp
+#include <Skigen/Preprocessing>
+
+Skigen::MinMaxScaler scaler({0, 1});
+scaler.fit(X);
+auto X_scaled = scaler.transform(X);
+// All values now in [0, 1]
+```

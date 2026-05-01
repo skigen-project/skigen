@@ -1,0 +1,47 @@
+---
+sidebar_position: 60
+title: Model Selection
+---
+
+# Model Selection
+
+Utilities for splitting data and evaluating models.
+
+## train_test_split
+
+Splits arrays into random train and test subsets.
+
+```cpp
+#include <Skigen/ModelSelection>
+
+auto [X_train, X_test, y_train, y_test] = Skigen::train_test_split(
+    X, y,
+    /*test_size=*/0.25,
+    /*random_state=*/42,
+    /*shuffle=*/true
+);
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `test_size` | `0.25` | Fraction of data for testing |
+| `random_state` | `42` | Random seed |
+| `shuffle` | `true` | Whether to shuffle before splitting |
+
+## cross_val_score
+
+K-fold cross-validation scoring.
+
+```cpp
+#include <Skigen/ModelSelection>
+
+Skigen::LinearRegression model;
+auto scores = Skigen::cross_val_score(model, X, y, /*cv=*/5);
+std::cout << "Mean R²: " << scores.mean() << "\n";
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `cv` | `5` | Number of folds |
+| `shuffle` | `true` | Whether to shuffle before folding |
+| `random_state` | `42` | Random seed |
