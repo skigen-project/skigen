@@ -8,19 +8,16 @@ import styles from './index.module.css';
 const features = [
     {
         title: 'Eigen-Native',
-        icon: '⚡',
         description:
             "Built entirely on Eigen's expression templates. No wrapper overhead — just vectorized math from start to finish.",
     },
     {
         title: 'scikit-learn API',
-        icon: '🔬',
         description:
             'The fit / transform / predict paradigm you already know. Porting logic from Python to C++ is straightforward.',
     },
     {
         title: 'Energy-Efficient',
-        icon: '🌱',
         description:
             'Header-only, zero-copy, zero interpreter tax. Every cycle goes to computation, not infrastructure.',
     },
@@ -93,7 +90,6 @@ export default function Home(): React.JSX.Element {
                             {features.map((f, idx) => (
                                 <div key={idx} className="col col--4">
                                     <div className={styles.featureCard}>
-                                        <span className={styles.featureIcon}>{f.icon}</span>
                                         <Heading as="h3" className={styles.featureTitle}>{f.title}</Heading>
                                         <p className={styles.featureDesc}>{f.description}</p>
                                     </div>
