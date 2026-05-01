@@ -25,7 +25,7 @@ jobs:
         with:
           repository: eigenteam/eigen-git-mirror
           ref: '3.4.0'
-          path: ../eigen
+          path: eigen
 
       - name: Configure
         run: |
@@ -52,7 +52,7 @@ jobs:
         with:
           repository: eigenteam/eigen-git-mirror
           ref: '3.4.0'
-          path: ../eigen
+          path: eigen
 
       - name: Configure
         run: |
@@ -78,7 +78,7 @@ jobs:
         with:
           repository: eigenteam/eigen-git-mirror
           ref: '3.4.0'
-          path: ../eigen
+          path: eigen
 
       - name: Configure
         run: |

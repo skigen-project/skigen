@@ -1,5 +1,8 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 The Skigen Contributors
+#
+# Website deployment is handled by the skigen-project.github.io repository.
+# This workflow triggers it after doc/website changes land on main.
 
 name: Deploy Website
 
@@ -10,49 +13,14 @@ on:
       - 'doc/website/**'
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: true
-
 jobs:
-  build:
-    name: Build Docusaurus
+  trigger-deploy:
+    name: Trigger skigen-project.github.io rebuild
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - name: Trigger deployment
+        uses: peter-evans/repository-dispatch@v3
         with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: doc/website/package-lock.json
-
-      - name: Install dependencies
-        working-directory: doc/website
-        run: npm ci
-
-      - name: Build
-        working-directory: doc/website
-        run: npm run build
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: doc/website/build
-
-  deploy:
-    name: Deploy to GitHub Pages
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy
-        id: deployment
-        uses: actions/deploy-pages@v4
+          token: ${{ secrets.DEPLOY_PAT }}
+          repository: skigen-project/skigen-project.github.io
+          event-type: deploy-website

@@ -14,18 +14,21 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # ---------------------------------------------------------------------------
 find_package(Eigen3 3.4 QUIET NO_MODULE)
 if(NOT Eigen3_FOUND)
-    # Fall back to source-tree Eigen (e.g. sibling directory)
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../eigen/Eigen/Core")
+    # Fall back to source-tree Eigen (in-tree or sibling directory)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/eigen/Eigen/Core")
+        set(_eigen_dir "${CMAKE_CURRENT_SOURCE_DIR}/eigen")
+    elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../eigen/Eigen/Core")
+        set(_eigen_dir "${CMAKE_CURRENT_SOURCE_DIR}/../eigen")
+    endif()
+    if(_eigen_dir)
         add_library(Eigen3_source INTERFACE)
-        target_include_directories(Eigen3_source INTERFACE
-            "${CMAKE_CURRENT_SOURCE_DIR}/../eigen"
-        )
+        target_include_directories(Eigen3_source INTERFACE "${_eigen_dir}")
         add_library(Eigen3::Eigen ALIAS Eigen3_source)
-        message(STATUS "Using Eigen from source tree: ${CMAKE_CURRENT_SOURCE_DIR}/../eigen")
+        message(STATUS "Using Eigen from source tree: ${_eigen_dir}")
     else()
         message(FATAL_ERROR
             "Eigen3 not found. Install Eigen3 or place the Eigen source tree "
-            "as a sibling directory at ../eigen")
+            "at ./eigen or ../eigen")
     endif()
 endif()
 
