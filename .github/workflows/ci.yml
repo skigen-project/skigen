@@ -23,8 +23,8 @@ jobs:
       - name: Checkout Eigen
         uses: actions/checkout@v4
         with:
-          repository: eigenteam/eigen-git-mirror
-          ref: '3.4.0'
+          repository: skigen-project/eigen
+          ref: '3.4'
           path: eigen
 
       - name: Configure
@@ -50,8 +50,8 @@ jobs:
       - name: Checkout Eigen
         uses: actions/checkout@v4
         with:
-          repository: eigenteam/eigen-git-mirror
-          ref: '3.4.0'
+          repository: skigen-project/eigen
+          ref: '3.4'
           path: eigen
 
       - name: Configure
@@ -76,8 +76,8 @@ jobs:
       - name: Checkout Eigen
         uses: actions/checkout@v4
         with:
-          repository: eigenteam/eigen-git-mirror
-          ref: '3.4.0'
+          repository: skigen-project/eigen
+          ref: '3.4'
           path: eigen
 
       - name: Configure

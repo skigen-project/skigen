@@ -3,6 +3,9 @@ build/
 build_*/
 cmake-build-*/
 
+# Eigen (checked out in-tree by CI)
+/eigen/
+
 # IDE
 .vscode/
 .idea/
