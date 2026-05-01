@@ -91,4 +91,4 @@ jobs:
         run: cmake --build build --config Release
 
       - name: Test
-        run: ctest --test-dir build --config Release --output-on-failure
+        run: ctest --test-dir build -C Release --output-on-failure
