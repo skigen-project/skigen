@@ -1,0 +1,102 @@
+---
+sidebar_position: 1
+title: StandardScaler
+---
+
+# StandardScaler
+
+Standardize features by removing the mean and scaling to unit variance.
+
+$$Z_{ij} = \frac{X_{ij} - \mu_j}{s_j}$$
+
+Mirrors [`sklearn.preprocessing.StandardScaler`](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html).
+
+## Constructor
+
+```cpp
+Skigen::StandardScaler<Scalar> scaler(bool with_mean = true, bool with_std = true);
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `with_mean` | `true` | Center data before scaling |
+| `with_std` | `true` | Scale data to unit variance |
+
+## Methods
+
+| Method | Description |
+|--------|-------------|
+| `fit(X)` | Compute mean and standard deviation from `X` |
+| `transform(X)` | Standardize `X` using fitted parameters |
+| `fit_transform(X)` | Fit and transform in one call |
+| `inverse_transform(Z)` | Recover original scale from standardized data |
+| `transform_inplace(X)` | Standardize `X` in-place (zero allocation) |
+| `inverse_transform_inplace(Z)` | Recover original scale in-place |
+
+## Fitted Attributes
+
+| Accessor | Type | Description |
+|----------|------|-------------|
+| `mean()` | `RowVectorType` | Per-feature mean |
+| `var()` | `RowVectorType` | Per-feature variance (ddof=0) |
+| `scale()` | `RowVectorType` | Per-feature scale factor (√var) |
+| `n_samples_seen()` | `IndexType` | Number of training samples |
+| `n_features_in()` | `IndexType` | Number of features |
+
+## Example
+
+```cpp
+#include <Skigen/Preprocessing>
+#include <Eigen/Dense>
+#include <iostream>
+
+int main() {
+    Eigen::MatrixXd X(3, 2);
+    X << 1, 2,
+         3, 4,
+         5, 6;
+
+    Skigen::StandardScaler scaler;
+    scaler.fit(X);
+
+    std::cout << "Mean:  " << scaler.mean()  << "\n";   // 3 4
+    std::cout << "Scale: " << scaler.scale() << "\n";   // 1.633 1.633
+
+    Eigen::MatrixXd Z = scaler.transform(X);
+    std::cout << "Z:\n" << Z << "\n";
+
+    // Round-trip
+    Eigen::MatrixXd X_back = scaler.inverse_transform(Z);
+    // X_back == X (within floating-point precision)
+}
+```
+
+## In-Place Transform
+
+For maximum memory efficiency, use the in-place variants. These modify the input directly — no temporary allocation:
+
+```cpp
+Eigen::MatrixXd X = /* ... */;
+
+Skigen::StandardScaler scaler;
+scaler.fit(X);
+
+// Modifies X directly
+scaler.transform_inplace(X);
+
+// Recover
+scaler.inverse_transform_inplace(X);
+```
+
+## Using `float` for 2× SIMD Density
+
+```cpp
+Eigen::MatrixXf X = Eigen::MatrixXf::Random(1000, 100);
+
+Skigen::StandardScaler<float> scaler;
+Eigen::MatrixXf Z = scaler.fit_transform(X);
+```
+
+## Near-Zero Variance
+
+Features with variance below $10 \cdot \varepsilon$ (machine epsilon) are assigned a scale of 1.0, preventing division by near-zero values. This matches scikit-learn's `_handle_zeros_in_scale()` behavior.

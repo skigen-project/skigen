@@ -1,32 +1,137 @@
-Skigen: A C++23 Header-Only Machine Learning Library
-Skigen is a high-performance numerical library that implements the scikit-learn interface through the Eigen linear algebra engine. It is designed to bridge the gap between the ease of Python-based machine learning and the necessity of native execution.
+<p align="center">
+  <strong>Skigen</strong><br>
+  <em>Energy-efficient machine learning, native to C++ and Eigen.</em>
+</p>
 
-The Core Philosophy: Efficiency as a Necessity
-In 2026, the global expansion of artificial intelligence has reached a critical bottleneck. We are facing a significant shortage in both compute power and available memory. To sustain this technological growth, there are two paths: the continuous, resource-heavy expansion of data centers, or a fundamental shift toward efficient computing.
+<p align="center">
+  <a href="https://github.com/skigen-project/skigen/actions"><img src="https://github.com/skigen-project/skigen/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
+  <a href="https://skigen-project.github.io"><img src="https://img.shields.io/badge/docs-website-green.svg" alt="Docs"></a>
+</p>
 
-Skigen is built for the second path. By moving machine learning logic from interpreted environments to highly optimized, native C++23 code, we aim to realize the latest ML features with the lowest possible energy and hardware footprint.
+-----------------
 
-Design Principles
-Zero-Burden Execution: We utilize Eigen’s expression templates and C++23 features to ensure that the abstraction of the "scikit-learn" API comes with no runtime performance penalty. The compiler collapses high-level intent into optimized machine code.
+## About
 
-Agent-Optimized, Human-Readable: In an era where a significant portion of the codebase is authored or maintained by AI agents, Skigen prioritizes structural clarity and type safety. The code remains absolutely readable for humans while providing the strict constraints that allow agents to generate bug-free, high-performance implementations.
+The rapid expansion of AI has put extraordinary pressure on global compute and memory resources. A meaningful share of this cost comes not from the algorithms, but from the software infrastructure executing them — interpreter overhead, garbage collection, runtime dispatch, and the GIL collectively consume energy and memory that contribute nothing to the actual computation.
 
-Memory Discipline: To address the memory crisis, Skigen minimizes allocations. By using Eigen::Map and stack-based operations where possible, we reduce the memory overhead and fragmentation often seen in managed languages.
+Skigen is a header-only machine learning library built on [Eigen](https://eigen.tuxfamily.org/) that brings the [scikit-learn](https://scikit-learn.org/) API — `fit()`, `transform()`, `predict()` — to native C++. It compiles every operation down to vectorized machine code, targeting the latest C++ standards to make full use of modern language features: concepts, constexpr, and zero-cost abstractions.
 
-Energy-First Intelligence: Every cycle wasted in interpreter overhead is energy diverted from the actual learning or inference task. Skigen is built to ensure that every watt consumed is dedicated to numerical computation.
+scikit-learn established the definitive API for machine learning. Skigen adopts that API for environments where native execution matters: embedded systems, real-time pipelines, edge inference, and large-scale deployments where energy and memory are engineering constraints, not afterthoughts.
 
-Why Skigen?
-While Python remains the standard for research, the "interpreter tax" is increasingly unsustainable for large-scale or resource-constrained deployments. Skigen provides:
+## Design
 
-Parity of Intent: Maintain the familiar fit(), transform(), and predict() paradigm, making the porting of logic from Python to C++ trivial for both humans and agents.
+| Principle | Implementation |
+|---|---|
+| **Eigen-native** | Headers, namespaces, and include patterns mirror Eigen. `#include <Skigen/Dense>` feels like `#include <Eigen/Dense>`. |
+| **Header-only** | Drop `Skigen/` next to `Eigen/` — no compiled libraries, no linker flags. |
+| **Templatized** | All estimators accept `Scalar` (default: `double`). Switch to `float` for 2× SIMD throughput on the same hardware. |
+| **Zero-copy** | Inputs use `Eigen::Ref<const MatrixType>` — supports sub-blocks and memory-mapped data without copying. |
+| **CRTP** | Static polymorphism via the Curiously Recurring Template Pattern. Zero vtable overhead. |
+| **Bit-level parity** | Results match scikit-learn for identical inputs and default parameters. Verified via cross-language parity tests. |
 
-Native Performance: Direct access to SIMD vectorization and hardware-level optimizations without the need for complex wrappers or FFI overhead.
+## Quick Start
 
-Header-Only Modernity: A zero-dependency, header-only architecture that integrates into any modern C++ toolchain with a simple include.
+```cpp
+#include <Eigen/Dense>
+#include <Skigen/Dense>
+#include <iostream>
 
-Project Goals
-Computational Parity: Bit-level consistency with scikit-learn outcomes to ensure research translates accurately to production.
+int main() {
+    Eigen::MatrixXd X(4, 2);
+    X << 1, 10,
+         2, 20,
+         3, 30,
+         4, 40;
 
-Sustainability: Providing a clear path for developers to reduce the carbon and cost footprint of their machine learning pipelines.
+    Skigen::StandardScaler scaler;
+    Eigen::MatrixXd Z = scaler.fit_transform(X);
 
-Minimalism: A focus on the core algorithms that form the backbone of industrial ML—preprocessing, linear models, and decomposition.
+    std::cout << "Standardized:\n" << Z << "\n";
+
+    // Round-trip back to original scale
+    Eigen::MatrixXd X_back = scaler.inverse_transform(Z);
+    std::cout << "Recovered:\n" << X_back << "\n";
+
+    return 0;
+}
+```
+
+## Build & Test
+
+```bash
+git clone https://github.com/skigen-project/skigen.git
+cd skigen
+
+cmake -B build -DSKIGEN_BUILD_TESTS=ON
+cmake --build build
+./build/tests/skigen_tests
+```
+
+Eigen is detected automatically if installed system-wide, or from a sibling `../eigen` source tree.
+
+## Include Pattern
+
+Skigen follows the same convention as Eigen — module headers without file extensions:
+
+```cpp
+#include <Skigen/Core>           // Base classes, traits, concepts
+#include <Skigen/Preprocessing>  // Scalers, normalizers, ...
+#include <Skigen/Dense>          // Everything bundled
+```
+
+## Repository Layout
+
+```
+Skigen/                     # Header library (Eigen-style)
+├── Core                    # Module header — base classes, traits, concepts
+├── Preprocessing           # Module header — scalers, normalizers, ...
+├── Dense                   # Convenience header — bundles all modules
+└── src/                    # Internal headers (.h)
+    ├── Core/               # Traits, Concepts, Base, Validation, EigenHelpers
+    ├── Preprocessing/      # StandardScaler, MinMaxScaler, ...
+    ├── LinearModel/        # LinearRegression, Ridge, Lasso, ...
+    ├── Decomposition/      # PCA, TruncatedSVD
+    ├── Cluster/            # KMeans, MiniBatchKMeans
+    ├── Neighbors/          # KNeighborsClassifier, KNeighborsRegressor
+    ├── Tree/               # DecisionTreeClassifier, DecisionTreeRegressor
+    ├── ModelSelection/     # TrainTestSplit, CrossValidation
+    ├── Pipeline/           # Compile-time pipeline composition
+    └── Metrics/            # Regression, Classification, Pairwise
+tests/                      # Unit + parity tests
+benchmarks/                 # Performance benchmarks
+examples/                   # Usage examples
+doc/                        # Requirements + Docusaurus website
+```
+
+## v1.0.0 Scope
+
+| Module | Components | Status |
+|---|---|---|
+| **Core** | CRTP bases, concepts, type traits, validation | ✅ Done |
+| **Preprocessing** | `StandardScaler` | ✅ Done |
+| **Preprocessing** | `MinMaxScaler`, `MaxAbsScaler`, `RobustScaler`, `Normalizer`, `LabelEncoder`, `PolynomialFeatures` | Planned |
+| **Linear Models** | `LinearRegression`, `Ridge`, `Lasso`, `ElasticNet`, `LogisticRegression`, `SGDClassifier`, `SGDRegressor` | Planned |
+| **Decomposition** | `PCA`, `TruncatedSVD` | Planned |
+| **Clustering** | `KMeans`, `MiniBatchKMeans` | Planned |
+| **Neighbors** | `KNeighborsClassifier`, `KNeighborsRegressor` | Planned |
+| **Trees** | `DecisionTreeClassifier`, `DecisionTreeRegressor` | Planned |
+| **Model Selection** | `train_test_split`, `cross_val_score`, `Pipeline` | Planned |
+| **Metrics** | MSE, MAE, R², accuracy, precision, recall, F1, pairwise distances | Planned |
+
+## Requirements
+
+| | Minimum |
+|---|---|
+| **C++ Standard** | Latest (currently C++23) |
+| **Compilers** | GCC ≥ 13, Clang ≥ 17, MSVC ≥ 19.38 |
+| **Eigen** | ≥ 3.4 |
+| **CMake** | ≥ 3.20 (for building tests/examples) |
+
+## License
+
+Skigen is released under the [MIT License](LICENSE).
+
+## Acknowledgments
+
+Skigen builds on [Eigen](https://eigen.tuxfamily.org/) for numerical computation and adopts the API conventions established by [scikit-learn](https://scikit-learn.org/).

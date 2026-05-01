@@ -1,0 +1,52 @@
+---
+sidebar_position: 1
+title: Overview
+slug: /
+---
+
+# Skigen
+
+**Energy-efficient machine learning, native to C++ and Eigen.**
+
+Skigen is a header-only C++23 library that brings the scikit-learn API to the Eigen ecosystem. It is designed for deployments where compute and memory are scarce resources — embedded systems, real-time pipelines, edge devices, and any environment where interpreter overhead is unacceptable.
+
+## Why Skigen?
+
+Python's scikit-learn is the gold standard for machine learning research and prototyping. It is well-designed, well-documented, and universally understood. Skigen does not aim to replace it — it aims to provide a native execution path for the same algorithms, so that models developed in Python can be deployed in C++ with zero translation loss.
+
+| | scikit-learn | Skigen |
+|---|---|---|
+| Language | Python (NumPy/SciPy backend) | C++23 (Eigen backend) |
+| API | `fit()` / `transform()` / `predict()` | `fit()` / `transform()` / `predict()` |
+| Overhead | Interpreter + GIL + object model | Zero — compiles to SIMD instructions |
+| Precision | `float64` default | Templatized (`double` default, `float` for 2× SIMD density) |
+| Memory | Copies by default | Zero-copy via `Eigen::Ref`, in-place variants |
+
+## Design Principles
+
+- **Eigen-native**: Headers, namespaces, and include patterns mirror Eigen conventions. If you know Eigen, Skigen feels like home.
+- **Header-only**: Drop `Skigen/` next to `Eigen/` and you're done. No compiled libraries, no link-time dependencies.
+- **Bit-level parity**: Results match scikit-learn for identical inputs and default parameters.
+- **CRTP, not `virtual`**: Static polymorphism via the Curiously Recurring Template Pattern — zero vtable overhead.
+
+## Quick Example
+
+```cpp
+#include <Eigen/Dense>
+#include <Skigen/Preprocessing>
+#include <iostream>
+
+int main() {
+    Eigen::MatrixXd X(4, 2);
+    X << 1, 10,
+         2, 20,
+         3, 30,
+         4, 40;
+
+    Skigen::StandardScaler scaler;
+    Eigen::MatrixXd Z = scaler.fit_transform(X);
+
+    std::cout << "Standardized:\n" << Z << "\n";
+    return 0;
+}
+```

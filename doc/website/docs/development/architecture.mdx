@@ -1,0 +1,69 @@
+---
+sidebar_position: 2
+title: Architecture
+---
+
+# Architecture
+
+## Header Layout
+
+Skigen follows the same directory convention as Eigen:
+
+```
+Skigen/
+├── Core              # Module header (no extension)
+├── Preprocessing     # Module header
+├── Dense             # Convenience header — bundles all modules
+└── src/
+    ├── Core/
+    │   ├── Traits.h        # EigenTypes<Scalar> type aliases
+    │   ├── Concepts.h      # C++23 concepts (TransformerLike, PredictorLike)
+    │   ├── Base.h          # CRTP bases (Estimator, Transformer, Predictor)
+    │   ├── Validation.h    # Input validation
+    │   └── EigenHelpers.h  # Numerical utilities
+    └── Preprocessing/
+        └── StandardScaler.h
+```
+
+Users include Skigen exactly like Eigen:
+
+```cpp
+#include <Eigen/Dense>         // Eigen
+#include <Skigen/Dense>        // Skigen — same pattern
+#include <Skigen/Core>         // or individual modules
+#include <Skigen/Preprocessing>
+```
+
+## CRTP Base Classes
+
+All estimators use the Curiously Recurring Template Pattern for zero-cost abstractions:
+
+```mermaid
+classDiagram
+    class Estimator~Derived Scalar~ {
+        +is_fitted() bool
+        +n_features_in() IndexType
+        #check_is_fitted()
+        #validate_feature_count(X)
+    }
+    class Transformer~Derived Scalar~ {
+        +fit(X) Derived&
+        +transform(X) MatrixType
+        +fit_transform(X) MatrixType
+        +inverse_transform(X) MatrixType
+    }
+    class Predictor~Derived Scalar~ {
+        +fit(X, y) Derived&
+        +predict(X) VectorType
+        +score(X, y) Scalar
+    }
+    Estimator <|-- Transformer
+    Estimator <|-- Predictor
+    Transformer <|-- StandardScaler
+```
+
+No `virtual` functions. No vtable. The compiler resolves all dispatch at compile time.
+
+## Namespace
+
+All code lives under `namespace Skigen`. Internal helpers live under `namespace Skigen::internal`.

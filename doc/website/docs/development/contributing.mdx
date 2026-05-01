@@ -1,0 +1,40 @@
+---
+sidebar_position: 3
+title: Contributing
+---
+
+# Contributing
+
+Contributions are welcome. Please follow these guidelines.
+
+## Code Style
+
+- **C++23**. Use modern features (concepts, `[[nodiscard]]`, structured bindings) where they add clarity.
+- **No raw loops** over matrix elements. Use Eigen expression templates.
+- **No `virtual`**. Use CRTP for polymorphism.
+- **Warning-free** under `-Wall -Wextra -Wpedantic`.
+
+## Adding a New Estimator
+
+1. Create the internal header at `Skigen/src/Module/Name.h`.
+2. Inherit from the appropriate CRTP base (`Transformer` or `Predictor`).
+3. Implement `fit_impl`, `transform_impl` / `predict_impl`, and accessors.
+4. Add the header to the module file (e.g. `Skigen/Preprocessing`).
+5. Write tests in `tests/test_name.cpp`.
+6. Add a parity script in `tests/parity/`.
+7. Document in `doc/website/docs/guide/`.
+
+## Testing
+
+Every estimator must have:
+- Unit tests for correctness.
+- A Python parity script that generates reference data from scikit-learn.
+- C++ parity tests that compare Skigen output against the reference.
+
+Tolerance: `1e-12` for `double`, `1e-5` for `float`.
+
+## Pull Requests
+
+- Keep changes focused — one estimator or feature per PR.
+- Ensure all tests pass before submitting.
+- Include benchmark results if the change affects performance.

@@ -1,0 +1,26 @@
+# Build directories
+build/
+build_*/
+cmake-build-*/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (Docusaurus)
+doc/website/node_modules/
+doc/website/build/
+doc/website/.docusaurus/
+
+# Compiled objects
+*.o
+*.obj
+*.exe
+*.out

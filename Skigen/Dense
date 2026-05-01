@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 The Skigen Contributors
+//
+// Skigen/Dense — Convenience header bundling all dense-data modules.
+//
+// Usage:
+//   #include <Skigen/Dense>
+
+#ifndef SKIGEN_DENSE
+#define SKIGEN_DENSE
+
+#include "Core"
+#include "Preprocessing"
+
+#endif // SKIGEN_DENSE

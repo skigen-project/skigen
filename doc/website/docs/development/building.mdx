@@ -1,0 +1,50 @@
+---
+sidebar_position: 1
+title: Building from Source
+---
+
+# Building from Source
+
+## Prerequisites
+
+- C++23 compiler (GCC ≥ 13, Clang ≥ 17, or MSVC ≥ 19.38)
+- CMake ≥ 3.20
+- Eigen ≥ 3.4
+
+## Clone & Build
+
+```bash
+git clone https://github.com/skigen-project/skigen.git
+cd skigen
+
+cmake -B build \
+    -DSKIGEN_BUILD_TESTS=ON \
+    -DSKIGEN_BUILD_EXAMPLES=ON \
+    -DSKIGEN_BUILD_BENCHMARKS=ON
+
+cmake --build build
+```
+
+If Eigen is not installed system-wide, place the Eigen source tree as a sibling directory:
+
+```
+parent/
+├── eigen/      # Eigen source tree
+└── skigen/     # This repository
+```
+
+CMake will detect it automatically.
+
+## Run Tests
+
+```bash
+./build/tests/skigen_tests
+```
+
+## CMake Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `SKIGEN_BUILD_TESTS` | `ON` | Build the test suite |
+| `SKIGEN_BUILD_BENCHMARKS` | `OFF` | Build performance benchmarks |
+| `SKIGEN_BUILD_EXAMPLES` | `OFF` | Build example programs |

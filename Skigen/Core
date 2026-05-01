@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 The Skigen Contributors
+//
+// Skigen/Core — Fundamental types, CRTP base classes, and concepts.
+//
+// Usage:
+//   #include <Skigen/Core>
+
+#ifndef SKIGEN_CORE
+#define SKIGEN_CORE
+
+#include "src/Core/Traits.h"
+#include "src/Core/Concepts.h"
+#include "src/Core/Base.h"
+#include "src/Core/Validation.h"
+#include "src/Core/EigenHelpers.h"
+
+#endif // SKIGEN_CORE

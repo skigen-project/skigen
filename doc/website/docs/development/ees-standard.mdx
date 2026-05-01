@@ -1,0 +1,53 @@
+---
+sidebar_position: 4
+title: EES Standard
+---
+
+# EES Standard (Energy-Efficient Software)
+
+Skigen is built under the EES standard — a set of engineering constraints that ensure every cycle spent is a cycle of useful computation.
+
+## Principles
+
+### 1. Zero Interpreter Tax
+
+Machine learning code written in interpreted languages pays a constant overhead for object dispatch, garbage collection, and the GIL. Skigen eliminates this by compiling directly to vectorized machine code.
+
+### 2. Template-Based Scalar Flexibility
+
+All estimators are templatized on `Scalar` (default: `double`). Switching to `float` doubles SIMD throughput on the same hardware:
+
+```cpp
+Skigen::StandardScaler<float> scaler;   // 2× SIMD density
+Skigen::StandardScaler<double> scaler;  // Full precision
+```
+
+### 3. Zero-Copy Inputs
+
+All read-only inputs accept `Eigen::Ref<const MatrixType>`, which supports:
+- Direct matrix references (no copy)
+- Sub-block views
+- Memory-mapped data
+
+### 4. Expression Templates Over Raw Loops
+
+Eigen's expression templates fuse operations and vectorize automatically. Skigen never uses manual element-wise loops — all computation flows through Eigen's optimized kernel pipeline.
+
+### 5. In-Place Operations
+
+Every transformer provides `_inplace` variants that modify data directly, eliminating temporary allocations:
+
+```cpp
+scaler.transform_inplace(X);           // No allocation
+Eigen::MatrixXd Z = scaler.transform(X); // Allocates result
+```
+
+### 6. Static Polymorphism
+
+CRTP replaces `virtual` dispatch. The compiler resolves all calls at compile time — no vtable, no indirect jumps, no branch mispredictions from polymorphism.
+
+## Measurable Goals
+
+- **Throughput**: Operations should achieve ≥ 80% of Eigen's raw kernel throughput.
+- **Memory**: `transform_inplace` should use zero additional heap memory beyond the input.
+- **Float/Double ratio**: `float` throughput should be ≈ 2× `double` throughput on AVX2 hardware.

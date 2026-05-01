@@ -1,0 +1,79 @@
+---
+sidebar_position: 2
+title: Getting Started
+---
+
+# Getting Started
+
+## Requirements
+
+- C++23 compiler (GCC ≥ 13, Clang ≥ 17, MSVC ≥ 19.38)
+- [Eigen](https://eigen.tuxfamily.org/) ≥ 3.4
+- CMake ≥ 3.20 (for tests/examples)
+
+## Installation
+
+Skigen is header-only. Clone it alongside Eigen and point your include path at the repository root:
+
+```bash
+git clone https://github.com/skigen-project/skigen.git
+```
+
+### CMake (recommended)
+
+```cmake
+find_package(Eigen3 3.4 REQUIRED)
+
+add_subdirectory(skigen)  # or use find_package if installed
+
+target_link_libraries(my_app PRIVATE Skigen::skigen)
+```
+
+### Manual
+
+Add both the skigen repo root and your Eigen path to your compiler includes:
+
+```bash
+g++ -std=c++23 -I/path/to/skigen -I/path/to/eigen my_app.cpp -o my_app
+```
+
+## Your First Program
+
+```cpp
+#include <Eigen/Dense>
+#include <Skigen/Dense>
+#include <iostream>
+
+int main() {
+    // Create a dataset
+    Eigen::MatrixXd X(5, 3);
+    X << 1, -1,  2,
+         2,  0,  0,
+         0,  1, -1,
+         1,  1,  1,
+         3, -1,  0;
+
+    // Standardize (zero mean, unit variance)
+    Skigen::StandardScaler scaler;
+    Eigen::MatrixXd Z = scaler.fit_transform(X);
+
+    std::cout << "Standardized:\n" << Z << "\n\n";
+    std::cout << "Mean:  " << scaler.mean()  << "\n";
+    std::cout << "Scale: " << scaler.scale() << "\n";
+
+    // Round-trip back to original
+    Eigen::MatrixXd X_back = scaler.inverse_transform(Z);
+    std::cout << "\nRecovered:\n" << X_back << "\n";
+
+    return 0;
+}
+```
+
+## Build & Run Tests
+
+```bash
+cd skigen
+cmake -B build -DSKIGEN_BUILD_TESTS=ON
+cmake --build build
+./build/tests/skigen_tests
+```
