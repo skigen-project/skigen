@@ -17,8 +17,60 @@
 
 namespace Skigen {
 
-/// SGDClassifier — Linear classifier with SGD training (hinge or log loss).
-/// Mirrors sklearn.linear_model.SGDClassifier.
+/// @defgroup Algo_SGD SGD (Stochastic Gradient Descent)
+/// @ingroup LinearModels
+/// @brief Linear classifiers and regressors trained via Stochastic Gradient Descent.
+/// @{
+
+/// @brief Linear classifier fitted by minimizing a regularized empirical loss with SGD.
+///
+/// SGDClassifier implements a plain Stochastic Gradient Descent learning
+/// routine that supports hinge loss (linear SVM) and log loss (logistic
+/// regression). Binary classification uses a single weight vector;
+/// multiclass is handled via one-vs-rest.
+///
+/// Mirrors
+/// [sklearn.linear_model.SGDClassifier](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.SGDClassifier.html).
+///
+/// ### Parameters (constructor)
+///
+/// | Parameter | Type | Default | Description |
+/// |-----------|------|---------|-------------|
+/// | `loss` | `Loss` | `Loss::Hinge` | The loss function to use: `Loss::Hinge` gives a linear SVM, `Loss::Log` gives logistic regression. |
+/// | `alpha` | `Scalar` | `1e-4` | Constant that multiplies the regularization term (L2). |
+/// | `max_iter` | `int` | `1000` | Maximum number of passes over the training data (epochs). |
+/// | `tol` | `Scalar` | `1e-3` | The stopping criterion: training stops when average update per sample is below `tol`. |
+/// | `eta0` | `Scalar` | `0.01` | The initial learning rate. |
+/// | `random_state` | `unsigned int` | `42` | Seed for the random number generator used for shuffling. |
+///
+/// ### Attributes (after fitting)
+///
+/// | Accessor | Type | Description |
+/// |----------|------|-------------|
+/// | `coef()` | `MatrixType` | Coefficient matrix (n_classes × n_features or 1 × n_features). |
+/// | `intercept()` | `VectorType` | Intercept (bias) vector of shape (n_classes,) or (1,). |
+///
+/// ### See also
+///
+/// - Skigen::LogisticRegression — Logistic regression with IRLS solver (typically more accurate for small datasets).
+///
+/// ### Notes
+///
+/// The learning rate schedule is inverse scaling: @f$\eta_t = \eta_0 / (1 + \eta_0 \alpha t)@f$.
+///
+/// @note **scikit-learn parity gaps:** The following sklearn constructor
+///   parameters are not yet supported: `penalty` (only L2), `l1_ratio`,
+///   `fit_intercept`, `shuffle` (always on), `epsilon`, `n_jobs`,
+///   `learning_rate` (only inverse scaling), `power_t`, `early_stopping`,
+///   `validation_fraction`, `n_iter_no_change`, `class_weight`,
+///   `warm_start`, `average`.
+///   The following sklearn fitted attributes are not yet exposed:
+///   `classes_`, `n_iter_`, `t_`, `n_features_in_`, `feature_names_in_`,
+///   `loss_function_`.
+///
+/// ### Examples
+///
+/// @snippet sgd.cpp example_sgd_classifier
 template <typename Scalar = double>
 class SGDClassifier {
 public:
@@ -27,8 +79,17 @@ public:
     using RowVectorType = Eigen::Matrix<Scalar, 1, Eigen::Dynamic>;
     using IndexVector = Eigen::VectorXi;
 
+    /// Loss function type.
     enum class Loss { Hinge, Log };
 
+    /// @brief Construct an SGDClassifier.
+    ///
+    /// @param loss The loss function (`Loss::Hinge` or `Loss::Log`, default `Loss::Hinge`).
+    /// @param alpha Regularization constant (`Scalar`, default `1e-4`).
+    /// @param max_iter Maximum number of epochs (`int`, default `1000`).
+    /// @param tol Stopping tolerance (`Scalar`, default `1e-3`).
+    /// @param eta0 Initial learning rate (`Scalar`, default `0.01`).
+    /// @param random_state RNG seed (`unsigned int`, default `42`).
     explicit SGDClassifier(Loss loss = Loss::Hinge, Scalar alpha = Scalar{1e-4},
                            int max_iter = 1000, Scalar tol = Scalar{1e-3},
                            Scalar eta0 = Scalar{0.01},
@@ -36,17 +97,36 @@ public:
         : loss_(loss), alpha_(alpha), max_iter_(max_iter), tol_(tol),
           eta0_(eta0), random_state_(random_state) {}
 
+    /// @brief Whether the estimator has been fitted.
     [[nodiscard]] bool is_fitted() const noexcept { return fitted_; }
 
+    /// @brief Coefficient matrix (n_classes × n_features or 1 × n_features).
+    ///
+    /// @return Read-only reference to the coefficient matrix.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const MatrixType& coef() const {
         if (!fitted_) throw std::runtime_error("SGDClassifier not fitted.");
         return coef_;
     }
+    /// @brief Intercept (bias) vector of shape (n_classes,) or (1,).
+    ///
+    /// @return Read-only reference to the intercept vector.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const VectorType& intercept() const {
         if (!fitted_) throw std::runtime_error("SGDClassifier not fitted.");
         return intercept_;
     }
 
+    /// @brief Fit the linear model with SGD.
+    ///
+    /// Discovers unique classes in `y`, then trains a binary classifier
+    /// per class (OvR) using stochastic gradient descent with the
+    /// chosen loss function.
+    ///
+    /// @param X Training matrix of shape (n_samples, n_features).
+    /// @param y Target vector of shape (n_samples,) with integer class labels.
+    /// @return Reference to the fitted estimator (`*this`).
+    /// @throws std::invalid_argument if X and y have inconsistent lengths.
     SGDClassifier& fit(const Eigen::Ref<const MatrixType>& X,
                        const Eigen::Ref<const IndexVector>& y) {
         internal::check_non_empty(X);
@@ -104,6 +184,11 @@ public:
         return *this;
     }
 
+    /// @brief Predict class labels for samples in X.
+    ///
+    /// @param X Sample matrix of shape (n_samples, n_features).
+    /// @return Integer vector of predicted class labels (n_samples,).
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] IndexVector predict(
         const Eigen::Ref<const MatrixType>& X) const {
         if (!fitted_) throw std::runtime_error("SGDClassifier not fitted.");
@@ -128,6 +213,11 @@ public:
         return predictions;
     }
 
+    /// @brief Return the mean accuracy on the given test data and labels.
+    ///
+    /// @param X Test samples of shape (n_samples, n_features).
+    /// @param y True class labels of shape (n_samples,).
+    /// @return Mean accuracy (fraction of correctly classified samples).
     [[nodiscard]] Scalar score(const Eigen::Ref<const MatrixType>& X,
                                const Eigen::Ref<const IndexVector>& y) const {
         IndexVector preds = predict(X);
@@ -208,8 +298,47 @@ private:
     }
 };
 
-/// SGDRegressor — Linear regressor with SGD training.
-/// Mirrors sklearn.linear_model.SGDRegressor.
+/// @brief Linear regressor fitted by minimizing a regularized empirical loss with SGD.
+///
+/// SGDRegressor implements regularized linear regression with
+/// stochastic gradient descent (squared error loss, L2 penalty).
+///
+/// Mirrors
+/// [sklearn.linear_model.SGDRegressor](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.SGDRegressor.html).
+///
+/// ### Parameters (constructor)
+///
+/// | Parameter | Type | Default | Description |
+/// |-----------|------|---------|-------------|
+/// | `alpha` | `Scalar` | `1e-4` | Constant that multiplies the regularization term (L2). |
+/// | `max_iter` | `int` | `1000` | Maximum number of passes over the training data (epochs). |
+/// | `tol` | `Scalar` | `1e-3` | The stopping criterion: training stops when average update per sample is below `tol`. |
+/// | `eta0` | `Scalar` | `0.01` | The initial learning rate. |
+/// | `random_state` | `unsigned int` | `42` | Seed for the random number generator used for shuffling. |
+///
+/// ### Attributes (after fitting)
+///
+/// | Accessor | Type | Description |
+/// |----------|------|-------------|
+/// | `coef()` | `RowVectorType` | Parameter vector @f$w@f$ of shape (1 × n_features). |
+/// | `intercept()` | `Scalar` | Independent term in the decision function. |
+///
+/// ### Notes
+///
+/// The learning rate schedule is inverse scaling: @f$\eta_t = \eta_0 / (1 + \eta_0 \alpha t)@f$.
+///
+/// @note **scikit-learn parity gaps:** The following sklearn constructor
+///   parameters are not yet supported: `loss` (only squared error),
+///   `penalty` (only L2), `l1_ratio`, `fit_intercept`, `shuffle` (always on),
+///   `epsilon`, `learning_rate` (only inverse scaling), `power_t`,
+///   `early_stopping`, `validation_fraction`, `n_iter_no_change`,
+///   `warm_start`, `average`.
+///   The following sklearn fitted attributes are not yet exposed:
+///   `n_iter_`, `t_`, `n_features_in_`, `feature_names_in_`.
+///
+/// ### Examples
+///
+/// @snippet sgd.cpp example_sgd_regressor
 template <typename Scalar = double>
 class SGDRegressor {
 public:
@@ -217,6 +346,13 @@ public:
     using VectorType = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
     using RowVectorType = Eigen::Matrix<Scalar, 1, Eigen::Dynamic>;
 
+    /// @brief Construct an SGDRegressor.
+    ///
+    /// @param alpha Regularization constant (`Scalar`, default `1e-4`).
+    /// @param max_iter Maximum number of epochs (`int`, default `1000`).
+    /// @param tol Stopping tolerance (`Scalar`, default `1e-3`).
+    /// @param eta0 Initial learning rate (`Scalar`, default `0.01`).
+    /// @param random_state RNG seed (`unsigned int`, default `42`).
     explicit SGDRegressor(Scalar alpha = Scalar{1e-4},
                           int max_iter = 1000, Scalar tol = Scalar{1e-3},
                           Scalar eta0 = Scalar{0.01},
@@ -224,17 +360,32 @@ public:
         : alpha_(alpha), max_iter_(max_iter), tol_(tol),
           eta0_(eta0), random_state_(random_state) {}
 
+    /// @brief Whether the estimator has been fitted.
     [[nodiscard]] bool is_fitted() const noexcept { return fitted_; }
 
+    /// @brief Parameter vector @f$w@f$ (1 × n_features).
+    ///
+    /// @return Read-only reference to the coefficient row-vector.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const RowVectorType& coef() const {
         if (!fitted_) throw std::runtime_error("SGDRegressor not fitted.");
         return coef_;
     }
+    /// @brief Independent term in the decision function.
+    ///
+    /// @return The intercept value.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] Scalar intercept() const {
         if (!fitted_) throw std::runtime_error("SGDRegressor not fitted.");
         return intercept_;
     }
 
+    /// @brief Fit the linear model with SGD.
+    ///
+    /// @param X Training matrix of shape (n_samples, n_features).
+    /// @param y Target vector of shape (n_samples,).
+    /// @return Reference to the fitted estimator (`*this`).
+    /// @throws std::invalid_argument if X and y have inconsistent lengths.
     SGDRegressor& fit(const Eigen::Ref<const MatrixType>& X,
                       const Eigen::Ref<const VectorType>& y) {
         internal::check_non_empty(X);
@@ -274,12 +425,22 @@ public:
         return *this;
     }
 
+    /// @brief Predict using the linear model.
+    ///
+    /// @param X Sample matrix of shape (n_samples, n_features).
+    /// @return Predicted values of shape (n_samples,).
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] VectorType predict(
         const Eigen::Ref<const MatrixType>& X) const {
         if (!fitted_) throw std::runtime_error("SGDRegressor not fitted.");
         return (X * coef_.transpose()).array() + intercept_;
     }
 
+    /// @brief Return the @f$R^2@f$ coefficient of determination on test data.
+    ///
+    /// @param X Test samples of shape (n_samples, n_features).
+    /// @param y True values of shape (n_samples,).
+    /// @return @f$R^2@f$ score.
     [[nodiscard]] Scalar score(const Eigen::Ref<const MatrixType>& X,
                                const Eigen::Ref<const VectorType>& y) const {
         VectorType y_pred = predict(X);
@@ -301,6 +462,8 @@ private:
     RowVectorType coef_;
     Scalar intercept_{0};
 };
+
+/// @}
 
 } // namespace Skigen
 

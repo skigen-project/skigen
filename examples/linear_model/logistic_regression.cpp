@@ -38,6 +38,7 @@ int main() {
 
     std::cout << std::fixed << std::setprecision(4);
 
+    //! [example_logistic_regression]
     // Train logistic regression
     Skigen::LogisticRegression<double> model(/*C=*/1.0);
     model.fit(split.X_train, split.y_train);
@@ -49,6 +50,7 @@ int main() {
     std::cout << "Precision: " << Skigen::Metrics::precision_score(split.y_test, y_pred) << "\n";
     std::cout << "Recall:    " << Skigen::Metrics::recall_score(split.y_test, y_pred) << "\n";
     std::cout << "F1 Score:  " << Skigen::Metrics::f1_score(split.y_test, y_pred) << "\n\n";
+    //! [example_logistic_regression]
 
     // Confusion matrix
     auto cm = Skigen::Metrics::confusion_matrix(split.y_test, y_pred);

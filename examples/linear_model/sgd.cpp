@@ -41,6 +41,7 @@ int main() {
 
     std::cout << std::fixed << std::setprecision(4);
 
+    //! [example_sgd_classifier]
     // SGD with hinge loss (SVM-like)
     Skigen::SGDClassifier<double> svm(Skigen::SGDClassifier<double>::Loss::Hinge);
     svm.fit(split.X_train, split.y_train);
@@ -56,6 +57,7 @@ int main() {
 
     std::cout << "=== SGD Classifier (Log Loss) ===\n";
     std::cout << "Accuracy: " << Skigen::Metrics::accuracy_score(split.y_test, log_pred) << "\n\n";
+    //! [example_sgd_classifier]
 
     // SGD Regressor
     Eigen::VectorXd y_reg(n);
@@ -64,12 +66,14 @@ int main() {
 
     auto split_reg = Skigen::train_test_split(X, y_reg, 0.3, 42);
 
+    //! [example_sgd_regressor]
     Skigen::SGDRegressor<double> regressor;
     regressor.fit(split_reg.X_train, split_reg.y_train);
 
     std::cout << "=== SGD Regressor ===\n";
     std::cout << "R²:   " << regressor.score(split_reg.X_test, split_reg.y_test) << "\n";
     std::cout << "Coef: " << regressor.coef() << "\n";
+    //! [example_sgd_regressor]
 
     return 0;
 }

@@ -34,6 +34,7 @@ int main() {
 
     std::cout << std::fixed << std::setprecision(4);
 
+    //! [example_lasso]
     // Lasso with varying alpha — higher alpha = more sparsity
     std::cout << "=== Lasso: feature selection via L1 ===\n";
     for (double alpha : {0.001, 0.01, 0.1, 0.5}) {
@@ -46,6 +47,7 @@ int main() {
                   << "  R²=" << model.score(X_te, split.y_test)
                   << "  coef=" << model.coef() << "\n";
     }
+    //! [example_lasso]
 
     return 0;
 }

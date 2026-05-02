@@ -32,19 +32,67 @@ struct TreeNode {
 
 } // namespace internal
 
-/// DecisionTreeClassifier — CART decision tree for classification.
-/// Uses Gini impurity. Mirrors sklearn.tree.DecisionTreeClassifier.
+/// @defgroup Algo_DecisionTree Decision Trees
+/// @ingroup Tree
+/// @brief CART decision trees for classification and regression.
+/// @{
+
+/// @brief A decision tree classifier.
+///
+/// A non-parametric supervised learning method used for classification.
+/// The model predicts the value of a target variable by learning
+/// simple decision rules inferred from the data features.
+/// Uses Gini impurity as the splitting criterion.
+///
+/// Mirrors
+/// [sklearn.tree.DecisionTreeClassifier](https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html).
+///
+/// ### Parameters (constructor)
+///
+/// | Parameter | Type | Default | Description |
+/// |-----------|------|---------|-------------|
+/// | `max_depth` | `int` | `-1` | Maximum depth of the tree. `-1` means no limit. |
+/// | `min_samples_split` | `int` | `2` | Minimum number of samples required to split a node. |
+///
+/// ### Notes
+///
+/// Uses Gini impurity for classification. The tree is built recursively
+/// with greedy best-first splitting.
+///
+/// @note **scikit-learn parity gaps:** The following sklearn constructor
+///   parameters are not yet supported: `criterion` (only Gini),
+///   `splitter`, `min_samples_leaf`, `min_weight_fraction_leaf`,
+///   `max_features`, `max_leaf_nodes`, `min_impurity_decrease`,
+///   `class_weight`, `ccp_alpha`, `monotonic_cst`, `random_state`.
+///   The following sklearn fitted attributes are not yet exposed:
+///   `classes_`, `n_classes_`, `n_features_in_`, `feature_names_in_`,
+///   `feature_importances_`, `tree_`.
+///
+/// ### Examples
+///
+/// @snippet decision_tree.cpp example_decision_tree_classifier
 template <typename Scalar = double>
 class DecisionTreeClassifier {
 public:
     using MatrixType = Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>;
     using IndexVector = Eigen::VectorXi;
 
+    /// @brief Construct a DecisionTreeClassifier.
+    ///
+    /// @param max_depth Maximum depth (`int`, default `-1` for unlimited).
+    /// @param min_samples_split Minimum samples to split (`int`, default `2`).
     explicit DecisionTreeClassifier(int max_depth = -1, int min_samples_split = 2)
         : max_depth_(max_depth), min_samples_split_(min_samples_split) {}
 
+    /// @brief Whether the estimator has been fitted.
     [[nodiscard]] bool is_fitted() const noexcept { return fitted_; }
 
+    /// @brief Build a decision tree classifier from the training set.
+    ///
+    /// @param X Training data of shape (n_samples, n_features).
+    /// @param y Target values of shape (n_samples,) with integer class labels.
+    /// @return Reference to the fitted estimator (`*this`).
+    /// @throws std::invalid_argument if X and y have inconsistent lengths.
     DecisionTreeClassifier& fit(const Eigen::Ref<const MatrixType>& X,
                                 const Eigen::Ref<const IndexVector>& y) {
         internal::check_non_empty(X);
@@ -68,6 +116,11 @@ public:
         return *this;
     }
 
+    /// @brief Predict class labels for samples in X.
+    ///
+    /// @param X Sample matrix of shape (n_samples, n_features).
+    /// @return Integer vector of predicted class labels (n_samples,).
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] IndexVector predict(
         const Eigen::Ref<const MatrixType>& X) const {
         if (!fitted_) throw std::runtime_error(
@@ -80,6 +133,11 @@ public:
         return predictions;
     }
 
+    /// @brief Return the mean accuracy on the given test data and labels.
+    ///
+    /// @param X Test samples of shape (n_samples, n_features).
+    /// @param y True class labels of shape (n_samples,).
+    /// @return Mean accuracy.
     [[nodiscard]] Scalar score(const Eigen::Ref<const MatrixType>& X,
                                const Eigen::Ref<const IndexVector>& y) const {
         IndexVector preds = predict(X);
@@ -209,19 +267,50 @@ private:
     }
 };
 
-/// DecisionTreeRegressor — CART decision tree for regression.
-/// Uses MSE reduction. Mirrors sklearn.tree.DecisionTreeRegressor.
+/// @brief A decision tree regressor.
+///
+/// Uses MSE (Mean Squared Error) reduction as the splitting criterion.
+/// The prediction for a leaf node is the mean of the target values.
+///
+/// Mirrors
+/// [sklearn.tree.DecisionTreeRegressor](https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeRegressor.html).
+///
+/// ### Parameters (constructor)
+///
+/// | Parameter | Type | Default | Description |
+/// |-----------|------|---------|-------------|
+/// | `max_depth` | `int` | `-1` | Maximum depth of the tree. `-1` means no limit. |
+/// | `min_samples_split` | `int` | `2` | Minimum number of samples required to split a node. |
+///
+/// @note **scikit-learn parity gaps:** Same as DecisionTreeClassifier —
+///   `criterion` (only MSE), `splitter`, `min_samples_leaf`,
+///   `max_features`, `max_leaf_nodes`, etc. are not yet supported.
+///
+/// ### Examples
+///
+/// @snippet decision_tree.cpp example_decision_tree_regressor
 template <typename Scalar = double>
 class DecisionTreeRegressor {
 public:
     using MatrixType = Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>;
     using VectorType = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
 
+    /// @brief Construct a DecisionTreeRegressor.
+    ///
+    /// @param max_depth Maximum depth (`int`, default `-1` for unlimited).
+    /// @param min_samples_split Minimum samples to split (`int`, default `2`).
     explicit DecisionTreeRegressor(int max_depth = -1, int min_samples_split = 2)
         : max_depth_(max_depth), min_samples_split_(min_samples_split) {}
 
+    /// @brief Whether the estimator has been fitted.
     [[nodiscard]] bool is_fitted() const noexcept { return fitted_; }
 
+    /// @brief Build a decision tree regressor from the training set.
+    ///
+    /// @param X Training data of shape (n_samples, n_features).
+    /// @param y Target values of shape (n_samples,).
+    /// @return Reference to the fitted estimator (`*this`).
+    /// @throws std::invalid_argument if X and y have inconsistent lengths.
     DecisionTreeRegressor& fit(const Eigen::Ref<const MatrixType>& X,
                                const Eigen::Ref<const VectorType>& y) {
         internal::check_non_empty(X);
@@ -239,6 +328,11 @@ public:
         return *this;
     }
 
+    /// @brief Predict target values for X.
+    ///
+    /// @param X Sample matrix of shape (n_samples, n_features).
+    /// @return Predicted values of shape (n_samples,).
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] VectorType predict(
         const Eigen::Ref<const MatrixType>& X) const {
         if (!fitted_) throw std::runtime_error(
@@ -251,6 +345,11 @@ public:
         return predictions;
     }
 
+    /// @brief Return the @f$R^2@f$ coefficient of determination.
+    ///
+    /// @param X Test samples of shape (n_samples, n_features).
+    /// @param y True values of shape (n_samples,).
+    /// @return @f$R^2@f$ score.
     [[nodiscard]] Scalar score(const Eigen::Ref<const MatrixType>& X,
                                const Eigen::Ref<const VectorType>& y) const {
         VectorType y_pred = predict(X);
@@ -371,6 +470,8 @@ private:
         return predict_one(node->right.get(), x);
     }
 };
+
+/// @}
 
 } // namespace Skigen
 

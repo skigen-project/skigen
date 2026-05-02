@@ -37,6 +37,7 @@ int main() {
 
     std::cout << std::fixed << std::setprecision(4);
 
+    //! [example_elasticnet]
     // Compare L1/L2 ratio effects
     std::cout << "=== ElasticNet: l1_ratio sweep (alpha=0.1) ===\n";
     for (double ratio : {0.1, 0.3, 0.5, 0.7, 0.9}) {
@@ -48,6 +49,7 @@ int main() {
                   << "  non-zero=" << nonzero
                   << "  R²=" << model.score(X_te, split.y_test) << "\n";
     }
+    //! [example_elasticnet]
 
     std::cout << "\n=== Comparison: OLS vs Ridge vs Lasso vs ElasticNet ===\n";
 

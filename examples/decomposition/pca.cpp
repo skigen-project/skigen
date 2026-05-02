@@ -35,6 +35,7 @@ int main() {
     std::cout << std::fixed << std::setprecision(4);
     std::cout << "Original data: " << n << " x " << d << "\n\n";
 
+    //! [example_pca]
     // Reduce to 3 components
     Skigen::PCA<double> pca(3);
     pca.fit(X_scaled);
@@ -53,6 +54,7 @@ int main() {
 
     // Inverse transform — reconstruct approximate original
     Eigen::MatrixXd X_approx = pca.inverse_transform(X_reduced);
+    //! [example_pca]
     double reconstruction_error =
         (X_scaled - X_approx).squaredNorm() / static_cast<double>(n * d);
     std::cout << "Mean reconstruction error: " << reconstruction_error << "\n";

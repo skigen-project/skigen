@@ -59,7 +59,7 @@ const config: Config = {
     ],
 
     markdown: {
-        format: 'mdx',
+        format: 'detect',
         mermaid: true,
         hooks: {
             onBrokenMarkdownLinks: 'warn',
@@ -95,6 +95,12 @@ const config: Config = {
                     sidebarId: 'developmentSidebar',
                     position: 'left',
                     label: 'Development',
+                },
+                {
+                    type: 'docSidebar',
+                    sidebarId: 'apiSidebar',
+                    position: 'left',
+                    label: 'API',
                 },
                 {
                     type: 'dropdown',

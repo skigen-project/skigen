@@ -16,6 +16,7 @@ int main() {
 
     std::cout << "Original data:\n" << X << "\n\n";
 
+    //! [example_standard_scaler]
     // Fit and transform
     Skigen::StandardScaler<double> scaler;
     Eigen::MatrixXd Z = scaler.fit_transform(X);
@@ -27,6 +28,7 @@ int main() {
     // Round-trip: inverse_transform recovers the original data
     Eigen::MatrixXd X_back = scaler.inverse_transform(Z);
     std::cout << "Recovered:\n" << X_back << "\n\n";
+    //! [example_standard_scaler]
 
     // In-place transform — avoids allocations
     Eigen::MatrixXd X_copy = X;

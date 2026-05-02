@@ -36,6 +36,7 @@ int main() {
 
     std::cout << std::fixed << std::setprecision(4);
 
+    //! [example_ridge]
     // Compare different alpha values
     std::cout << "=== Ridge: alpha sweep ===\n";
     for (double alpha : {0.01, 0.1, 1.0, 10.0, 100.0}) {
@@ -45,6 +46,7 @@ int main() {
                   << "  R²=" << model.score(X_te, split.y_test)
                   << "  coef=" << model.coef() << "\n";
     }
+    //! [example_ridge]
 
     std::cout << "\n=== OLS comparison ===\n";
     Skigen::LinearRegression<double> ols;

@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 The Skigen Contributors
+#
+# Doxyfile — Doxygen configuration for Skigen API reference
+# Generates XML consumed by Doxybook2 to produce Docusaurus Markdown.
+
+PROJECT_NAME           = "Skigen"
+PROJECT_NUMBER         = "1.0.0"
+PROJECT_BRIEF          = "High-performance header-only ML library built on Eigen"
+
+# ---------------------------------------------------------------------------
+# Input
+# ---------------------------------------------------------------------------
+INPUT                  = ../Skigen/src/
+RECURSIVE              = YES
+FILE_PATTERNS          = *.h *.hpp
+EXCLUDE_PATTERNS       = */internal/* */detail/*
+
+EXAMPLE_PATH           = ../examples/
+EXAMPLE_RECURSIVE      = YES
+
+# ---------------------------------------------------------------------------
+# Extraction settings
+# ---------------------------------------------------------------------------
+EXTRACT_ALL            = NO
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = NO
+EXTRACT_LOCAL_CLASSES  = NO
+HIDE_UNDOC_MEMBERS     = YES
+HIDE_UNDOC_CLASSES     = YES
+
+# ---------------------------------------------------------------------------
+# Output — XML only (Doxybook2 reads XML; HTML for local debugging only)
+# ---------------------------------------------------------------------------
+OUTPUT_DIRECTORY       = doxygen_output
+GENERATE_XML           = YES
+GENERATE_HTML          = NO
+GENERATE_LATEX         = NO
+GENERATE_MAN           = NO
+GENERATE_RTF           = NO
+
+# ---------------------------------------------------------------------------
+# Group / module support
+# ---------------------------------------------------------------------------
+DISTRIBUTE_GROUP_DOC   = YES
+
+# ---------------------------------------------------------------------------
+# C++ / template handling
+# ---------------------------------------------------------------------------
+BUILTIN_STL_SUPPORT    = YES
+STRIP_FROM_PATH        = ../Skigen/src/
+
+# Help Doxygen parse CRTP and Eigen template patterns
+PREDEFINED             = "EIGEN_MAKE_ALIGNED_OPERATOR_NEW=" \
+                         "EIGEN_VECTORIZE="
+
+# ---------------------------------------------------------------------------
+# Source browsing (off — we only need the extracted API data)
+# ---------------------------------------------------------------------------
+SOURCE_BROWSER         = NO
+VERBATIM_HEADERS       = NO
+
+# ---------------------------------------------------------------------------
+# Warnings — strict: catch undocumented public members early
+# ---------------------------------------------------------------------------
+WARN_IF_UNDOCUMENTED   = YES
+WARN_NO_PARAMDOC       = YES
+WARN_IF_DOC_ERROR      = YES
+WARN_FORMAT            = "$file:$line: $text"

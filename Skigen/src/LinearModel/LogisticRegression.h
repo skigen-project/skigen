@@ -15,9 +15,68 @@
 
 namespace Skigen {
 
-/// LogisticRegression — Logistic regression classifier (L2, IRLS solver).
-/// Supports binary and multiclass (one-vs-rest).
-/// Mirrors sklearn.linear_model.LogisticRegression.
+/// @defgroup Algo_LogisticRegression LogisticRegression
+/// @ingroup LinearModels
+/// @brief Logistic regression classifier (L2, IRLS solver).
+/// @see https://skigen-project.github.io/docs/guide/logistic-regression for algorithm intuition.
+/// @{
+
+/// @brief Logistic Regression (aka logit, MaxEnt) classifier.
+///
+/// In the multiclass case, the training algorithm uses a one-vs-rest
+/// (OvR) scheme. Each binary sub-problem is solved with an
+/// Iteratively Reweighted Least Squares (IRLS / Newton) solver that
+/// minimizes:
+///
+/// @f[
+///   \min_w \;\frac{1}{n}\sum_{i=1}^n
+///     \log\!\bigl(1 + e^{-y_i (X_i w + b)}\bigr)
+///     + \frac{1}{2C}\|w\|_2^2
+/// @f]
+///
+/// Mirrors
+/// [sklearn.linear_model.LogisticRegression](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html).
+///
+/// ### Parameters (constructor)
+///
+/// | Parameter | Type | Default | Description |
+/// |-----------|------|---------|-------------|
+/// | `C` | `Scalar` | `1` | Inverse of regularization strength; must be a positive float. Smaller values specify stronger regularization. |
+/// | `fit_intercept` | `bool` | `true` | Whether the intercept should be estimated. |
+/// | `max_iter` | `int` | `100` | Maximum number of IRLS iterations. |
+/// | `tol` | `Scalar` | `1e-4` | Tolerance for stopping criteria (max coordinate update). |
+///
+/// ### Attributes (after fitting)
+///
+/// | Accessor | Type | Description |
+/// |----------|------|-------------|
+/// | `coef()` | `MatrixType` | Coefficient matrix of shape (n_classes, n_features) or (1, n_features) for binary. |
+/// | `intercept()` | `VectorType` | Intercept (bias) vector of shape (n_classes,) or (1,). |
+/// | `classes()` | `std::vector<int>` | Unique class labels sorted in ascending order. |
+///
+/// ### See also
+///
+/// - Skigen::SGDClassifier — Linear classifier trained via SGD (supports hinge and log loss).
+///
+/// ### Notes
+///
+/// The solver is a Newton/IRLS method with diagonal Hessian
+/// approximation. It converges quickly for well-scaled data, but
+/// `StandardScaler` is recommended for best performance.
+///
+/// @note **scikit-learn parity gaps:** The following sklearn constructor
+///   parameters are not yet supported: `penalty` (only L2 is implemented),
+///   `dual`, `solver` (only IRLS), `multi_class` (only OvR), `class_weight`,
+///   `verbose`, `warm_start`, `n_jobs`, `l1_ratio`.
+///   The following sklearn fitted attributes are not yet exposed:
+///   `n_iter_`, `n_features_in_`, `feature_names_in_`.
+///   The sklearn methods `decision_function()` and `predict_log_proba()`
+///   are not yet public.
+///   `sample_weight` in `fit()` is not yet supported.
+///
+/// ### Examples
+///
+/// @snippet logistic_regression.cpp example_logistic_regression
 template <typename Scalar = double>
 class LogisticRegression {
 public:
@@ -26,25 +85,58 @@ public:
     using RowVectorType = Eigen::Matrix<Scalar, 1, Eigen::Dynamic>;
     using IndexVector = Eigen::VectorXi;
 
+    /// @brief Construct a LogisticRegression estimator.
+    ///
+    /// @param C Inverse of regularization strength (`Scalar`, default `1`).
+    ///   Must be positive. Smaller values specify stronger regularization.
+    /// @param fit_intercept Whether the intercept should be estimated (`bool`, default `true`).
+    /// @param max_iter Maximum number of IRLS iterations (`int`, default `100`).
+    /// @param tol Tolerance for stopping criteria (`Scalar`, default `1e-4`).
     explicit LogisticRegression(Scalar C = Scalar{1}, bool fit_intercept = true,
                                 int max_iter = 100, Scalar tol = Scalar{1e-4})
         : C_(C), fit_intercept_(fit_intercept), max_iter_(max_iter), tol_(tol) {}
 
+    /// @brief Whether the estimator has been fitted.
     [[nodiscard]] bool is_fitted() const noexcept { return fitted_; }
 
+    /// @brief Coefficient matrix (n_classes × n_features or 1 × n_features for binary).
+    ///
+    /// @return Read-only reference to the coefficient matrix.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const MatrixType& coef() const {
         if (!fitted_) throw std::runtime_error("LogisticRegression not fitted.");
         return coef_;
     }
+    /// @brief Intercept (bias) vector of shape (n_classes,) or (1,).
+    ///
+    /// @return Read-only reference to the intercept vector.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const VectorType& intercept() const {
         if (!fitted_) throw std::runtime_error("LogisticRegression not fitted.");
         return intercept_;
     }
+    /// @brief Unique class labels sorted in ascending order.
+    ///
+    /// @return Read-only reference to the class label vector.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const std::vector<int>& classes() const {
         if (!fitted_) throw std::runtime_error("LogisticRegression not fitted.");
         return classes_;
     }
 
+    /// @brief Fit the model according to the given training data.
+    ///
+    /// Discovers unique classes in `y`, then solves binary logistic
+    /// regression sub-problems (OvR for multiclass) via IRLS.
+    ///
+    /// @param X Training matrix of shape (n_samples, n_features).
+    /// @param y Target vector of shape (n_samples,) with integer class labels.
+    /// @return Reference to the fitted estimator (`*this`).
+    /// @throws std::invalid_argument if fewer than 2 classes are found
+    ///   or X and y have inconsistent lengths.
+    ///
+    /// @note **sklearn parity gap:** `sample_weight`, `class_weight`
+    ///   parameters are not yet supported.
     LogisticRegression& fit(const Eigen::Ref<const MatrixType>& X,
                             const Eigen::Ref<const IndexVector>& y) {
         internal::check_non_empty(X);
@@ -110,6 +202,15 @@ public:
         return *this;
     }
 
+    /// @brief Predict class labels for samples in X.
+    ///
+    /// For binary classification, the predicted class is the one with
+    /// non-negative decision function value. For multiclass, the class
+    /// with the highest decision function value is chosen.
+    ///
+    /// @param X Sample matrix of shape (n_samples, n_features).
+    /// @return Integer vector of predicted class labels (n_samples,).
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] IndexVector predict(
         const Eigen::Ref<const MatrixType>& X) const {
         if (!fitted_) throw std::runtime_error("LogisticRegression not fitted.");
@@ -133,6 +234,16 @@ public:
         return predictions;
     }
 
+    /// @brief Probability estimates for each class.
+    ///
+    /// Returns a matrix of shape (n_samples, n_classes) where each
+    /// row sums to 1. For binary, column 0 is the probability of
+    /// class 0, column 1 of class 1. For multiclass, probabilities
+    /// are normalized per-row.
+    ///
+    /// @param X Sample matrix of shape (n_samples, n_features).
+    /// @return Probability matrix (n_samples, n_classes).
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] MatrixType predict_proba(
         const Eigen::Ref<const MatrixType>& X) const {
         if (!fitted_) throw std::runtime_error("LogisticRegression not fitted.");
@@ -162,6 +273,12 @@ public:
         }
     }
 
+    /// @brief Return the mean accuracy on the given test data and labels.
+    ///
+    /// @param X Test samples of shape (n_samples, n_features).
+    /// @param y True class labels of shape (n_samples,).
+    /// @return Mean accuracy (fraction of correctly classified samples).
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] Scalar score(const Eigen::Ref<const MatrixType>& X,
                                const Eigen::Ref<const IndexVector>& y) const {
         IndexVector preds = predict(X);
@@ -263,6 +380,8 @@ private:
         b_out = b;
     }
 };
+
+/// @}
 
 } // namespace Skigen
 

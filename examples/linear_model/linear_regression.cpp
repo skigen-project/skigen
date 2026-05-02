@@ -8,6 +8,7 @@
 #include <iomanip>
 
 int main() {
+    //! [example_linear_regression]
     // Simple 2-feature dataset: y = 2*x1 + 3*x2 + 1
     Eigen::MatrixXd X(6, 2);
     X << 1, 1,
@@ -27,6 +28,7 @@ int main() {
     std::cout << "Coefficients: " << model.coef() << "\n";
     std::cout << "Intercept:    " << model.intercept() << "\n";
     std::cout << "R² (train):   " << model.score(X, y) << "\n\n";
+    //! [example_linear_regression]
 
     // Predict on new data
     Eigen::MatrixXd X_new(2, 2);

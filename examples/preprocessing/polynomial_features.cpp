@@ -18,6 +18,7 @@ int main() {
     std::cout << "Original (" << X.rows() << "x" << X.cols() << "):\n"
               << X << "\n\n";
 
+    //! [example_polynomial_features]
     // Degree 2 with bias: 1, x1, x2, x1², x1·x2, x2²
     Skigen::PolynomialFeatures<double> poly2(2);
     Eigen::MatrixXd X2 = poly2.fit_transform(X);
@@ -31,6 +32,7 @@ int main() {
 
     std::cout << "Degree 2 no bias (" << X2nb.rows() << "x" << X2nb.cols()
               << "):\n" << X2nb << "\n\n";
+    //! [example_polynomial_features]
 
     // Interaction only: 1, x1, x2, x1·x2 (no x1², x2²)
     Skigen::PolynomialFeatures<double> poly_inter(2, true, true);

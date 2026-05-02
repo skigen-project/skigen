@@ -15,8 +15,54 @@
 
 namespace Skigen {
 
-/// KMeans — K-Means clustering via Lloyd's algorithm with k-means++ init.
-/// Mirrors sklearn.cluster.KMeans.
+/// @defgroup Algo_KMeans KMeans
+/// @ingroup Cluster
+/// @brief K-Means clustering via Lloyd's algorithm with k-means++ initialization.
+/// @{
+
+/// @brief K-Means clustering.
+///
+/// The KMeans algorithm clusters data by trying to separate samples
+/// in `n_clusters` groups of equal variance, minimizing the within-cluster
+/// sum-of-squares (inertia). Uses k-means++ initialization and
+/// Lloyd's iterative algorithm.
+///
+/// Mirrors
+/// [sklearn.cluster.KMeans](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html).
+///
+/// ### Parameters (constructor)
+///
+/// | Parameter | Type | Default | Description |
+/// |-----------|------|---------|-------------|
+/// | `n_clusters` | `int` | `8` | The number of clusters to form. |
+/// | `max_iter` | `int` | `300` | Maximum number of iterations of Lloyd's algorithm for a single run. |
+/// | `n_init` | `int` | `10` | Number of times the algorithm is run with different centroid seeds. |
+/// | `random_state` | `unsigned int` | `42` | Seed for centroid initialization. |
+///
+/// ### Attributes (after fitting)
+///
+/// | Accessor | Type | Description |
+/// |----------|------|-------------|
+/// | `cluster_centers()` | `MatrixType` | Coordinates of cluster centers (n_clusters × n_features). |
+/// | `labels()` | `IndexVector` | Labels of each point from the best run (n_samples,). |
+/// | `inertia()` | `Scalar` | Sum of squared distances of samples to their closest cluster center. |
+/// | `n_iter()` | `int` | Number of iterations run in the best trial. |
+///
+/// ### See also
+///
+/// - Skigen::MiniBatchKMeans — Mini-batch variant for large datasets.
+///
+/// @note **scikit-learn parity gaps:** The following sklearn constructor
+///   parameters are not yet supported: `init` (only k-means++), `tol`,
+///   `verbose`, `copy_x`, `algorithm` (only Lloyd).
+///   The following sklearn fitted attributes are not yet exposed:
+///   `n_features_in_`, `feature_names_in_`.
+///   The `fit_predict()`, `fit_transform()`, and `score()` methods
+///   are not yet implemented.
+///
+/// ### Examples
+///
+/// @snippet kmeans.cpp example_kmeans
 template <typename Scalar = double>
 class KMeans {
 public:
@@ -24,6 +70,12 @@ public:
     using VectorType = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
     using IndexVector = Eigen::VectorXi;
 
+    /// @brief Construct a KMeans estimator.
+    ///
+    /// @param n_clusters The number of clusters (`int`, default `8`).
+    /// @param max_iter Maximum iterations per run (`int`, default `300`).
+    /// @param n_init Number of runs with different seeds (`int`, default `10`).
+    /// @param random_state RNG seed (`unsigned int`, default `42`).
     explicit KMeans(int n_clusters = 8, int max_iter = 300,
                     int n_init = 10, unsigned int random_state = 42)
         : n_clusters_(n_clusters), max_iter_(max_iter),
@@ -31,21 +83,31 @@ public:
 
     // -- Accessors ----------------------------------------------------------
 
+    /// @brief Whether the estimator has been fitted.
     [[nodiscard]] bool is_fitted() const noexcept { return fitted_; }
+    /// @brief The number of clusters.
     [[nodiscard]] int n_clusters() const noexcept { return n_clusters_; }
 
+    /// @brief Cluster centers (n_clusters × n_features).
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const MatrixType& cluster_centers() const {
         if (!fitted_) throw std::runtime_error("KMeans has not been fitted yet.");
         return cluster_centers_;
     }
+    /// @brief Labels of each training point from the best run.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const IndexVector& labels() const {
         if (!fitted_) throw std::runtime_error("KMeans has not been fitted yet.");
         return labels_;
     }
+    /// @brief Sum of squared distances to closest cluster center.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] Scalar inertia() const {
         if (!fitted_) throw std::runtime_error("KMeans has not been fitted yet.");
         return inertia_;
     }
+    /// @brief Number of iterations in the best run.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] int n_iter() const {
         if (!fitted_) throw std::runtime_error("KMeans has not been fitted yet.");
         return n_iter_;
@@ -53,6 +115,14 @@ public:
 
     // -- fit / predict -------------------------------------------------------
 
+    /// @brief Compute k-means clustering.
+    ///
+    /// Runs `n_init` trials of Lloyd's algorithm with k-means++
+    /// initialization, keeping the result with the lowest inertia.
+    ///
+    /// @param X Training data of shape (n_samples, n_features).
+    /// @return Reference to the fitted estimator (`*this`).
+    /// @throws std::invalid_argument if `n_samples < n_clusters`.
     KMeans& fit(const Eigen::Ref<const MatrixType>& X) {
         internal::check_non_empty(X);
         if (X.rows() < n_clusters_) {
@@ -113,6 +183,11 @@ public:
         return *this;
     }
 
+    /// @brief Predict the closest cluster each sample belongs to.
+    ///
+    /// @param X New data of shape (n_samples, n_features).
+    /// @return Index of the closest cluster for each sample.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] IndexVector predict(const Eigen::Ref<const MatrixType>& X) const {
         if (!fitted_) throw std::runtime_error("KMeans has not been fitted yet.");
         IndexVector labels(X.rows());
@@ -120,6 +195,14 @@ public:
         return labels;
     }
 
+    /// @brief Transform X to a cluster-distance space.
+    ///
+    /// Returns the Euclidean distance from each sample to each
+    /// cluster center.
+    ///
+    /// @param X Data of shape (n_samples, n_features).
+    /// @return Distance matrix of shape (n_samples, n_clusters).
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] MatrixType transform(const Eigen::Ref<const MatrixType>& X) const {
         if (!fitted_) throw std::runtime_error("KMeans has not been fitted yet.");
         // Returns distance to each cluster center
@@ -199,6 +282,8 @@ private:
         return inertia;
     }
 };
+
+/// @}
 
 } // namespace Skigen
 

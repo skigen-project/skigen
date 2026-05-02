@@ -32,6 +32,51 @@ Scalar quantile_sorted(const Scalar* data, Eigen::Index n, Scalar q) {
 
 } // namespace internal
 
+/// @defgroup Algo_RobustScaler RobustScaler
+/// @ingroup Preprocessing
+/// @brief Scale features using statistics that are robust to outliers.
+/// @{
+
+/// @brief Scale features using statistics that are robust to outliers.
+///
+/// This Scaler removes the median and scales the data according to
+/// the quantile range (defaults to IQR: Interquartile Range). The IQR
+/// is the range between the 1st quartile (25th quantile) and the 3rd
+/// quartile (75th quantile).
+///
+/// Centering and scaling happen independently on each feature.
+///
+/// Mirrors
+/// [sklearn.preprocessing.RobustScaler](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.RobustScaler.html).
+///
+/// ### Parameters (constructor)
+///
+/// | Parameter | Type | Default | Description |
+/// |-----------|------|---------|-------------|
+/// | `with_centering` | `bool` | `true` | If `true`, center the data before scaling (subtract median). |
+/// | `with_scaling` | `bool` | `true` | If `true`, scale the data to interquartile range. |
+/// | `quantile_range` | `std::pair<Scalar,Scalar>` | `{25, 75}` | Quantile range used to calculate `scale_`. Must satisfy `0 ≤ q_min < q_max ≤ 100`. |
+///
+/// ### Attributes (after fitting)
+///
+/// | Accessor | Type | Description |
+/// |----------|------|-------------|
+/// | `center()` | `RowVectorType` | Per-feature median (1 × n_features). |
+/// | `scale()` | `RowVectorType` | Per-feature interquartile range (1 × n_features). |
+///
+/// ### See also
+///
+/// - Skigen::StandardScaler — Standardize using mean and std (not robust to outliers).
+/// - Skigen::MinMaxScaler — Scale features to a given range.
+///
+/// @note **scikit-learn parity gaps:** The following sklearn constructor
+///   parameters are not yet supported: `copy`, `unit_variance`.
+///   The following sklearn fitted attributes are not yet exposed:
+///   `n_features_in_`, `feature_names_in_`.
+///
+/// ### Examples
+///
+/// @snippet robust_scaler.cpp example_robust_scaler
 template <typename Scalar = double>
 class RobustScaler
     : public Transformer<RobustScaler<Scalar>, Scalar> {
@@ -41,6 +86,15 @@ public:
     using typename Base::RowVectorType;
     using typename Base::IndexType;
 
+    /// @brief Construct a RobustScaler.
+    ///
+    /// @param with_centering If `true`, center the data before scaling
+    ///   by subtracting the median (`bool`, default `true`).
+    /// @param with_scaling If `true`, scale the data to interquartile range
+    ///   (`bool`, default `true`).
+    /// @param quantile_range Quantile range for computing `scale_`
+    ///   (`std::pair<Scalar,Scalar>`, default `{25, 75}`).
+    /// @throws std::invalid_argument if `quantile_range` is invalid.
     explicit RobustScaler(bool with_centering = true,
                           bool with_scaling = true,
                           std::pair<Scalar, Scalar> quantile_range = {Scalar{25}, Scalar{75}})
@@ -56,18 +110,28 @@ public:
 
     // -- Accessors ----------------------------------------------------------
 
+    /// @brief Whether centering is enabled.
     [[nodiscard]] bool with_centering() const noexcept { return with_centering_; }
+    /// @brief Whether scaling is enabled.
     [[nodiscard]] bool with_scaling() const noexcept { return with_scaling_; }
 
+    /// @brief Per-feature median (1 × n_features).
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const RowVectorType& center() const {
         this->check_is_fitted(); return center_;
     }
+    /// @brief Per-feature interquartile range (1 × n_features).
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const RowVectorType& scale() const {
         this->check_is_fitted(); return scale_;
     }
 
     // -- Implementation (called by CRTP base) --------------------------------
 
+    /// @brief Compute median and quantile range for later scaling.
+    ///
+    /// @param X Training data of shape (n_samples, n_features).
+    /// @return Reference to the fitted transformer (`*this`).
     RobustScaler& fit_impl(const Eigen::Ref<const MatrixType>& X) {
         internal::check_non_empty(X);
 
@@ -111,6 +175,11 @@ public:
         return *this;
     }
 
+    /// @brief Center and scale the data.
+    ///
+    /// @param X Data matrix of shape (n_samples, n_features).
+    /// @return Transformed data of same shape.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] MatrixType transform_impl(
         const Eigen::Ref<const MatrixType>& X) const {
         MatrixType result = X;
@@ -123,6 +192,11 @@ public:
         return result;
     }
 
+    /// @brief Scale back the data to the original representation.
+    ///
+    /// @param X Transformed data of shape (n_samples, n_features).
+    /// @return Un-transformed data of same shape.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] MatrixType inverse_transform_impl(
         const Eigen::Ref<const MatrixType>& X) const {
         MatrixType result = X;
@@ -135,6 +209,9 @@ public:
         return result;
     }
 
+    /// @brief Transform features in-place using robust statistics.
+    /// @param X Data matrix of shape (n_samples, n_features), modified in place.
+    /// @throws std::runtime_error if the model has not been fitted.
     void transform_inplace(Eigen::Ref<MatrixType> X) const {
         this->check_is_fitted();
         this->validate_feature_count(X);
@@ -142,6 +219,9 @@ public:
         if (with_scaling_) X.array().rowwise() /= scale_.array();
     }
 
+    /// @brief Inverse-transform features in-place to original scale.
+    /// @param X Scaled data matrix, modified in place.
+    /// @throws std::runtime_error if the model has not been fitted.
     void inverse_transform_inplace(Eigen::Ref<MatrixType> X) const {
         this->check_is_fitted();
         this->validate_feature_count(X);
@@ -157,6 +237,8 @@ private:
     RowVectorType center_;
     RowVectorType scale_;
 };
+
+/// @}
 
 } // namespace Skigen
 

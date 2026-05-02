@@ -20,6 +20,7 @@ int main() {
     std::cout << std::fixed << std::setprecision(4);
     std::cout << "Original data (note outlier in col 0):\n" << X << "\n\n";
 
+    //! [example_robust_scaler]
     // RobustScaler uses median and IQR — resistant to outliers
     Skigen::RobustScaler<double> robust;
     Eigen::MatrixXd Z_robust = robust.fit_transform(X);
@@ -27,6 +28,7 @@ int main() {
     std::cout << "Robust-scaled:\n" << Z_robust << "\n\n";
     std::cout << "Center (median): " << robust.center() << "\n";
     std::cout << "Scale  (IQR):    " << robust.scale()  << "\n\n";
+    //! [example_robust_scaler]
 
     // Compare with StandardScaler — outlier distorts the result
     Skigen::StandardScaler<double> standard;

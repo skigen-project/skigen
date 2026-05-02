@@ -75,6 +75,20 @@ if(SKIGEN_BUILD_EXAMPLES)
 endif()
 
 # ---------------------------------------------------------------------------
+# Documentation (Doxygen API docs)
+# ---------------------------------------------------------------------------
+find_package(Doxygen QUIET)
+if(DOXYGEN_FOUND)
+    add_custom_target(docs_api
+        COMMAND doxygen ${CMAKE_SOURCE_DIR}/doc/Doxyfile
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/doc
+        COMMENT "Generating Doxygen XML for API reference"
+    )
+else()
+    message(STATUS "Doxygen not found — docs_api target disabled")
+endif()
+
+# ---------------------------------------------------------------------------
 # Install
 # ---------------------------------------------------------------------------
 include(GNUInstallDirs)

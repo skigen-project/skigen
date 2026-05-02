@@ -18,6 +18,7 @@ int main() {
     std::cout << std::fixed << std::setprecision(4);
     std::cout << "Original data:\n" << X << "\n\n";
 
+    //! [example_min_max_scaler]
     // Default range [0, 1]
     Skigen::MinMaxScaler<double> scaler;
     Eigen::MatrixXd Z = scaler.fit_transform(X);
@@ -35,6 +36,7 @@ int main() {
     // Round-trip
     Eigen::MatrixXd X_back = scaler.inverse_transform(Z);
     std::cout << "Recovered:\n" << X_back << "\n";
+    //! [example_min_max_scaler]
 
     return 0;
 }

@@ -27,6 +27,7 @@ int main() {
     std::cout << std::fixed << std::setprecision(4);
     std::cout << "Original data: " << n << " x " << d << "\n\n";
 
+    //! [example_truncated_svd]
     // Reduce to 2 components
     Skigen::TruncatedSVD<double> svd(2);
     svd.fit(X);
@@ -40,6 +41,7 @@ int main() {
               << svd.explained_variance_ratio().sum() * 100.0 << "%\n";
     std::cout << "Singular values:          "
               << svd.singular_values().transpose() << "\n";
+    //! [example_truncated_svd]
     std::cout << "Reduced shape: " << X_reduced.rows() << " x "
               << X_reduced.cols() << "\n\n";
 

@@ -12,11 +12,65 @@
 
 namespace Skigen {
 
-/// LinearRegression — Ordinary Least Squares.
-/// Mirrors sklearn.linear_model.LinearRegression.
+/// @defgroup Algo_LinearRegression LinearRegression
+/// @ingroup LinearModels
+/// @brief Ordinary Least Squares linear regression.
+/// @see https://skigen-project.github.io/docs/guide/linear-regression for algorithm intuition.
+/// @{
+
+/// @brief Ordinary least squares Linear Regression.
 ///
-/// Solves  min_w ||y - Xw||²  via ColPivHouseholderQR.
-/// When fit_intercept=true, data is centered before solving.
+/// LinearRegression fits a linear model with coefficients
+/// @f$w = (w_1, \ldots, w_p)@f$ to minimize the residual sum of squares
+/// between the observed targets in the dataset, and the targets predicted
+/// by the linear approximation:
+///
+/// @f[
+///   \hat{w} = \arg\min_w \|Xw - y\|_2^2
+/// @f]
+///
+/// Solves via ColPivHouseholderQR decomposition. When `fit_intercept` is
+/// `true`, data is centered before solving.
+///
+/// Mirrors
+/// [sklearn.linear_model.LinearRegression](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html).
+///
+/// Read more in the @ref guide_linear_regression "User Guide".
+///
+/// ### Parameters (constructor)
+///
+/// | Parameter | Type | Default | Description |
+/// |-----------|------|---------|-------------|
+/// | `fit_intercept` | `bool` | `true` | Whether to calculate the intercept for this model. If `false`, no intercept will be used (data is expected to be centered). |
+///
+/// ### Attributes (after fitting)
+///
+/// | Accessor | Type | Description |
+/// |----------|------|-------------|
+/// | `coef()` | `RowVectorType` | Estimated coefficients of shape (1 × n_features). |
+/// | `intercept()` | `Scalar` | Independent term in the linear model. Set to `0` if `fit_intercept = false`. |
+/// | `rank()` | `IndexType` | Numerical rank of the design matrix X. |
+///
+/// ### See also
+///
+/// - Skigen::Ridge — L2 regularization to reduce overfitting.
+/// - Skigen::Lasso — L1 regularization for sparse coefficients.
+/// - Skigen::ElasticNet — Combined L1 + L2 regularization.
+///
+/// ### Notes
+///
+/// From the implementation point of view, this is QR decomposition
+/// (Eigen::ColPivHouseholderQR) wrapped as a predictor object.
+///
+/// @note **scikit-learn parity gaps:** The following sklearn constructor
+///   parameters are not yet supported: `copy_X`, `n_jobs`, `positive`, `tol`.
+///   The following sklearn fitted attributes are not yet exposed:
+///   `singular_`, `n_features_in_`, `feature_names_in_`.
+///   `sample_weight` in `fit()` is not yet supported.
+///
+/// ### Examples
+///
+/// @snippet linear_regression.cpp example_linear_regression
 template <typename Scalar = double>
 class LinearRegression
     : public Predictor<LinearRegression<Scalar>, Scalar> {
@@ -28,25 +82,53 @@ public:
     using typename Base::IndexType;
     using typename Base::ScalarType;
 
+    /// @brief Construct a LinearRegression estimator.
+    ///
+    /// @param fit_intercept Whether to calculate the intercept (`bool`, default `true`).
+    ///   If `false`, no intercept will be used (data is expected to be centered).
     explicit LinearRegression(bool fit_intercept = true)
         : fit_intercept_(fit_intercept) {}
 
     // -- Accessors ----------------------------------------------------------
 
+    /// @brief Whether an intercept is fitted.
     [[nodiscard]] bool fit_intercept() const noexcept { return fit_intercept_; }
 
+    /// @brief Parameter vector @f$w@f$ (1 × n_features).
+    ///
+    /// Estimated coefficients for the linear regression problem.
+    /// @return Read-only reference to the coefficient row-vector.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const RowVectorType& coef() const {
         this->check_is_fitted(); return coef_;
     }
+    /// @brief Independent term in the decision function.
+    ///
+    /// Set to `0` if `fit_intercept = false`.
+    /// @return The intercept value.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] Scalar intercept() const {
         this->check_is_fitted(); return intercept_;
     }
+    /// @brief Numerical rank of the design matrix X.
     [[nodiscard]] IndexType rank() const {
         this->check_is_fitted(); return rank_;
     }
 
     // -- Implementation (called by CRTP base) --------------------------------
 
+    /// @brief Fit the model using Ordinary Least Squares.
+    ///
+    /// Uses ColPivHouseholderQR decomposition. Centers data when
+    /// `fit_intercept` is `true`.
+    ///
+    /// @param X Design matrix of shape (n_samples, n_features).
+    /// @param y Target vector of shape (n_samples,).
+    ///   Will be cast to `Scalar` if necessary.
+    /// @return Reference to the fitted estimator (`*this`).
+    ///
+    /// @note **sklearn parity gap:** `sample_weight` parameter is
+    ///   not yet supported.
     LinearRegression& fit_impl(const Eigen::Ref<const MatrixType>& X,
                                const Eigen::Ref<const VectorType>& y) {
         internal::check_non_empty(X);
@@ -77,11 +159,32 @@ public:
         return *this;
     }
 
+    /// @brief Predict using the linear model.
+    ///
+    /// Computes @f$ \hat{y} = X w + b @f$ where @f$w@f$ and @f$b@f$ are
+    /// the fitted coefficients and intercept.
+    ///
+    /// @param X Sample matrix of shape (n_samples, n_features).
+    /// @return Predicted values of shape (n_samples,).
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] VectorType predict_impl(
         const Eigen::Ref<const MatrixType>& X) const {
         return (X * coef_.transpose()).array() + intercept_;
     }
 
+    /// @brief Return the @f$R^2@f$ coefficient of determination on test data.
+    ///
+    /// @f$ R^2 = 1 - \frac{\sum (y_i - \hat{y}_i)^2}{\sum (y_i - \bar{y})^2} @f$.
+    /// Best possible score is 1.0; it can be negative if the model is
+    /// arbitrarily worse than predicting the mean.
+    ///
+    /// @param X Test samples of shape (n_samples, n_features).
+    /// @param y True values of shape (n_samples,).
+    /// @return @f$R^2@f$ score.
+    /// @throws std::runtime_error if the model has not been fitted.
+    ///
+    /// @note **sklearn parity gap:** `sample_weight` parameter is
+    ///   not yet supported.
     [[nodiscard]] ScalarType score_impl(
         const Eigen::Ref<const MatrixType>& X,
         const Eigen::Ref<const VectorType>& y) const {
@@ -101,6 +204,8 @@ private:
     RowVectorType x_offset_;
     IndexType rank_ = 0;
 };
+
+/// @}
 
 } // namespace Skigen
 

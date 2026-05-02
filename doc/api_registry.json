@@ -1,0 +1,323 @@
+{
+  "$comment": "Single source of truth for all Skigen public API classes. Used by doxygen2mdx.py to generate MDX pages and sidebars.ts. Every public class MUST be listed here; the converter throws if it encounters an undocumented class.",
+  "modules": {
+    "LinearModel": {
+      "include": "Skigen/LinearModel",
+      "dir_slug": "linear-model",
+      "sidebar_label": "Skigen::LinearModel",
+      "test": "tests/test_linear_model.cpp",
+      "benchmark": "benchmarks/bench_linear_model.cpp"
+    },
+    "Preprocessing": {
+      "include": "Skigen/Preprocessing",
+      "dir_slug": "preprocessing",
+      "sidebar_label": "Skigen::Preprocessing",
+      "test": "tests/test_preprocessing.cpp",
+      "benchmark": "benchmarks/bench_preprocessing.cpp"
+    },
+    "Decomposition": {
+      "include": "Skigen/Decomposition",
+      "dir_slug": "decomposition",
+      "sidebar_label": "Skigen::Decomposition",
+      "test": "tests/test_decomposition.cpp",
+      "benchmark": null
+    },
+    "Cluster": {
+      "include": "Skigen/Cluster",
+      "dir_slug": "cluster",
+      "sidebar_label": "Skigen::Cluster",
+      "test": "tests/test_cluster.cpp",
+      "benchmark": null
+    },
+    "Tree": {
+      "include": "Skigen/Tree",
+      "dir_slug": "tree",
+      "sidebar_label": "Skigen::Tree",
+      "test": "tests/test_tree.cpp",
+      "benchmark": null
+    },
+    "Neighbors": {
+      "include": "Skigen/Neighbors",
+      "dir_slug": "neighbors",
+      "sidebar_label": "Skigen::Neighbors",
+      "test": "tests/test_neighbors.cpp",
+      "benchmark": null
+    },
+    "Pipeline": {
+      "include": "Skigen/Pipeline",
+      "dir_slug": "pipeline",
+      "sidebar_label": "Skigen::Pipeline",
+      "test": null,
+      "benchmark": null
+    },
+    "ModelSelection": {
+      "include": "Skigen/ModelSelection",
+      "dir_slug": "model-selection",
+      "sidebar_label": "Skigen::ModelSelection",
+      "test": "tests/test_model_selection.cpp",
+      "benchmark": null
+    },
+    "Metrics": {
+      "include": "Skigen/Metrics",
+      "dir_slug": "metrics",
+      "sidebar_label": "Skigen::Metrics",
+      "test": "tests/test_metrics.cpp",
+      "benchmark": null
+    }
+  },
+  "classes": [
+    {
+      "name": "ElasticNet",
+      "module": "LinearModel",
+      "documented": true,
+      "guide": "/docs/guide/elastic-net",
+      "sklearn": "sklearn.linear_model.ElasticNet",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.ElasticNet.html",
+      "example": "examples/linear_model/elastic_net.cpp",
+      "example_snippet": "example_elasticnet",
+      "sidebar_position": 1
+    },
+    {
+      "name": "Ridge",
+      "module": "LinearModel",
+      "documented": true,
+      "guide": "/docs/guide/ridge",
+      "sklearn": "sklearn.linear_model.Ridge",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Ridge.html",
+      "example": "examples/linear_model/ridge.cpp",
+      "example_snippet": "example_ridge",
+      "sidebar_position": 2
+    },
+    {
+      "name": "Lasso",
+      "module": "LinearModel",
+      "documented": true,
+      "guide": "/docs/guide/lasso",
+      "sklearn": "sklearn.linear_model.Lasso",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Lasso.html",
+      "example": "examples/linear_model/lasso.cpp",
+      "example_snippet": "example_lasso",
+      "sidebar_position": 3
+    },
+    {
+      "name": "LinearRegression",
+      "module": "LinearModel",
+      "documented": true,
+      "guide": "/docs/guide/linear-regression",
+      "sklearn": "sklearn.linear_model.LinearRegression",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html",
+      "example": "examples/linear_model/linear_regression.cpp",
+      "example_snippet": "example_linear_regression",
+      "sidebar_position": 4
+    },
+    {
+      "name": "LogisticRegression",
+      "module": "LinearModel",
+      "documented": true,
+      "guide": "/docs/guide/logistic-regression",
+      "sklearn": "sklearn.linear_model.LogisticRegression",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html",
+      "example": "examples/linear_model/logistic_regression.cpp",
+      "example_snippet": "example_logistic_regression",
+      "sidebar_position": 5
+    },
+    {
+      "name": "SGDClassifier",
+      "module": "LinearModel",
+      "documented": true,
+      "guide": "/docs/guide/sgd",
+      "sklearn": "sklearn.linear_model.SGDClassifier",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.SGDClassifier.html",
+      "example": "examples/linear_model/sgd.cpp",
+      "example_snippet": "example_sgd_classifier",
+      "sidebar_position": 6
+    },
+    {
+      "name": "SGDRegressor",
+      "module": "LinearModel",
+      "documented": true,
+      "guide": "/docs/guide/sgd",
+      "sklearn": "sklearn.linear_model.SGDRegressor",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.SGDRegressor.html",
+      "example": "examples/linear_model/sgd.cpp",
+      "example_snippet": "example_sgd_regressor",
+      "sidebar_position": 7
+    },
+    {
+      "name": "StandardScaler",
+      "module": "Preprocessing",
+      "documented": true,
+      "guide": "/docs/guide/standard-scaler",
+      "sklearn": "sklearn.preprocessing.StandardScaler",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html",
+      "example": "examples/preprocessing/standard_scaler.cpp",
+      "example_snippet": "example_standard_scaler",
+      "sidebar_position": 1
+    },
+    {
+      "name": "MinMaxScaler",
+      "module": "Preprocessing",
+      "documented": true,
+      "guide": "/docs/guide/minmax-scaler",
+      "sklearn": "sklearn.preprocessing.MinMaxScaler",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MinMaxScaler.html",
+      "example": "examples/preprocessing/minmax_scaler.cpp",
+      "example_snippet": "example_min_max_scaler",
+      "sidebar_position": 2
+    },
+    {
+      "name": "MaxAbsScaler",
+      "module": "Preprocessing",
+      "documented": true,
+      "guide": "/docs/guide/maxabs-scaler",
+      "sklearn": "sklearn.preprocessing.MaxAbsScaler",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MaxAbsScaler.html",
+      "example": "examples/preprocessing/maxabs_scaler.cpp",
+      "example_snippet": "example_max_abs_scaler",
+      "sidebar_position": 3
+    },
+    {
+      "name": "RobustScaler",
+      "module": "Preprocessing",
+      "documented": true,
+      "guide": "/docs/guide/robust-scaler",
+      "sklearn": "sklearn.preprocessing.RobustScaler",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.RobustScaler.html",
+      "example": "examples/preprocessing/robust_scaler.cpp",
+      "example_snippet": "example_robust_scaler",
+      "sidebar_position": 4
+    },
+    {
+      "name": "Normalizer",
+      "module": "Preprocessing",
+      "documented": true,
+      "guide": "/docs/guide/normalizer",
+      "sklearn": "sklearn.preprocessing.Normalizer",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.Normalizer.html",
+      "example": "examples/preprocessing/normalizer.cpp",
+      "example_snippet": "example_normalizer",
+      "sidebar_position": 5
+    },
+    {
+      "name": "PolynomialFeatures",
+      "module": "Preprocessing",
+      "documented": true,
+      "guide": "/docs/guide/polynomial-features",
+      "sklearn": "sklearn.preprocessing.PolynomialFeatures",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.PolynomialFeatures.html",
+      "example": "examples/preprocessing/polynomial_features.cpp",
+      "example_snippet": "example_polynomial_features",
+      "sidebar_position": 6
+    },
+    {
+      "name": "LabelEncoder",
+      "module": "Preprocessing",
+      "documented": true,
+      "guide": "/docs/guide/label-encoder",
+      "sklearn": "sklearn.preprocessing.LabelEncoder",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.LabelEncoder.html",
+      "example": "examples/preprocessing/label_encoder.cpp",
+      "example_snippet": "example_label_encoder",
+      "sidebar_position": 7
+    },
+    {
+      "name": "PCA",
+      "module": "Decomposition",
+      "documented": true,
+      "guide": "/docs/guide/pca",
+      "sklearn": "sklearn.decomposition.PCA",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html",
+      "example": "examples/decomposition/pca.cpp",
+      "example_snippet": "example_pca",
+      "sidebar_position": 1
+    },
+    {
+      "name": "TruncatedSVD",
+      "module": "Decomposition",
+      "documented": true,
+      "guide": "/docs/guide/truncated-svd",
+      "sklearn": "sklearn.decomposition.TruncatedSVD",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.TruncatedSVD.html",
+      "example": "examples/decomposition/truncated_svd.cpp",
+      "example_snippet": "example_truncated_svd",
+      "sidebar_position": 2
+    },
+    {
+      "name": "KMeans",
+      "module": "Cluster",
+      "documented": true,
+      "guide": "/docs/guide/kmeans",
+      "sklearn": "sklearn.cluster.KMeans",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html",
+      "example": "examples/cluster/kmeans.cpp",
+      "example_snippet": "example_kmeans",
+      "sidebar_position": 1
+    },
+    {
+      "name": "MiniBatchKMeans",
+      "module": "Cluster",
+      "documented": true,
+      "guide": "/docs/guide/kmeans",
+      "sklearn": "sklearn.cluster.MiniBatchKMeans",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.cluster.MiniBatchKMeans.html",
+      "example": "examples/cluster/kmeans.cpp",
+      "example_snippet": "example_mini_batch_kmeans",
+      "sidebar_position": 2
+    },
+    {
+      "name": "DecisionTreeClassifier",
+      "module": "Tree",
+      "documented": true,
+      "guide": "/docs/guide/decision-tree",
+      "sklearn": "sklearn.tree.DecisionTreeClassifier",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html",
+      "example": "examples/tree/decision_tree.cpp",
+      "example_snippet": "example_decision_tree_classifier",
+      "sidebar_position": 1
+    },
+    {
+      "name": "DecisionTreeRegressor",
+      "module": "Tree",
+      "documented": true,
+      "guide": "/docs/guide/decision-tree",
+      "sklearn": "sklearn.tree.DecisionTreeRegressor",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeRegressor.html",
+      "example": "examples/tree/decision_tree.cpp",
+      "example_snippet": "example_decision_tree_regressor",
+      "sidebar_position": 2
+    },
+    {
+      "name": "KNeighborsClassifier",
+      "module": "Neighbors",
+      "documented": true,
+      "guide": "/docs/guide/kneighbors",
+      "sklearn": "sklearn.neighbors.KNeighborsClassifier",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsClassifier.html",
+      "example": "examples/neighbors/kneighbors.cpp",
+      "example_snippet": "example_kneighbors_classifier",
+      "sidebar_position": 1
+    },
+    {
+      "name": "KNeighborsRegressor",
+      "module": "Neighbors",
+      "documented": true,
+      "guide": "/docs/guide/kneighbors",
+      "sklearn": "sklearn.neighbors.KNeighborsRegressor",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsRegressor.html",
+      "example": "examples/neighbors/kneighbors.cpp",
+      "example_snippet": "example_kneighbors_regressor",
+      "sidebar_position": 2
+    },
+    {
+      "name": "Pipeline",
+      "module": "Pipeline",
+      "documented": true,
+      "guide": "/docs/guide/pipeline",
+      "sklearn": "sklearn.pipeline.Pipeline",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.pipeline.Pipeline.html",
+      "example": "examples/pipeline/pipeline.cpp",
+      "example_snippet": "example_pipeline",
+      "sidebar_position": 1
+    }
+  ]
+}

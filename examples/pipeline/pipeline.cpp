@@ -36,6 +36,7 @@ int main() {
     std::cout << std::fixed << std::setprecision(4);
 
     // -----------------------------------------------------------------------
+    //! [example_pipeline]
     // Pipeline 1: StandardScaler → LinearRegression
     // -----------------------------------------------------------------------
     auto pipe1 = Skigen::make_pipeline(
@@ -51,6 +52,7 @@ int main() {
     auto& scaler = pipe1.get<0>();
     std::cout << "Fitted mean:  " << scaler.mean()  << "\n";
     std::cout << "Fitted scale: " << scaler.scale() << "\n\n";
+    //! [example_pipeline]
 
     // -----------------------------------------------------------------------
     // Pipeline 2: StandardScaler → PCA → Ridge

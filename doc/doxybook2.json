@@ -1,0 +1,13 @@
+{
+  "baseUrl": "/docs/api/",
+  "copyImages": true,
+  "linkSuffix": "",
+  "indexInFolders": false,
+  "mainPageInRoot": false,
+  "sort": true,
+  "allVersionsUrl": "",
+  "formulaInlineStart": "$",
+  "formulaInlineEnd": "$",
+  "formulaBlockStart": "$$",
+  "formulaBlockEnd": "$$"
+}

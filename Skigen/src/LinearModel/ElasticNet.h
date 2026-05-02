@@ -13,11 +13,84 @@
 
 namespace Skigen {
 
-/// ElasticNet — Linear regression with combined L1 and L2 regularization.
-/// Mirrors sklearn.linear_model.ElasticNet.
+/// @defgroup Algo_ElasticNet ElasticNet Regression
+/// @ingroup LinearModels
+/// @brief Linear regression with combined L1 and L2 regularization.
+/// @see https://skigen-project.github.io/docs/guide/elastic-net for algorithm intuition.
+/// @{
+
+/// @brief Linear regression with combined L1 and L2 priors as regularizer.
 ///
-/// Objective: (1/2n) ||y - Xw||² + alpha * l1_ratio * ||w||₁
-///                                 + alpha * (1-l1_ratio)/2 * ||w||²
+/// Minimizes the objective function:
+///
+/// @f[
+///   \frac{1}{2n_{\mathrm{samples}}} \|y - Xw\|_2^2
+///   + \alpha \cdot \texttt{l1\_ratio} \cdot \|w\|_1
+///   + \frac{\alpha \cdot (1 - \texttt{l1\_ratio})}{2} \|w\|_2^2
+/// @f]
+///
+/// If you are interested in controlling the L1 and L2 penalty separately,
+/// keep in mind that this is equivalent to:
+///
+/// @f[
+///   a \|w\|_1 + \tfrac{b}{2} \|w\|_2^2
+///   \quad\text{where}\quad
+///   \alpha = a + b,\;
+///   \texttt{l1\_ratio} = \frac{a}{a + b}
+/// @f]
+///
+/// The parameter `l1_ratio` corresponds to `alpha` in the glmnet R package
+/// while `alpha` corresponds to the `lambda` parameter in glmnet.
+/// Specifically, `l1_ratio = 1` is the Lasso penalty.
+///
+/// Mirrors
+/// [sklearn.linear_model.ElasticNet](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.ElasticNet.html).
+///
+/// Read more in the @ref guide_elastic_net "User Guide".
+///
+/// ### Parameters (constructor)
+///
+/// | Parameter | Type | Default | Description |
+/// |-----------|------|---------|-------------|
+/// | `alpha` | `Scalar` | `1` | Constant that multiplies the penalty terms. `alpha = 0` is equivalent to ordinary least squares (use LinearRegression instead for numerical stability). |
+/// | `l1_ratio` | `Scalar` | `0.5` | The ElasticNet mixing parameter: `0 <= l1_ratio <= 1`. For `l1_ratio = 0` the penalty is pure L2 (Ridge). For `l1_ratio = 1` it is pure L1 (Lasso). |
+/// | `fit_intercept` | `bool` | `true` | Whether the intercept should be estimated. If `false`, the data is assumed to be already centered. |
+/// | `max_iter` | `int` | `1000` | Maximum number of coordinate descent iterations. |
+/// | `tol` | `Scalar` | `1e-4` | The tolerance for the optimization: iterations stop when the maximum coordinate update is smaller than `tol`. |
+///
+/// ### Attributes (after fitting)
+///
+/// | Accessor | Type | Description |
+/// |----------|------|-------------|
+/// | `coef()` | `RowVectorType` | Parameter vector @f$w@f$ of shape (1 × n_features). |
+/// | `intercept()` | `Scalar` | Independent term in the decision function. |
+///
+/// ### See also
+///
+/// - Skigen::LinearRegression — Ordinary least squares without regularization.
+/// - Skigen::Ridge — L2-only regularization.
+/// - Skigen::Lasso — L1-only regularization (coordinate descent).
+///
+/// ### Notes
+///
+/// The coordinate descent solver iterates over features sequentially.
+/// To avoid unnecessary memory duplication the `X` argument should
+/// ideally be column-major (Eigen's default).
+///
+/// The stopping criterion checks that the maximum coordinate update
+/// @f$ \max_j |w_j^{\mathrm{new}} - w_j^{\mathrm{old}}| @f$
+/// is smaller than `tol`.
+///
+/// @note **scikit-learn parity gaps:** The following sklearn constructor
+///   parameters are not yet supported: `precompute`, `copy_X`, `warm_start`,
+///   `positive`, `random_state`, `selection`.
+///   The following sklearn fitted attributes are not yet exposed:
+///   `n_iter_`, `dual_gap_`, `sparse_coef_`, `n_features_in_`,
+///   `feature_names_in_`.
+///
+/// ### Examples
+///
+/// @snippet elastic_net.cpp example_elasticnet
 template <typename Scalar = double>
 class ElasticNet
     : public Predictor<ElasticNet<Scalar>, Scalar> {
@@ -28,19 +101,61 @@ public:
     using typename Base::RowVectorType;
     using typename Base::IndexType;
 
+    /// @brief Construct an ElasticNet estimator.
+    ///
+    /// @param alpha Constant that multiplies the penalty terms (`Scalar`, default `1`).
+    ///   `alpha = 0` is equivalent to an ordinary least square, solved by
+    ///   LinearRegression. For numerical reasons, using `alpha = 0` with
+    ///   ElasticNet is not advised.
+    /// @param l1_ratio The ElasticNet mixing parameter (`Scalar`, default `0.5`).
+    ///   With `0 <= l1_ratio <= 1`:
+    ///   `l1_ratio = 0` → pure L2 penalty (Ridge);
+    ///   `l1_ratio = 1` → pure L1 penalty (Lasso);
+    ///   `0 < l1_ratio < 1` → combination of L1 and L2.
+    /// @param fit_intercept Whether the intercept should be estimated (`bool`, default `true`).
+    ///   If `false`, the data is assumed to be already centered.
+    /// @param max_iter The maximum number of iterations (`int`, default `1000`).
+    /// @param tol The tolerance for the optimization (`Scalar`, default `1e-4`):
+    ///   if the maximum coordinate update is smaller than `tol`, the solver stops.
     explicit ElasticNet(Scalar alpha = Scalar{1}, Scalar l1_ratio = Scalar{0.5},
                         bool fit_intercept = true,
                         int max_iter = 1000, Scalar tol = Scalar{1e-4})
         : alpha_(alpha), l1_ratio_(l1_ratio), fit_intercept_(fit_intercept),
           max_iter_(max_iter), tol_(tol) {}
 
+    /// @brief Parameter vector @f$w@f$ (1 × n_features).
+    ///
+    /// Estimated coefficients for the linear regression problem.
+    /// If `fit_intercept` is `true`, the coefficients correspond to the
+    /// centered data.
+    /// @return Read-only reference to the coefficient row-vector.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const RowVectorType& coef() const {
         this->check_is_fitted(); return coef_;
     }
+
+    /// @brief Independent term in the decision function.
+    ///
+    /// Set to `0` if `fit_intercept = false`.
+    /// @return The intercept value.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] Scalar intercept() const {
         this->check_is_fitted(); return intercept_;
     }
 
+    /// @brief Fit model with coordinate descent.
+    ///
+    /// Centers the data when `fit_intercept` is `true`, then runs
+    /// coordinate descent with soft-thresholding until convergence
+    /// or `max_iter` iterations.
+    ///
+    /// @param X Design matrix of shape (n_samples, n_features).
+    /// @param y Target vector of shape (n_samples,).
+    ///   Will be cast to `Scalar` if necessary.
+    /// @return Reference to the fitted estimator (`*this`).
+    ///
+    /// @note **sklearn parity gap:** `sample_weight` and `check_input`
+    ///   parameters are not yet supported.
     ElasticNet& fit_impl(const Eigen::Ref<const MatrixType>& X,
                          const Eigen::Ref<const VectorType>& y) {
         internal::check_non_empty(X);
@@ -109,11 +224,33 @@ public:
         return *this;
     }
 
+    /// @brief Predict using the linear model.
+    ///
+    /// Computes @f$ \hat{y} = X w + b @f$ where @f$w@f$ and @f$b@f$ are
+    /// the fitted coefficients and intercept.
+    ///
+    /// @param X Sample matrix of shape (n_samples, n_features).
+    /// @return Predicted values of shape (n_samples,).
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] VectorType predict_impl(
         const Eigen::Ref<const MatrixType>& X) const {
         return (X * coef_.transpose()).array() + intercept_;
     }
 
+    /// @brief Return the @f$R^2@f$ coefficient of determination on test data.
+    ///
+    /// The coefficient of determination is defined as
+    /// @f$ R^2 = 1 - \frac{\sum (y_i - \hat{y}_i)^2}{\sum (y_i - \bar{y})^2} @f$.
+    /// Best possible score is 1.0; it can be negative if the model is
+    /// arbitrarily worse than predicting the mean.
+    ///
+    /// @param X Test samples of shape (n_samples, n_features).
+    /// @param y True values of shape (n_samples,).
+    /// @return @f$R^2@f$ score.
+    /// @throws std::runtime_error if the model has not been fitted.
+    ///
+    /// @note **sklearn parity gap:** `sample_weight` parameter is
+    ///   not yet supported.
     [[nodiscard]] Scalar score_impl(const Eigen::Ref<const MatrixType>& X,
                                     const Eigen::Ref<const VectorType>& y) const {
         VectorType y_pred = predict_impl(X);
@@ -139,6 +276,8 @@ private:
         return Scalar{0};
     }
 };
+
+/// @}
 
 } // namespace Skigen
 

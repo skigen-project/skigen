@@ -17,8 +17,51 @@
 
 namespace Skigen {
 
-/// MiniBatchKMeans — Mini-batch variant of K-Means.
-/// Mirrors sklearn.cluster.MiniBatchKMeans.
+/// @defgroup Algo_MiniBatchKMeans MiniBatchKMeans
+/// @ingroup Cluster
+/// @brief Mini-batch variant of K-Means for large datasets.
+/// @{
+
+/// @brief Mini-Batch K-Means clustering.
+///
+/// Alternative online implementation of KMeans that uses mini-batches
+/// to reduce the computation time, while still attempting to optimise
+/// the same objective function.
+///
+/// Mirrors
+/// [sklearn.cluster.MiniBatchKMeans](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.MiniBatchKMeans.html).
+///
+/// ### Parameters (constructor)
+///
+/// | Parameter | Type | Default | Description |
+/// |-----------|------|---------|-------------|
+/// | `n_clusters` | `int` | `8` | The number of clusters to form. |
+/// | `batch_size` | `int` | `100` | Size of the mini batches. |
+/// | `max_iter` | `int` | `100` | Maximum number of iterations over the complete dataset. |
+/// | `random_state` | `unsigned int` | `42` | Seed for random sampling. |
+///
+/// ### Attributes (after fitting)
+///
+/// | Accessor | Type | Description |
+/// |----------|------|-------------|
+/// | `cluster_centers()` | `MatrixType` | Coordinates of cluster centers (n_clusters × n_features). |
+/// | `labels()` | `IndexVector` | Labels of each training point. |
+/// | `inertia()` | `Scalar` | Sum of squared distances to closest center (computed on full data). |
+///
+/// ### See also
+///
+/// - Skigen::KMeans — Standard K-Means (more accurate, slower on large data).
+///
+/// @note **scikit-learn parity gaps:** The following sklearn constructor
+///   parameters are not yet supported: `init` (only k-means++), `n_init`,
+///   `tol`, `verbose`, `compute_labels`, `max_no_improvement`,
+///   `init_size`, `reassignment_ratio`.
+///   The following sklearn fitted attributes are not yet exposed:
+///   `n_iter_`, `n_steps_`, `n_features_in_`, `feature_names_in_`.
+///
+/// ### Examples
+///
+/// @snippet kmeans.cpp example_mini_batch_kmeans
 template <typename Scalar = double>
 class MiniBatchKMeans {
 public:
@@ -26,27 +69,49 @@ public:
     using VectorType = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
     using IndexVector = Eigen::VectorXi;
 
+    /// @brief Construct a MiniBatchKMeans estimator.
+    ///
+    /// @param n_clusters The number of clusters (`int`, default `8`).
+    /// @param batch_size Size of the mini batches (`int`, default `100`).
+    /// @param max_iter Maximum iterations (`int`, default `100`).
+    /// @param random_state RNG seed (`unsigned int`, default `42`).
     explicit MiniBatchKMeans(int n_clusters = 8, int batch_size = 100,
                              int max_iter = 100, unsigned int random_state = 42)
         : n_clusters_(n_clusters), batch_size_(batch_size),
           max_iter_(max_iter), random_state_(random_state) {}
 
+    /// @brief Whether the estimator has been fitted.
     [[nodiscard]] bool is_fitted() const noexcept { return fitted_; }
+    /// @brief The number of clusters.
     [[nodiscard]] int n_clusters() const noexcept { return n_clusters_; }
 
+    /// @brief Cluster centers (n_clusters × n_features).
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const MatrixType& cluster_centers() const {
         if (!fitted_) throw std::runtime_error("MiniBatchKMeans not fitted.");
         return cluster_centers_;
     }
+    /// @brief Labels of each training point.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const IndexVector& labels() const {
         if (!fitted_) throw std::runtime_error("MiniBatchKMeans not fitted.");
         return labels_;
     }
+    /// @brief Sum of squared distances to closest cluster center.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] Scalar inertia() const {
         if (!fitted_) throw std::runtime_error("MiniBatchKMeans not fitted.");
         return inertia_;
     }
 
+    /// @brief Fit the MiniBatchKMeans model.
+    ///
+    /// Uses k-means++ initialization on the first batch, then performs
+    /// mini-batch stochastic updates to cluster centers.
+    ///
+    /// @param X Training data of shape (n_samples, n_features).
+    /// @return Reference to the fitted estimator (`*this`).
+    /// @throws std::invalid_argument if `n_samples < n_clusters`.
     MiniBatchKMeans& fit(const Eigen::Ref<const MatrixType>& X) {
         internal::check_non_empty(X);
         if (X.rows() < n_clusters_) {
@@ -115,6 +180,11 @@ public:
         return *this;
     }
 
+    /// @brief Predict the closest cluster each sample belongs to.
+    ///
+    /// @param X New data of shape (n_samples, n_features).
+    /// @return Index of the closest cluster for each sample.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] IndexVector predict(const Eigen::Ref<const MatrixType>& X) const {
         if (!fitted_) throw std::runtime_error("MiniBatchKMeans not fitted.");
         IndexVector labels(X.rows());
@@ -164,6 +234,8 @@ private:
         return centers;
     }
 };
+
+/// @}
 
 } // namespace Skigen
 

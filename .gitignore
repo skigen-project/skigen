@@ -22,6 +22,10 @@ doc/website/node_modules/
 doc/website/build/
 doc/website/.docusaurus/
 
+# Generated API docs (Doxygen + Doxybook2)
+doc/doxygen_output/
+doc/website/docs/api/
+
 # Compiled objects
 *.o
 *.obj

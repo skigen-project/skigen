@@ -63,6 +63,73 @@ const sidebars: SidebarsConfig = {
         },
         'cite',
     ],
+    apiSidebar: [
+        {
+            type: 'category',
+            label: 'Skigen::LinearModel',
+            items: [
+                'api/linear-model/elastic-net',
+                'api/linear-model/ridge',
+                'api/linear-model/lasso',
+                'api/linear-model/linear-regression',
+                'api/linear-model/logistic-regression',
+                'api/linear-model/sgdclassifier',
+                'api/linear-model/sgdregressor',
+            ],
+        },
+        {
+            type: 'category',
+            label: 'Skigen::Preprocessing',
+            items: [
+                'api/preprocessing/standard-scaler',
+                'api/preprocessing/min-max-scaler',
+                'api/preprocessing/max-abs-scaler',
+                'api/preprocessing/robust-scaler',
+                'api/preprocessing/normalizer',
+                'api/preprocessing/polynomial-features',
+                'api/preprocessing/label-encoder',
+            ],
+        },
+        {
+            type: 'category',
+            label: 'Skigen::Decomposition',
+            items: [
+                'api/decomposition/pca',
+                'api/decomposition/truncated-svd',
+            ],
+        },
+        {
+            type: 'category',
+            label: 'Skigen::Cluster',
+            items: [
+                'api/cluster/kmeans',
+                'api/cluster/mini-batch-kmeans',
+            ],
+        },
+        {
+            type: 'category',
+            label: 'Skigen::Tree',
+            items: [
+                'api/tree/decision-tree-classifier',
+                'api/tree/decision-tree-regressor',
+            ],
+        },
+        {
+            type: 'category',
+            label: 'Skigen::Neighbors',
+            items: [
+                'api/neighbors/kneighbors-classifier',
+                'api/neighbors/kneighbors-regressor',
+            ],
+        },
+        {
+            type: 'category',
+            label: 'Skigen::Pipeline',
+            items: [
+                'api/pipeline/pipeline',
+            ],
+        },
+    ],
     developmentSidebar: [
         'development/building',
         'development/architecture',

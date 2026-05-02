@@ -13,8 +13,48 @@
 
 namespace Skigen {
 
-/// PolynomialFeatures — Generate polynomial and interaction features.
-/// Mirrors sklearn.preprocessing.PolynomialFeatures.
+/// @defgroup Algo_PolynomialFeatures PolynomialFeatures
+/// @ingroup Preprocessing
+/// @brief Generate polynomial and interaction features.
+/// @{
+
+/// @brief Generate polynomial and interaction features.
+///
+/// Generate a new feature matrix consisting of all polynomial combinations
+/// of the features with degree less than or equal to the specified degree.
+/// For example, if an input sample is two dimensional and of the form
+/// `[a, b]`, the degree-2 polynomial features are `[1, a, b, a², ab, b²]`.
+///
+/// Mirrors
+/// [sklearn.preprocessing.PolynomialFeatures](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.PolynomialFeatures.html).
+///
+/// ### Parameters (constructor)
+///
+/// | Parameter | Type | Default | Description |
+/// |-----------|------|---------|-------------|
+/// | `degree` | `int` | `2` | The maximum degree of the polynomial features. |
+/// | `include_bias` | `bool` | `true` | If `true`, include a bias column of all ones. |
+/// | `interaction_only` | `bool` | `false` | If `true`, only interaction features are produced (no `x^2`, `x^3`, etc.). |
+///
+/// ### Attributes (after fitting)
+///
+/// | Accessor | Type | Description |
+/// |----------|------|-------------|
+/// | `n_output_features()` | `IndexType` | Number of output features after transformation. |
+///
+/// ### Notes
+///
+/// `inverse_transform()` is not supported.
+///
+/// @note **scikit-learn parity gaps:** The following sklearn constructor
+///   parameters are not yet supported: `order`.
+///   The following sklearn fitted attributes are not yet exposed:
+///   `powers_`, `n_features_in_`, `feature_names_in_`.
+///   `get_feature_names_out()` is not yet implemented.
+///
+/// ### Examples
+///
+/// @snippet polynomial_features.cpp example_polynomial_features
 template <typename Scalar = double>
 class PolynomialFeatures
     : public Transformer<PolynomialFeatures<Scalar>, Scalar> {
@@ -25,20 +65,29 @@ public:
     using typename Base::RowVectorType;
     using typename Base::IndexType;
 
-    /// @param degree Maximum polynomial degree.
-    /// @param include_bias If true, include a bias column of ones.
-    /// @param interaction_only If true, only interaction features (no x^2, x^3, etc.).
+    /// @brief Construct a PolynomialFeatures transformer.
+    ///
+    /// @param degree Maximum polynomial degree (`int`, default `2`).
+    /// @param include_bias If `true`, include a bias column of ones (`bool`, default `true`).
+    /// @param interaction_only If `true`, only interaction features are produced (`bool`, default `false`).
     explicit PolynomialFeatures(int degree = 2, bool include_bias = true,
                                 bool interaction_only = false)
         : degree_(degree), include_bias_(include_bias),
           interaction_only_(interaction_only) {}
 
+    /// @brief Maximum polynomial degree.
     [[nodiscard]] int degree() const noexcept { return degree_; }
+    /// @brief Number of output features after transformation.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] Eigen::Index n_output_features() const {
         this->check_is_fitted();
         return n_output_features_;
     }
 
+    /// @brief Compute the powers matrix for later transformation.
+    ///
+    /// @param X Training data of shape (n_samples, n_features).
+    /// @return Reference to the fitted transformer (`*this`).
     PolynomialFeatures& fit_impl(const Eigen::Ref<const MatrixType>& X) {
         internal::check_non_empty(X);
         this->n_features_in_ = X.cols();
@@ -50,6 +99,11 @@ public:
         return *this;
     }
 
+    /// @brief Transform data to polynomial features.
+    ///
+    /// @param X Data matrix of shape (n_samples, n_features).
+    /// @return Transformed matrix of shape (n_samples, n_output_features).
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] MatrixType transform_impl(
         const Eigen::Ref<const MatrixType>& X) const {
         const Eigen::Index n = X.rows();
@@ -69,6 +123,9 @@ public:
         return result;
     }
 
+    /// @brief Not supported — polynomial feature generation is not reversible.
+    ///
+    /// @throws std::runtime_error Always throws.
     [[nodiscard]] MatrixType inverse_transform_impl(
         const Eigen::Ref<const MatrixType>& /*X*/) const {
         throw std::runtime_error(
@@ -120,6 +177,8 @@ private:
         current[feature_idx] = 0;
     }
 };
+
+/// @}
 
 } // namespace Skigen
 

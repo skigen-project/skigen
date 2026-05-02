@@ -14,6 +14,59 @@
 
 namespace Skigen {
 
+/// @defgroup Algo_MinMaxScaler MinMaxScaler
+/// @ingroup Preprocessing
+/// @brief Transform features by scaling each feature to a given range.
+/// @{
+
+/// @brief Transform features by scaling each feature to a given range.
+///
+/// This estimator scales and translates each feature individually such
+/// that it is in the given range on the training set, e.g. between
+/// zero and one (the default).
+///
+/// The transformation is:
+///
+/// @f[
+///   X_\text{scaled} = \frac{X - X_\min}{X_\max - X_\min}
+///     \cdot (\text{max} - \text{min}) + \text{min}
+/// @f]
+///
+/// Mirrors
+/// [sklearn.preprocessing.MinMaxScaler](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MinMaxScaler.html).
+///
+/// ### Parameters (constructor)
+///
+/// | Parameter | Type | Default | Description |
+/// |-----------|------|---------|-------------|
+/// | `feature_range` | `std::pair<Scalar,Scalar>` | `{0, 1}` | Desired range of transformed data. |
+/// | `clip` | `bool` | `false` | Set to `true` to clip transformed values to the provided `feature_range`. |
+///
+/// ### Attributes (after fitting)
+///
+/// | Accessor | Type | Description |
+/// |----------|------|-------------|
+/// | `data_min()` | `RowVectorType` | Per-feature minimum seen in the data. |
+/// | `data_max()` | `RowVectorType` | Per-feature maximum seen in the data. |
+/// | `data_range()` | `RowVectorType` | Per-feature range `data_max_ - data_min_`. |
+/// | `scale()` | `RowVectorType` | Per-feature relative scaling. |
+/// | `min()` | `RowVectorType` | Per-feature adjustment for minimum. |
+/// | `n_samples_seen()` | `IndexType` | Number of samples processed by `fit()`. |
+///
+/// ### See also
+///
+/// - Skigen::StandardScaler — Standardize to zero mean and unit variance.
+/// - Skigen::MaxAbsScaler — Scale by maximum absolute value.
+///
+/// @note **scikit-learn parity gaps:** The following sklearn constructor
+///   parameters are not yet supported: `copy`.
+///   `partial_fit()` is not yet implemented.
+///   The following sklearn fitted attributes are not yet exposed:
+///   `n_features_in_`, `feature_names_in_`.
+///
+/// ### Examples
+///
+/// @snippet minmax_scaler.cpp example_min_max_scaler
 template <typename Scalar = double>
 class MinMaxScaler
     : public Transformer<MinMaxScaler<Scalar>, Scalar> {
@@ -23,6 +76,13 @@ public:
     using typename Base::RowVectorType;
     using typename Base::IndexType;
 
+    /// @brief Construct a MinMaxScaler.
+    ///
+    /// @param feature_range Desired range of transformed data
+    ///   (`std::pair<Scalar,Scalar>`, default `{0, 1}`).
+    /// @param clip Whether to clip transformed values to `feature_range`
+    ///   (`bool`, default `false`).
+    /// @throws std::invalid_argument if `feature_range.first >= feature_range.second`.
     explicit MinMaxScaler(std::pair<Scalar, Scalar> feature_range = {Scalar{0}, Scalar{1}},
                           bool clip = false)
         : feature_range_(feature_range), clip_(clip) {
@@ -34,32 +94,50 @@ public:
 
     // -- Accessors ----------------------------------------------------------
 
+    /// @brief Desired feature range.
     [[nodiscard]] const std::pair<Scalar, Scalar>& feature_range() const noexcept {
         return feature_range_;
     }
+    /// @brief Whether clipping is enabled.
     [[nodiscard]] bool clip() const noexcept { return clip_; }
 
+    /// @brief Per-feature minimum seen in the data.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const RowVectorType& data_min() const {
         this->check_is_fitted(); return data_min_;
     }
+    /// @brief Per-feature maximum seen in the data.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const RowVectorType& data_max() const {
         this->check_is_fitted(); return data_max_;
     }
+    /// @brief Per-feature range (`data_max_ - data_min_`).
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const RowVectorType& data_range() const {
         this->check_is_fitted(); return data_range_;
     }
+    /// @brief Per-feature relative scaling factor.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const RowVectorType& scale() const {
         this->check_is_fitted(); return scale_;
     }
+    /// @brief Per-feature adjustment for minimum.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const RowVectorType& min() const {
         this->check_is_fitted(); return min_;
     }
+    /// @brief Number of samples processed during `fit()`.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] IndexType n_samples_seen() const {
         this->check_is_fitted(); return n_samples_seen_;
     }
 
     // -- Implementation (called by CRTP base) --------------------------------
 
+    /// @brief Compute per-feature min and max to be used for later scaling.
+    ///
+    /// @param X Training data of shape (n_samples, n_features).
+    /// @return Reference to the fitted transformer (`*this`).
     MinMaxScaler& fit_impl(const Eigen::Ref<const MatrixType>& X) {
         internal::check_non_empty(X);
 
@@ -84,6 +162,11 @@ public:
         return *this;
     }
 
+    /// @brief Scale features of X according to `feature_range`.
+    ///
+    /// @param X Data matrix of shape (n_samples, n_features).
+    /// @return Transformed data of same shape.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] MatrixType transform_impl(
         const Eigen::Ref<const MatrixType>& X) const {
         MatrixType result = (X.array().rowwise() * scale_.array()).rowwise() + min_.array();
@@ -93,11 +176,19 @@ public:
         return result;
     }
 
+    /// @brief Undo the scaling of X according to `feature_range`.
+    ///
+    /// @param X Transformed data of shape (n_samples, n_features).
+    /// @return Un-transformed data of same shape.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] MatrixType inverse_transform_impl(
         const Eigen::Ref<const MatrixType>& X) const {
         return (X.rowwise() - min_).array().rowwise() / scale_.array();
     }
 
+    /// @brief Transform features in-place to the target range.
+    /// @param X Data matrix of shape (n_samples, n_features), modified in place.
+    /// @throws std::runtime_error if the model has not been fitted.
     void transform_inplace(Eigen::Ref<MatrixType> X) const {
         this->check_is_fitted();
         this->validate_feature_count(X);
@@ -108,6 +199,9 @@ public:
         }
     }
 
+    /// @brief Inverse-transform features in-place to original scale.
+    /// @param X Scaled data matrix, modified in place.
+    /// @throws std::runtime_error if the model has not been fitted.
     void inverse_transform_inplace(Eigen::Ref<MatrixType> X) const {
         this->check_is_fitted();
         this->validate_feature_count(X);
@@ -126,6 +220,8 @@ private:
     RowVectorType min_;
     IndexType n_samples_seen_ = 0;
 };
+
+/// @}
 
 } // namespace Skigen
 

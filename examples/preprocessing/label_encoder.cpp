@@ -13,6 +13,7 @@ int main() {
 
     std::cout << "Original labels: " << labels.transpose() << "\n\n";
 
+    //! [example_label_encoder]
     Skigen::LabelEncoder<int> encoder;
     auto encoded = encoder.fit_transform(labels);
 
@@ -24,7 +25,8 @@ int main() {
 
     // Inverse transform — recover original labels
     auto decoded = encoder.inverse_transform(encoded);
-    std::cout << "Decoded:  " << decoded.transpose() << "\n\n";
+    std::cout << "Decoded:  " << decoded.transpose() << "\n";
+    //! [example_label_encoder]
 
     // Verify round-trip
     bool match = (labels == decoded);

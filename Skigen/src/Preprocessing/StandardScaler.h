@@ -14,6 +14,58 @@
 
 namespace Skigen {
 
+/// @defgroup Algo_StandardScaler StandardScaler
+/// @ingroup Preprocessing
+/// @brief Standardize features by removing the mean and scaling to unit variance.
+/// @{
+
+/// @brief Standardize features by removing the mean and scaling to unit variance.
+///
+/// The standard score of a sample `x` is calculated as:
+///
+/// @f[
+///   z = \frac{x - \mu}{\sigma}
+/// @f]
+///
+/// where @f$\mu@f$ is the mean of the training samples and @f$\sigma@f$
+/// is the standard deviation. Centering and scaling happen independently
+/// on each feature by computing the relevant statistics on the samples in
+/// the training set.
+///
+/// Mirrors
+/// [sklearn.preprocessing.StandardScaler](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html).
+///
+/// ### Parameters (constructor)
+///
+/// | Parameter | Type | Default | Description |
+/// |-----------|------|---------|-------------|
+/// | `with_mean` | `bool` | `true` | If `true`, center the data before scaling. |
+/// | `with_std` | `bool` | `true` | If `true`, scale the data to unit variance. |
+///
+/// ### Attributes (after fitting)
+///
+/// | Accessor | Type | Description |
+/// |----------|------|-------------|
+/// | `mean()` | `RowVectorType` | Per-feature mean of shape (1 × n_features). |
+/// | `var()` | `RowVectorType` | Per-feature variance of shape (1 × n_features). |
+/// | `scale()` | `RowVectorType` | Per-feature standard deviation (1 × n_features). |
+/// | `n_samples_seen()` | `IndexType` | Number of samples processed by `fit()`. |
+///
+/// ### See also
+///
+/// - Skigen::MinMaxScaler — Scale features to a given range.
+/// - Skigen::RobustScaler — Scale using statistics robust to outliers.
+/// - Skigen::MaxAbsScaler — Scale each feature by its maximum absolute value.
+///
+/// @note **scikit-learn parity gaps:** The following sklearn constructor
+///   parameters are not yet supported: `copy`.
+///   `partial_fit()` is not yet implemented.
+///   The following sklearn fitted attributes are not yet exposed:
+///   `n_features_in_`, `feature_names_in_`.
+///
+/// ### Examples
+///
+/// @snippet standard_scaler.cpp example_standard_scaler
 template <typename Scalar = double>
 class StandardScaler
     : public Transformer<StandardScaler<Scalar>, Scalar> {
@@ -25,29 +77,45 @@ public:
     using typename Base::IndexType;
     using typename Base::ScalarType;
 
+    /// @brief Construct a StandardScaler.
+    ///
+    /// @param with_mean If `true`, center the data before scaling (`bool`, default `true`).
+    /// @param with_std If `true`, scale the data to unit variance (`bool`, default `true`).
     explicit StandardScaler(bool with_mean = true, bool with_std = true)
         : with_mean_(with_mean), with_std_(with_std) {}
 
     // -- Accessors ----------------------------------------------------------
 
+    /// @brief Whether centering is enabled.
     [[nodiscard]] bool with_mean()  const noexcept { return with_mean_; }
+    /// @brief Whether scaling to unit variance is enabled.
     [[nodiscard]] bool with_std()   const noexcept { return with_std_; }
 
+    /// @brief Per-feature mean (1 × n_features).
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const RowVectorType& mean() const {
         this->check_is_fitted();
         return mean_;
     }
 
+    /// @brief Per-feature variance (1 × n_features).
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const RowVectorType& var() const {
         this->check_is_fitted();
         return var_;
     }
 
+    /// @brief Per-feature standard deviation (1 × n_features).
+    ///
+    /// Used for scaling; zeros are replaced with 1 to avoid division by zero.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const RowVectorType& scale() const {
         this->check_is_fitted();
         return scale_;
     }
 
+    /// @brief Number of samples processed during `fit()`.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] IndexType n_samples_seen() const {
         this->check_is_fitted();
         return n_samples_seen_;
@@ -55,6 +123,10 @@ public:
 
     // -- Implementation (called by CRTP base) --------------------------------
 
+    /// @brief Compute the mean and std to be used for later scaling.
+    ///
+    /// @param X Training data of shape (n_samples, n_features).
+    /// @return Reference to the fitted transformer (`*this`).
     StandardScaler& fit_impl(const Eigen::Ref<const MatrixType>& X) {
         internal::check_non_empty(X);
 
@@ -82,6 +154,11 @@ public:
         return *this;
     }
 
+    /// @brief Perform standardization by centering and scaling.
+    ///
+    /// @param X Data matrix of shape (n_samples, n_features).
+    /// @return Transformed data of same shape.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] MatrixType transform_impl(
         const Eigen::Ref<const MatrixType>& X) const {
         if (with_mean_ && with_std_) {
@@ -94,6 +171,11 @@ public:
         return X;
     }
 
+    /// @brief Scale back the data to the original representation.
+    ///
+    /// @param X Transformed data of shape (n_samples, n_features).
+    /// @return Un-transformed data of same shape.
+    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] MatrixType inverse_transform_impl(
         const Eigen::Ref<const MatrixType>& X) const {
         if (with_mean_ && with_std_) {
@@ -109,6 +191,9 @@ public:
 
     // -- EES extension: in-place transform -----------------------------------
 
+    /// @brief Transform features in-place by standardizing.
+    /// @param X Data matrix of shape (n_samples, n_features), modified in place.
+    /// @throws std::runtime_error if the model has not been fitted.
     void transform_inplace(Eigen::Ref<MatrixType> X) const {
         this->check_is_fitted();
         this->validate_feature_count(X);
@@ -121,6 +206,9 @@ public:
         }
     }
 
+    /// @brief Inverse-transform features in-place.
+    /// @param X Standardized data matrix, modified in place to original scale.
+    /// @throws std::runtime_error if the model has not been fitted.
     void inverse_transform_inplace(Eigen::Ref<MatrixType> X) const {
         this->check_is_fitted();
         this->validate_feature_count(X);
@@ -142,6 +230,8 @@ private:
     RowVectorType scale_;
     IndexType n_samples_seen_ = 0;
 };
+
+/// @}
 
 } // namespace Skigen
 

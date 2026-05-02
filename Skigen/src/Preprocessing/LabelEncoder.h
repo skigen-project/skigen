@@ -14,8 +14,38 @@
 
 namespace Skigen {
 
-/// LabelEncoder — encode integer labels as contiguous indices [0, n_classes).
-/// Mirrors sklearn.preprocessing.LabelEncoder for integer-typed labels.
+/// @defgroup Algo_LabelEncoder LabelEncoder
+/// @ingroup Preprocessing
+/// @brief Encode integer labels as contiguous indices [0, n_classes).
+/// @{
+
+/// @brief Encode target labels with value between 0 and n_classes − 1.
+///
+/// This transformer encodes integer labels as contiguous zero-based
+/// indices. It is useful as a utility to normalize labels.
+///
+/// Mirrors
+/// [sklearn.preprocessing.LabelEncoder](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.LabelEncoder.html)
+/// for integer-typed labels.
+///
+/// ### Attributes (after fitting)
+///
+/// | Accessor | Type | Description |
+/// |----------|------|-------------|
+/// | `classes()` | `std::vector<Label>` | Unique class labels sorted in ascending order. |
+/// | `n_classes()` | `IndexType` | Number of unique classes. |
+///
+/// ### Notes
+///
+/// Unlike the sklearn version which supports string labels, this
+/// implementation only supports integer (or any arithmetic) label types.
+///
+/// @note **scikit-learn parity gaps:** String labels are not supported;
+///   only integer or arithmetic label types are handled.
+///
+/// ### Examples
+///
+/// @snippet label_encoder.cpp example_label_encoder
 template <typename Label = int>
 class LabelEncoder {
 public:
@@ -24,14 +54,21 @@ public:
 
     // -- Accessors ----------------------------------------------------------
 
+    /// @brief Whether the encoder has been fitted.
     [[nodiscard]] bool is_fitted() const noexcept { return fitted_; }
 
+    /// @brief Unique class labels sorted in ascending order.
+    ///
+    /// @return Read-only reference to the class vector.
+    /// @throws std::runtime_error if the encoder has not been fitted.
     [[nodiscard]] const std::vector<Label>& classes() const {
         if (!fitted_) throw std::runtime_error(
             "LabelEncoder has not been fitted yet.");
         return classes_;
     }
 
+    /// @brief Number of unique classes.
+    /// @throws std::runtime_error if the encoder has not been fitted.
     [[nodiscard]] Eigen::Index n_classes() const {
         if (!fitted_) throw std::runtime_error(
             "LabelEncoder has not been fitted yet.");
@@ -40,6 +77,10 @@ public:
 
     // -- fit / transform / inverse_transform --------------------------------
 
+    /// @brief Fit the label encoder by discovering unique classes.
+    ///
+    /// @param y Label vector of shape (n_samples,).
+    /// @return Reference to the fitted encoder (`*this`).
     LabelEncoder& fit(const Eigen::Ref<const VectorType>& y) {
         classes_.clear();
         classes_.reserve(static_cast<std::size_t>(y.size()));
@@ -53,6 +94,12 @@ public:
         return *this;
     }
 
+    /// @brief Transform labels to normalized encoding.
+    ///
+    /// @param y Label vector of shape (n_samples,).
+    /// @return Integer vector of encoded labels [0, n_classes).
+    /// @throws std::runtime_error if the encoder has not been fitted.
+    /// @throws std::invalid_argument if `y` contains unseen labels.
     [[nodiscard]] IndexVector transform(
         const Eigen::Ref<const VectorType>& y) const {
         if (!fitted_) throw std::runtime_error(
@@ -70,12 +117,24 @@ public:
         return encoded;
     }
 
+    /// @brief Fit the encoder and return transformed labels.
+    ///
+    /// Equivalent to `fit(y).transform(y)` but more convenient.
+    ///
+    /// @param y Label vector of shape (n_samples,).
+    /// @return Integer vector of encoded labels [0, n_classes).
     [[nodiscard]] IndexVector fit_transform(
         const Eigen::Ref<const VectorType>& y) {
         fit(y);
         return transform(y);
     }
 
+    /// @brief Transform encoded labels back to original labels.
+    ///
+    /// @param y Integer vector of encoded labels.
+    /// @return Original label vector of shape (n_samples,).
+    /// @throws std::runtime_error if the encoder has not been fitted.
+    /// @throws std::invalid_argument if `y` contains indices out of range.
     [[nodiscard]] VectorType inverse_transform(
         const Eigen::Ref<const IndexVector>& y) const {
         if (!fitted_) throw std::runtime_error(
@@ -97,6 +156,8 @@ private:
     bool fitted_ = false;
     std::vector<Label> classes_;
 };
+
+/// @}
 
 } // namespace Skigen
 

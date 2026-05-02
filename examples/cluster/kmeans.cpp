@@ -37,6 +37,7 @@ int main() {
     std::cout << std::fixed << std::setprecision(4);
     std::cout << "Data: " << n << " samples, 2 features, 3 clusters\n\n";
 
+    //! [example_kmeans]
     // KMeans
     Skigen::KMeans<double> km(3, /*max_iter=*/300, /*n_init=*/10, /*random_state=*/42);
     km.fit(X);
@@ -53,7 +54,9 @@ int main() {
               0.0, 5.0;
     auto labels = km.predict(X_new);
     std::cout << "New point labels: " << labels.transpose() << "\n\n";
+    //! [example_kmeans]
 
+    //! [example_mini_batch_kmeans]
     // MiniBatchKMeans — faster for large datasets
     Skigen::MiniBatchKMeans<double> mbk(3, /*batch_size=*/30, /*max_iter=*/100, /*random_state=*/42);
     mbk.fit(X);
@@ -61,6 +64,7 @@ int main() {
     std::cout << "=== MiniBatchKMeans (k=3, batch=30) ===\n";
     std::cout << "Inertia:    " << mbk.inertia() << "\n";
     std::cout << "Centers:\n" << mbk.cluster_centers() << "\n";
+    //! [example_mini_batch_kmeans]
 
     return 0;
 }

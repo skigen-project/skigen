@@ -11,15 +11,47 @@
 
 namespace Skigen {
 
-/// Pipeline — Compile-time chain of transformers ending with an estimator.
-/// Mirrors sklearn.pipeline.Pipeline.
+/// @defgroup Algo_Pipeline Pipeline
+/// @ingroup Pipeline
+/// @brief Compile-time chain of transformers ending with an estimator.
+/// @{
+
+/// @brief Pipeline of transforms with a final estimator.
 ///
-/// Usage:
-///   auto pipe = Skigen::make_pipeline(
-///       Skigen::StandardScaler<double>(),
-///       Skigen::LinearRegression<double>());
-///   pipe.fit(X, y);
-///   auto y_pred = pipe.predict(X);
+/// Sequentially apply a list of transforms and a final estimator.
+/// Intermediate steps of the pipeline must implement `fit()` and
+/// `transform()`. The final estimator only needs to implement `fit()`.
+///
+/// The pipeline object is created via `make_pipeline()`.
+///
+/// Mirrors
+/// [sklearn.pipeline.Pipeline](https://scikit-learn.org/stable/modules/generated/sklearn.pipeline.Pipeline.html).
+///
+/// ### Notes
+///
+/// This is a compile-time pipeline using variadic templates and
+/// `std::tuple`. The number and types of steps are fixed at compile
+/// time, which enables full inlining and zero runtime overhead.
+///
+/// @note **scikit-learn parity gaps:** The following sklearn features
+///   are not yet supported: `memory` (caching), `verbose`,
+///   named steps (steps are accessed by index), `set_params()`,
+///   `get_params()`, `set_output()`.
+///   `fit_transform()`, `fit_predict()`, and `inverse_transform()`
+///   are not yet implemented.
+///
+/// ### Examples
+///
+/// @snippet pipeline.cpp example_pipeline
+///
+/// **Usage:**
+/// ```cpp
+/// auto pipe = Skigen::make_pipeline(
+///     Skigen::StandardScaler<double>(),
+///     Skigen::LinearRegression<double>());
+/// pipe.fit(X, y);
+/// auto y_pred = pipe.predict(X);
+/// ```
 template <typename... Steps>
 class Pipeline {
     static_assert(sizeof...(Steps) >= 1, "Pipeline needs at least one step.");
@@ -29,8 +61,18 @@ public:
     using MatrixType = Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>;
     using VectorType = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
 
+    /// @brief Construct a Pipeline from individual steps.
+    /// @param steps The transformer and estimator steps (moved into the pipeline).
     explicit Pipeline(Steps... steps) : steps_(std::move(steps)...) {}
 
+    /// @brief Fit all transformers and the final estimator.
+    ///
+    /// Calls `fit()` then `transform()` on each intermediate step,
+    /// then `fit()` on the final estimator with the transformed data.
+    ///
+    /// @param X Training data of shape (n_samples, n_features).
+    /// @param y Target values (type depends on the final estimator).
+    /// @return Reference to the fitted pipeline (`*this`).
     /// fit with supervised target (transformers + final estimator)
     template <typename YType>
     Pipeline& fit(const MatrixType& X, const YType& y) {
@@ -41,6 +83,14 @@ public:
         return *this;
     }
 
+    /// @brief Predict using the pipeline.
+    ///
+    /// Applies `transform()` on all intermediate steps, then calls
+    /// `predict()` on the final estimator.
+    ///
+    /// @param X Test data of shape (n_samples, n_features).
+    /// @return Predictions from the final estimator.
+    /// @throws std::runtime_error if the pipeline has not been fitted.
     /// predict (transform through all steps, predict with final)
     template <typename... Args>
     [[nodiscard]] auto predict(const MatrixType& X, Args&&... args) const {
@@ -51,6 +101,15 @@ public:
             X_transformed, std::forward<Args>(args)...);
     }
 
+    /// @brief Score the pipeline on test data.
+    ///
+    /// Applies `transform()` on all intermediate steps, then calls
+    /// `score()` on the final estimator.
+    ///
+    /// @param X Test data of shape (n_samples, n_features).
+    /// @param y True target values.
+    /// @return Score from the final estimator.
+    /// @throws std::runtime_error if the pipeline has not been fitted.
     /// score (transform through all steps, score with final)
     template <typename YType>
     [[nodiscard]] auto score(const MatrixType& X, const YType& y) const {
@@ -60,13 +119,21 @@ public:
         return std::get<sizeof...(Steps) - 1>(steps_).score(X_transformed, y);
     }
 
-    /// Access a step by index
+    /// @brief Access a step by compile-time index.
+    ///
+    /// @tparam I Zero-based index of the step.
+    /// @return Reference to the step.
     template <std::size_t I>
     [[nodiscard]] auto& get() { return std::get<I>(steps_); }
 
+    /// @brief Access a step by compile-time index (const).
+    /// @tparam I Zero-based index of the step.
+    /// @return Const reference to the step.
     template <std::size_t I>
     [[nodiscard]] const auto& get() const { return std::get<I>(steps_); }
 
+    /// @brief Check whether the pipeline has been fitted.
+    /// @return `true` if `fit()` has been called successfully.
     [[nodiscard]] bool is_fitted() const noexcept { return fitted_; }
 
 private:
@@ -99,11 +166,23 @@ private:
     }
 };
 
-/// Factory function for creating pipelines with deduced types.
+/// @brief Factory function for creating pipelines with deduced types.
+///
+/// @param steps The transformer and estimator steps.
+/// @return A Pipeline composed of the given steps.
+///
+/// **Usage:**
+/// ```cpp
+/// auto pipe = Skigen::make_pipeline(
+///     Skigen::StandardScaler<double>(),
+///     Skigen::Ridge<double>(0.5));
+/// ```
 template <typename... Steps>
 [[nodiscard]] Pipeline<Steps...> make_pipeline(Steps... steps) {
     return Pipeline<Steps...>(std::move(steps)...);
 }
+
+/// @}
 
 } // namespace Skigen
 

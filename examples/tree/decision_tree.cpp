@@ -41,6 +41,7 @@ int main() {
                   << "  F1=" << Skigen::Metrics::f1_score(split.y_test, pred) << "\n";
     }
 
+    //! [example_decision_tree_classifier]
     // Best model
     Skigen::DecisionTreeClassifier<double> best(5);
     best.fit(split.X_train, split.y_train);
@@ -49,6 +50,24 @@ int main() {
     std::cout << "\n=== Confusion Matrix (depth=5) ===\n";
     auto cm = Skigen::Metrics::confusion_matrix(split.y_test, best_pred);
     std::cout << cm << "\n";
+    //! [example_decision_tree_classifier]
+
+    //! [example_decision_tree_regressor]
+    // Decision tree for regression
+    Eigen::VectorXd y_reg(split.X_train.rows());
+    for (Eigen::Index i = 0; i < y_reg.size(); ++i)
+        y_reg(i) = split.X_train(i, 0) * split.X_train(i, 0) + noise(rng);
+
+    Skigen::DecisionTreeRegressor<double> tree_reg(5);
+    tree_reg.fit(split.X_train, y_reg);
+
+    Eigen::VectorXd y_reg_test(split.X_test.rows());
+    for (Eigen::Index i = 0; i < y_reg_test.size(); ++i)
+        y_reg_test(i) = split.X_test(i, 0) * split.X_test(i, 0);
+
+    std::cout << "\n=== DecisionTreeRegressor (depth=5) ===\n";
+    std::cout << "R²: " << tree_reg.score(split.X_test, y_reg_test) << "\n";
+    //! [example_decision_tree_regressor]
 
     return 0;
 }

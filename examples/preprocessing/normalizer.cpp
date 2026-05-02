@@ -17,6 +17,7 @@ int main() {
     std::cout << std::fixed << std::setprecision(4);
     std::cout << "Original data:\n" << X << "\n\n";
 
+    //! [example_normalizer]
     // L2 normalization (default) — each row has unit Euclidean norm
     Skigen::Normalizer<double> l2_norm(Skigen::Norm::L2);
     Eigen::MatrixXd Z_l2 = l2_norm.fit_transform(X);
@@ -32,6 +33,7 @@ int main() {
     Eigen::MatrixXd Z_l1 = l1_norm.fit_transform(X);
 
     std::cout << "L1 normalized:\n" << Z_l1 << "\n";
+    //! [example_normalizer]
     std::cout << "Row abs sums: ";
     for (Eigen::Index i = 0; i < Z_l1.rows(); ++i)
         std::cout << Z_l1.row(i).cwiseAbs().sum() << " ";
