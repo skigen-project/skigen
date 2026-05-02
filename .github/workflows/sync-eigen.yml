@@ -1,0 +1,23 @@
+name: Sync Eigen Mirror
+
+on:
+  schedule:
+    # Daily at 04:00 UTC
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mirror Eigen from GitLab to GitHub
+        env:
+          GIT_CREDENTIALS: ${{ secrets.GIT_CREDENTIALS }}
+        run: |
+          git clone --bare https://gitlab.com/libeigen/eigen.git eigen-mirror
+          cd eigen-mirror
+
+          # Push all branches and tags to the GitHub mirror
+          git remote add github "https://x-access-token:${GIT_CREDENTIALS}@github.com/skigen-project/eigen.git"
+          git push github --all --force
+          git push github --tags --force
