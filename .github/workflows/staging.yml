@@ -35,10 +35,10 @@ jobs:
       matrix:
         gcc: [13, 14]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Checkout Eigen
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: skigen-project/eigen
           ref: '3.4'
@@ -67,10 +67,10 @@ jobs:
     name: macOS (AppleClang)
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Checkout Eigen
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: skigen-project/eigen
           ref: '3.4'
@@ -93,10 +93,10 @@ jobs:
     name: Windows (MSVC)
     runs-on: windows-2022
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Checkout Eigen
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: skigen-project/eigen
           ref: '3.4'
@@ -120,11 +120,11 @@ jobs:
     needs: [build-linux, build-macos, build-windows]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: doc/website/package-lock.json
 
