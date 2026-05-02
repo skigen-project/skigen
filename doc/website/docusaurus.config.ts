@@ -6,7 +6,7 @@ import rehypeKatex from 'rehype-katex';
 
 const config: Config = {
     title: 'Skigen',
-    tagline: 'Energy-efficient machine learning, native to C++ and Eigen.',
+    tagline: 'High-performance machine learning for modern C++ and Eigen.',
     favicon: 'img/favicon.ico',
 
     url: 'https://skigen-project.github.io',
@@ -80,6 +80,7 @@ const config: Config = {
             logo: {
                 alt: 'Skigen Logo',
                 src: 'img/skigen-logo.svg',
+                srcDark: 'img/skigen-logo-dark.svg',
             },
             items: [
                 {

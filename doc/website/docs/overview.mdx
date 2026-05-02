@@ -6,28 +6,38 @@ slug: /
 
 # Skigen
 
-**Energy-efficient machine learning, native to C++ and Eigen.**
+**High-performance machine learning for modern C++ and Eigen.**
 
-Skigen is a header-only C++23 library that brings the scikit-learn API to the Eigen ecosystem. It is designed for deployments where compute and memory are scarce resources — embedded systems, real-time pipelines, edge devices, and any environment where interpreter overhead is unacceptable.
+Skigen is a header-only C++ template library for machine learning. It brings the scikit-learn API — `fit()`, `transform()`, `predict()` — to the Eigen ecosystem.
 
-## Why Skigen?
+## Overview
 
-Python's scikit-learn is the gold standard for machine learning research and prototyping. It is well-designed, well-documented, and universally understood. Skigen does not aim to replace it — it aims to provide a native execution path for the same algorithms, so that models developed in Python can be deployed in C++ with zero translation loss.
+- **Skigen is versatile.**
+  - Preprocessing, linear models, decomposition, clustering, trees, neighbors, pipelines, and metrics — covering the core scikit-learn surface with a consistent API.
+  - All estimators are templatized on `Scalar` (default: `double`). Switch to `float` for 2× SIMD throughput on the same hardware.
+- **Skigen is fast.**
+  - Eigen's expression templates eliminate temporaries and enable lazy evaluation.
+  - Explicit SIMD vectorization via Eigen for SSE, AVX, AVX-512, and ARM NEON.
+  - Compile-time polymorphism via CRTP — zero vtable overhead, zero runtime dispatch.
+  - No interpreter, no garbage collector, no GIL.
+- **Skigen is reliable.**
+  - Bit-level parity with scikit-learn for identical inputs and default parameters, verified via cross-language parity tests.
+  - CI-tested on GCC, Clang, and MSVC across Linux, macOS, and Windows.
+- **Skigen is elegant.**
+  - Header-only — drop `Skigen/` next to `Eigen/` and `#include`. No compiled libraries, no linker flags.
+  - Include patterns mirror Eigen: `#include <Skigen/Dense>` feels like `#include <Eigen/Dense>`.
+  - The same API you know from scikit-learn, native to C++.
 
-| | scikit-learn | Skigen |
-|---|---|---|
-| Language | Python (NumPy/SciPy backend) | C++23 (Eigen backend) |
-| API | `fit()` / `transform()` / `predict()` | `fit()` / `transform()` / `predict()` |
-| Overhead | Interpreter + GIL + object model | Zero — compiles to SIMD instructions |
-| Precision | `float64` default | Templatized (`double` default, `float` for 2× SIMD density) |
-| Memory | Copies by default | Zero-copy via `Eigen::Ref`, in-place variants |
+## Design
 
-## Design Principles
-
-- **Eigen-native**: Headers, namespaces, and include patterns mirror Eigen conventions. If you know Eigen, Skigen feels like home.
-- **Header-only**: Drop `Skigen/` next to `Eigen/` and you're done. No compiled libraries, no link-time dependencies.
-- **Bit-level parity**: Results match scikit-learn for identical inputs and default parameters.
-- **CRTP, not `virtual`**: Static polymorphism via the Curiously Recurring Template Pattern — zero vtable overhead.
+| Principle | Implementation |
+|---|---|
+| **Eigen-native** | Headers, namespaces, and include patterns mirror Eigen conventions. |
+| **Header-only** | No compiled libraries, no link-time dependencies. |
+| **Templatized** | `Scalar` template parameter — `double` default, `float` for dense SIMD. |
+| **Zero-copy** | Inputs use `Eigen::Ref<const MatrixType>` — sub-blocks and memory-mapped data without copying. |
+| **CRTP** | Static polymorphism via the Curiously Recurring Template Pattern. |
+| **Bit-level parity** | Results match scikit-learn for identical inputs and default parameters. |
 
 ## Quick Example
 

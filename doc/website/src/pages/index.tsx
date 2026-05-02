@@ -3,23 +3,24 @@ import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
 import Heading from '@theme/Heading';
+import { useColorMode } from '@docusaurus/theme-common';
 import styles from './index.module.css';
 
 const features = [
     {
-        title: 'Eigen-Native',
+        title: 'Versatile',
         description:
-            "Built entirely on Eigen's expression templates. No wrapper overhead — just vectorized math from start to finish.",
+            'Preprocessing, linear models, decomposition, clustering, trees, neighbors, pipelines, and metrics — all with a consistent fit / transform / predict API.',
     },
     {
-        title: 'scikit-learn API',
+        title: 'Fast',
         description:
-            'The fit / transform / predict paradigm you already know. Porting logic from Python to C++ is straightforward.',
+            "Eigen's expression templates, explicit SIMD vectorization, and compile-time polymorphism. No interpreter, no GC, no runtime dispatch.",
     },
     {
-        title: 'Energy-Efficient',
+        title: 'Elegant',
         description:
-            'Header-only, zero-copy, zero interpreter tax. Every cycle goes to computation, not infrastructure.',
+            'Header-only — just drop Skigen/ next to Eigen/ and #include. The same API you know from scikit-learn, native to C++.',
     },
 ];
 
@@ -62,6 +63,12 @@ function HexGrid() {
     );
 }
 
+function HeroLogo() {
+    const { colorMode } = useColorMode();
+    const logoSrc = colorMode === 'dark' ? 'img/skigen-logo-dark.svg' : 'img/skigen-logo.svg';
+    return <img src={logoSrc} alt="Skigen" className={styles.heroLogo} />;
+}
+
 export default function Home(): React.JSX.Element {
     const { siteConfig } = useDocusaurusContext();
     return (
@@ -69,7 +76,7 @@ export default function Home(): React.JSX.Element {
             <header className={styles.hero}>
                 <HexGrid />
                 <div className={styles.heroInner}>
-                    <img src="img/skigen-logo.svg" alt="Skigen" className={styles.heroLogo} />
+                    <HeroLogo />
                     <p className={styles.heroTagline}>{siteConfig.tagline}</p>
                     <div className={styles.heroCta}>
                         <Link className="button button--primary button--lg" to="/docs/getting-started">
@@ -105,12 +112,11 @@ export default function Home(): React.JSX.Element {
                         <div className="row">
                             <div className="col col--5">
                                 <Heading as="h2" className={styles.codeSectionTitle}>
-                                    Familiar API, native performance
+                                    scikit-learn for C++
                                 </Heading>
                                 <p className={styles.codeSectionDesc}>
-                                    If you know scikit-learn, you already know Skigen.
-                                    The same <code>fit</code> / <code>transform</code> / <code>predict</code> workflow,
-                                    compiled to optimized machine code with zero runtime overhead.
+                                    The same <code>fit</code> / <code>transform</code> / <code>predict</code> workflow
+                                    you know from Python — compiled directly to vectorized machine code via Eigen.
                                 </p>
                                 <Link className="button button--primary" to="/docs/guide/standard-scaler">
                                     Explore the API →

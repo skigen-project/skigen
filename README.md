@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <em>Energy-efficient machine learning, native to C++ and Eigen.</em>
+  <em>High-performance machine learning for modern C++ and Eigen.</em>
 </p>
 
 <p align="center">
@@ -16,11 +16,11 @@
 
 ## About
 
-The rapid expansion of AI has put extraordinary pressure on global compute and memory resources. A meaningful share of this cost comes not from the algorithms, but from the software infrastructure executing them — interpreter overhead, garbage collection, runtime dispatch, and the GIL collectively consume energy and memory that contribute nothing to the actual computation.
+Skigen is a header-only C++ template library for machine learning, built on [Eigen](https://eigen.tuxfamily.org/). It brings the [scikit-learn](https://scikit-learn.org/) API — `fit()`, `transform()`, `predict()` — to native C++.
 
-Skigen is a header-only machine learning library built on [Eigen](https://eigen.tuxfamily.org/) that brings the [scikit-learn](https://scikit-learn.org/) API — `fit()`, `transform()`, `predict()` — to native C++. It compiles every operation down to vectorized machine code, targeting the latest C++ standards to make full use of modern language features: concepts, constexpr, and zero-cost abstractions.
-
-scikit-learn established the definitive API for machine learning. Skigen adopts that API for environments where native execution matters: embedded systems, real-time pipelines, edge inference, and large-scale deployments where energy and memory are engineering constraints, not afterthoughts.
+- **Skigen is versatile.** Preprocessing, linear models, decomposition, clustering, trees, neighbors, pipelines, metrics — covering the core scikit-learn surface with a consistent API.
+- **Skigen is fast.** Eigen's expression templates, explicit SIMD vectorization, and compile-time polymorphism via CRTP. No interpreter, no garbage collector, no runtime dispatch.
+- **Skigen is elegant.** Header-only — drop `Skigen/` next to `Eigen/` and `#include`. The same `fit` / `transform` / `predict` workflow, native to modern C++.
 
 ## Design
 
