@@ -82,7 +82,6 @@ public:
     [[nodiscard]] MatrixType inverse_transform(
         const Eigen::Ref<const MatrixType>& X) const {
         this->check_is_fitted();
-        this->validate_feature_count(X);
         return static_cast<const Derived*>(this)->inverse_transform_impl(X);
     }
 };
