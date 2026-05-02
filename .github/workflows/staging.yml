@@ -132,6 +132,18 @@ jobs:
         working-directory: doc/website
         run: npm ci
 
+      - name: Install Doxygen
+        run: sudo apt-get update && sudo apt-get install -y doxygen
+
+      - name: Generate API docs
+        working-directory: doc
+        run: |
+          doxygen Doxyfile
+          python3 doxygen2mdx.py \
+            --xml-dir doxygen_output/xml \
+            --out-dir website/docs/api \
+            --generate-sidebars
+
       - name: Build (dev)
         working-directory: doc/website
         env:

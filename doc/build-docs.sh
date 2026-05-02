@@ -7,35 +7,19 @@
 #
 # Requires:
 #   - doxygen  (https://www.doxygen.nl/)
-#   - doxybook2 (https://github.com/matusnovak/doxybook2)
+#   - python3
 
 set -euo pipefail
 cd "$(dirname "$0")"
 
-echo "=== [1/3] Running Doxygen ==="
+echo "=== [1/2] Running Doxygen ==="
 doxygen Doxyfile
 
-echo "=== [2/3] Running Doxybook2 ==="
-# Clean previous generated API docs to avoid stale pages
-rm -rf website/docs/api
-mkdir -p website/docs/api
-
-doxybook2 \
-    --input doxygen_output/xml \
-    --output website/docs/api \
-    --config doxybook2.json
-
-echo "=== [3/3] Fixing MDX compatibility ==="
-# Doxybook2 emits HTML tags and C++ syntax that conflict with Docusaurus MDX.
-# 1) Self-close void HTML elements for JSX compatibility.
-# 2) Add 'format: md' to frontmatter to force CommonMark parsing, preventing
-#    C++ angle brackets and braces from being interpreted as JSX/expressions.
-find website/docs/api -name '*.md' -exec sed -i.bak \
-    -e 's/<br>/<br \/>/g' \
-    -e 's/<hr>/<hr \/>/g' \
-    -e '1s/^---$/---\nformat: md/' \
-    {} +
-find website/docs/api -name '*.md.bak' -delete
+echo "=== [2/2] Running doxygen2mdx.py ==="
+python3 doxygen2mdx.py \
+    --xml-dir doxygen_output/xml \
+    --out-dir website/docs/api \
+    --generate-sidebars
 
 echo "=== Done ==="
 echo "Output: website/docs/api/"

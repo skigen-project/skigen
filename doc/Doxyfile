@@ -2,7 +2,7 @@
 # Copyright (c) 2026 The Skigen Contributors
 #
 # Doxyfile — Doxygen configuration for Skigen API reference
-# Generates XML consumed by Doxybook2 to produce Docusaurus Markdown.
+# Generates XML consumed by doxygen2mdx.py to produce Docusaurus MDX.
 
 PROJECT_NAME           = "Skigen"
 PROJECT_NUMBER         = "1.0.0"
@@ -30,7 +30,7 @@ HIDE_UNDOC_MEMBERS     = YES
 HIDE_UNDOC_CLASSES     = YES
 
 # ---------------------------------------------------------------------------
-# Output — XML only (Doxybook2 reads XML; HTML for local debugging only)
+# Output — XML only (doxygen2mdx.py reads XML; HTML for local debugging only)
 # ---------------------------------------------------------------------------
 OUTPUT_DIRECTORY       = doxygen_output
 GENERATE_XML           = YES

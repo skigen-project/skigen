@@ -145,16 +145,14 @@ jobs:
       - name: Install Doxygen
         run: sudo apt-get update && sudo apt-get install -y doxygen
 
-      - name: Install Doxybook2
-        run: |
-          curl -fsSL -o doxybook2.zip \
-            https://github.com/matusnovak/doxybook2/releases/download/v1.5.0/doxybook2-linux-amd64-v1.5.0.zip
-          unzip -o doxybook2.zip -d /tmp/doxybook2
-          sudo cp /tmp/doxybook2/bin/doxybook2 /usr/local/bin/doxybook2
-          chmod +x /usr/local/bin/doxybook2
-
       - name: Generate API docs
-        run: bash doc/build-docs.sh
+        working-directory: doc
+        run: |
+          doxygen Doxyfile
+          python3 doxygen2mdx.py \
+            --xml-dir doxygen_output/xml \
+            --out-dir website/docs/api \
+            --generate-sidebars
 
       - name: Build (production)
         working-directory: doc/website
