@@ -5,13 +5,15 @@ title: Model Selection
 
 # Model Selection
 
-Utilities for splitting data and evaluating models.
+Utilities for splitting data into train/test sets and evaluating models via cross-validation.
 
 ## train_test_split
 
-Splits arrays into random train and test subsets. Given $n$ samples and test fraction $f$:
+Splits the data arrays $X$ and $y$ into random train and test subsets. Given $n$ samples and test fraction $f$:
 
 $$n_{\text{test}} = \lfloor n \cdot f \rfloor, \qquad n_{\text{train}} = n - n_{\text{test}}$$
+
+When `shuffle = true` (default), the data is randomly permuted before splitting using the Fisher–Yates shuffle with the given `random_state` seed. This ensures reproducibility.
 
 ```cpp
 #include <Skigen/ModelSelection>
@@ -26,13 +28,18 @@ auto [X_train, X_test, y_train, y_test] = Skigen::train_test_split(
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `test_size` | `0.25` | Fraction of data for testing |
-| `random_state` | `42` | Random seed |
+| `test_size` | `0.25` | Fraction of data reserved for testing |
+| `random_state` | `42` | Random seed for reproducibility |
 | `shuffle` | `true` | Whether to shuffle before splitting |
 
 ## cross_val_score
 
-K-fold cross-validation scoring.
+Evaluates a model using $K$-fold cross-validation. The data is split into $K$ non-overlapping folds. For each fold $k$:
+
+1. Train the model on all folds except fold $k$.
+2. Score the model on fold $k$.
+
+The function returns a vector of $K$ scores. The mean score estimates the model's generalization performance.
 
 ```cpp
 #include <Skigen/ModelSelection>
@@ -40,10 +47,13 @@ K-fold cross-validation scoring.
 Skigen::LinearRegression model;
 auto scores = Skigen::cross_val_score(model, X, y, /*cv=*/5);
 std::cout << "Mean R²: " << scores.mean() << "\n";
+std::cout << "Std:     " << std::sqrt((scores.array() - scores.mean()).square().mean()) << "\n";
 ```
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `cv` | `5` | Number of folds |
+| `cv` | `5` | Number of folds $K$ |
 | `shuffle` | `true` | Whether to shuffle before folding |
-| `random_state` | `42` | Random seed |
+| `random_state` | `42` | Random seed for reproducibility |
+
+Mirrors [`sklearn.model_selection.train_test_split`](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.train_test_split.html) and [`cross_val_score`](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.cross_val_score.html).

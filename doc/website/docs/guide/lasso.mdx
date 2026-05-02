@@ -5,17 +5,46 @@ title: Lasso
 
 # Lasso
 
-L1-regularized linear regression using coordinate descent with soft-thresholding.
+The Lasso (Least Absolute Shrinkage and Selection Operator) is a linear regression model with an $\ell_1$ penalty that induces sparsity — it drives some coefficients exactly to zero, effectively performing feature selection.
+
+## Objective Function
 
 $$\min_w \frac{1}{2n} \|Xw - y\|_2^2 + \alpha \|w\|_1$$
 
-The L1 penalty drives coefficients exactly to zero, performing feature selection. The coordinate descent update applies the soft-thresholding operator:
+where $n$ is the number of samples and $\alpha \ge 0$ controls the regularization strength.
+This formulation matches [scikit-learn's `Lasso`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Lasso.html).
 
-$$w_j \leftarrow S\!\left(\frac{1}{n} X_j^\top (y - X_{\setminus j} w_{\setminus j}),\; \alpha\right)$$
+## Coordinate Descent Algorithm
 
-where $S(z, \gamma) = \text{sign}(z)\max(|z| - \gamma, 0)$.
+Skigen solves the Lasso via coordinate descent with soft-thresholding.
+At each iteration, the algorithm optimizes one coefficient $w_j$ at a time while holding all others fixed.
 
-Mirrors [`sklearn.linear_model.Lasso`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Lasso.html).
+Define the partial residual correlation:
+
+$$\rho_j = X_j^\top\!\left(y - X_{\setminus j}\, w_{\setminus j}\right)$$
+
+where $X_{\setminus j}$ denotes all columns except $j$. The closed-form update for coordinate $j$ is:
+
+$$w_j \leftarrow \frac{S(\rho_j,\; n\alpha)}{\|X_j\|_2^2}$$
+
+where $S(z, \gamma) = \operatorname{sign}(z)\max(|z| - \gamma,\, 0)$ is the soft-thresholding operator.
+
+In practice, $\rho_j$ is computed efficiently using the running residual $r = y - Xw$:
+
+$$\rho_j = X_j^\top r + \|X_j\|_2^2 \, w_j^{\text{old}}$$
+
+The algorithm cycles over all features until convergence (maximum coefficient change $< \texttt{tol}$) or `max_iter` iterations.
+
+## Sparsity and Feature Selection
+
+The $\ell_1$ penalty produces sparse solutions: at convergence, any coefficient whose partial correlation $|\rho_j|$ does not exceed $n\alpha$ is set exactly to zero.
+This makes Lasso a natural tool for feature selection in high-dimensional settings.
+
+## When to Use
+
+- **Feature selection**: When you expect many features to be irrelevant.
+- **Sparse signals**: When the true underlying model involves only a few non-zero coefficients.
+- For correlated features, consider ElasticNet, which combines $\ell_1$ and $\ell_2$ penalties for stability.
 
 ## Constructor
 
@@ -26,24 +55,24 @@ Skigen::Lasso<Scalar> model(Scalar alpha = 1, bool fit_intercept = true,
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `alpha` | `1` | Regularization strength |
-| `fit_intercept` | `true` | Whether to calculate the intercept |
-| `max_iter` | `1000` | Maximum iterations |
-| `tol` | `1e-4` | Convergence tolerance |
+| `alpha` | `1` | Regularization strength ($\alpha \ge 0$) |
+| `fit_intercept` | `true` | Whether to center the data and compute an intercept |
+| `max_iter` | `1000` | Maximum coordinate descent iterations |
+| `tol` | `1e-4` | Convergence tolerance on coefficient updates |
 
 ## Methods
 
 | Method | Description |
 |--------|-------------|
-| `fit(X, y)` | Fit the model to training data |
-| `predict(X)` | Predict using the linear model |
-| `score(X, y)` | Return R² score |
+| `fit(X, y)` | Fit the model via coordinate descent |
+| `predict(X)` | Predict $\hat{y} = Xw + b$ |
+| `score(X, y)` | Return the $R^2$ coefficient of determination |
 
 ## Fitted Attributes
 
 | Accessor | Type | Description |
 |----------|------|-------------|
-| `coef()` | `RowVectorType` | Estimated coefficients (sparse) |
+| `coef()` | `RowVectorType` | Estimated coefficients (typically sparse) |
 | `intercept()` | `Scalar` | Intercept term |
 
 ## Example

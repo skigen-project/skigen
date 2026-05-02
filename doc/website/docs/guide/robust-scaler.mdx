@@ -5,11 +5,23 @@ title: RobustScaler
 
 # RobustScaler
 
-Scaling using median centering and IQR-based scaling, robust to outliers.
+Centers and scales features using statistics that are robust to outliers: the median for centering and the interquartile range (IQR) for scaling.
+
+## Formula
 
 $$Z_{ij} = \frac{X_{ij} - \text{median}_j}{\text{IQR}_j}$$
 
-where $\text{IQR}_j = Q_{75}(X_j) - Q_{25}(X_j)$ is the interquartile range of feature $j$.
+where:
+- $\text{median}_j$ is the median of feature $j$
+- $\text{IQR}_j = Q_{75}(X_j) - Q_{25}(X_j)$ is the interquartile range
+
+Unlike StandardScaler, the median and IQR are not influenced by extreme values, so the scaling remains stable even with outliers in the data.
+
+## When to Use
+
+- **Data with outliers**: When the data contains extreme values that would distort mean/variance-based scaling.
+- **Robust pipelines**: As a preprocessing step before models sensitive to feature scales.
+- The `quantile_range` parameter allows customizing the centering quantiles (e.g., using the 5th and 95th percentiles).
 
 Mirrors [`sklearn.preprocessing.RobustScaler`](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.RobustScaler.html).
 

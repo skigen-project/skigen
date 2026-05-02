@@ -5,21 +5,49 @@ title: SGDClassifier
 
 # SGDClassifier / SGDRegressor
 
-Stochastic Gradient Descent linear models for classification (Hinge or Log loss) and regression.
+Linear models fitted via Stochastic Gradient Descent, well-suited for large-scale learning where batch solvers are prohibitively expensive. SGD processes one sample at a time, updating the weight vector with a noisy gradient estimate.
 
-Hinge loss (linear SVM):
+## Loss Functions
+
+### Classifier
+
+**Hinge loss** (linear SVM) — for maximum-margin classification with labels $y_i \in \{-1, +1\}$:
 
 $$L_i = \max(0,\; 1 - y_i \, w^\top x_i)$$
 
-Log loss (logistic regression):
+**Log loss** (logistic regression) — for probabilistic binary classification with labels $y_i \in \{0, 1\}$:
 
 $$L_i = -\left[ y_i \log \sigma(w^\top x_i) + (1 - y_i) \log(1 - \sigma(w^\top x_i)) \right]$$
 
-Weight update per sample:
+where $\sigma(z) = 1/(1 + e^{-z})$ is the sigmoid function.
 
-$$w \leftarrow w - \eta \left( \nabla_w L_i + \alpha\, w \right)$$
+### Regressor
 
-Mirrors [`sklearn.linear_model.SGDClassifier`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.SGDClassifier.html).
+**Squared error loss**:
+
+$$L_i = \frac{1}{2}(y_i - w^\top x_i)^2$$
+
+## Weight Update Rule
+
+For each randomly selected sample $(x_i, y_i)$, the weight vector is updated as:
+
+$$w \leftarrow w - \eta_t \left( \nabla_w L_i + \alpha\, w \right)$$
+
+where $\alpha\, w$ is the $\ell_2$ regularization gradient and $\eta_t$ is the learning rate at step $t$.
+
+## Learning Rate Schedule
+
+Skigen uses an inverse scaling schedule matching scikit-learn's `"invscaling"`:
+
+$$\eta_t = \frac{\eta_0}{1 + \eta_0 \cdot \alpha \cdot t}$$
+
+This schedule gradually decreases the step size, ensuring convergence to the optimum.
+
+## Convergence
+
+Training runs for at most `max_iter` epochs. At the end of each epoch, convergence is checked: training stops when the loss improvement drops below `tol`. Shuffling the data each epoch is recommended for faster convergence.
+
+Mirrors [`sklearn.linear_model.SGDClassifier`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.SGDClassifier.html) and [`SGDRegressor`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.SGDRegressor.html).
 
 ## Constructor
 
@@ -34,20 +62,35 @@ Skigen::SGDRegressor<Scalar> reg(
     Scalar eta0 = 0.01, unsigned int random_state = 42);
 ```
 
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `loss` | `Hinge` | Loss function: `Hinge` or `Log` (classifier only) |
+| `alpha` | `1e-4` | $\ell_2$ regularization strength |
+| `max_iter` | `1000` | Maximum number of epochs |
+| `tol` | `1e-3` | Convergence tolerance |
+| `eta0` | `0.01` | Initial learning rate $\eta_0$ |
+| `random_state` | `42` | Random seed for shuffling |
+
 ## Methods
 
 | Method | Description |
 |--------|-------------|
-| `fit(X, y)` | Fit model with SGD |
-| `predict(X)` | Predict labels / values |
-| `score(X, y)` | Accuracy (classifier) or R² (regressor) |
+| `fit(X, y)` | Fit the model via stochastic gradient descent |
+| `predict(X)` | Predict class labels (classifier) or values (regressor) |
+| `score(X, y)` | Accuracy (classifier) or $R^2$ (regressor) |
 
 ## Example
 
 ```cpp
 #include <Skigen/LinearModel>
 
+// SGD with log loss (equivalent to logistic regression)
 Skigen::SGDClassifier clf(Skigen::SGDClassifier<>::Loss::Log);
 clf.fit(X_train, y_train);
 std::cout << "Accuracy: " << clf.score(X_test, y_test) << "\n";
+
+// SGD for regression
+Skigen::SGDRegressor reg;
+reg.fit(X_train, y_train);
+std::cout << "R²: " << reg.score(X_test, y_test) << "\n";
 ```

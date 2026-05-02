@@ -5,11 +5,15 @@ title: LabelEncoder
 
 # LabelEncoder
 
-Encodes categorical labels to contiguous integer indices $[0,\, n_{\text{classes}})$.
+Encodes categorical labels to contiguous integer indices $[0,\, n_{\text{classes}})$, suitable for use as targets in classification models.
+
+## Mapping
 
 $$f: \mathcal{L} \to \{0, 1, \ldots, |\mathcal{L}| - 1\}$$
 
-where $\mathcal{L}$ is the set of unique labels sorted in ascending order.
+where $\mathcal{L}$ is the set of unique labels sorted in ascending order. The mapping uses sorted order and binary search for $O(\log |\mathcal{L}|)$ lookup per label.
+
+The inverse mapping `inverse_transform` recovers the original labels from their integer encoding.
 
 Mirrors [`sklearn.preprocessing.LabelEncoder`](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.LabelEncoder.html).
 

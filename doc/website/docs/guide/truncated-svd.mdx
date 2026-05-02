@@ -5,11 +5,35 @@ title: TruncatedSVD
 
 # TruncatedSVD
 
-Dimensionality reduction via truncated SVD without centering. Suitable for sparse matrices.
+Dimensionality reduction via truncated Singular Value Decomposition. Unlike PCA, TruncatedSVD does **not** center the data before decomposition, making it suitable for sparse matrices where centering would destroy sparsity.
+
+## Algorithm
+
+Given an $n \times p$ data matrix $X$ (not centered), compute the rank-$k$ SVD approximation:
 
 $$X \approx U_k \Sigma_k V_k^\top$$
 
-The projection to $k$ components is $Z = X V_k$, preserving the $k$ directions of largest variance without subtracting the mean.
+The projection to $k$ components is:
+
+$$Z = X V_k \in \mathbb{R}^{n \times k}$$
+
+The explained variance for component $j$ is the variance of the $j$-th column of $Z$, and the explained variance ratio is its proportion of the total variance in $X$.
+
+## Difference from PCA
+
+| | PCA | TruncatedSVD |
+|---|---|---|
+| **Centering** | Centers data ($X - \bar{x}$) | No centering |
+| **Sparse data** | Destroys sparsity | Preserves sparsity |
+| **Use case** | Dense data, general purpose | TF-IDF, count matrices, LSA |
+
+TruncatedSVD applied to a TF-IDF matrix is known as **Latent Semantic Analysis (LSA)**, a classic technique in information retrieval and topic modeling.
+
+## When to Use
+
+- **Text data**: When working with sparse TF-IDF or bag-of-words representations.
+- **Non-negative or sparse data**: When centering would be inappropriate or computationally expensive.
+- For dense data where centering is desired, prefer PCA.
 
 Mirrors [`sklearn.decomposition.TruncatedSVD`](https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.TruncatedSVD.html).
 
@@ -27,19 +51,19 @@ Skigen::TruncatedSVD<Scalar> svd(Eigen::Index n_components = 2);
 
 | Method | Description |
 |--------|-------------|
-| `fit(X)` | Fit the model with X |
-| `transform(X)` | Apply dimensionality reduction |
-| `fit_transform(X)` | Fit and transform in one call |
-| `inverse_transform(X)` | Transform data back to original space |
+| `fit(X)` | Compute the truncated SVD of $X$ |
+| `transform(X)` | Project $X$ onto the $k$ components |
+| `fit_transform(X)` | Fit and project in one call |
+| `inverse_transform(Z)` | Approximate reconstruction: $\hat{X} = Z V_k^\top$ |
 
 ## Fitted Attributes
 
 | Accessor | Type | Description |
 |----------|------|-------------|
-| `components()` | `MatrixType` | Components (rows) |
-| `explained_variance()` | `VectorType` | Variance per component |
-| `explained_variance_ratio()` | `VectorType` | Ratio of variance per component |
-| `singular_values()` | `VectorType` | Singular values |
+| `components()` | `MatrixType` | Component directions (rows = components) |
+| `explained_variance()` | `VectorType` | Variance explained by each component |
+| `explained_variance_ratio()` | `VectorType` | Fraction of total variance per component |
+| `singular_values()` | `VectorType` | Singular values $\sigma_1 \ge \sigma_2 \ge \cdots$ |
 
 ## Example
 
@@ -48,4 +72,6 @@ Skigen::TruncatedSVD<Scalar> svd(Eigen::Index n_components = 2);
 
 Skigen::TruncatedSVD svd(5);
 auto X_reduced = svd.fit_transform(X);  // Project to 5 dimensions
+std::cout << "Explained variance ratio: "
+          << svd.explained_variance_ratio().transpose() << "\n";
 ```

@@ -5,15 +5,37 @@ title: PCA
 
 # PCA
 
-Principal Component Analysis using full SVD with centering and explained variance computation.
+Principal Component Analysis finds orthogonal directions of maximum variance in the data, enabling dimensionality reduction while retaining as much information as possible.
 
-$$X_{\text{centered}} = X - \mathbf{1}\mu^\top, \qquad X_{\text{centered}} = U \Sigma V^\top$$
+## Algorithm
 
-The projection onto $k$ principal components is:
+Given an $n \times p$ data matrix $X$:
 
-$$Z = X_{\text{centered}} \, V_k$$
+1. **Center** the data: $X_c = X - \mathbf{1}\bar{x}^\top$, where $\bar{x}$ is the column-wise mean.
+2. **Compute the SVD** of $X_c$: $X_c = U \Sigma V^\top$.
+3. **Truncate** to $k$ components by keeping only the first $k$ columns of $V$ (right singular vectors).
 
-where $V_k$ contains the first $k$ right singular vectors. The explained variance ratio for component $j$ is $\sigma_j^2 / \sum_i \sigma_i^2$.
+The projection onto the $k$-dimensional subspace is:
+
+$$Z = X_c \, V_k \in \mathbb{R}^{n \times k}$$
+
+## Explained Variance
+
+The explained variance of the $j$-th component is derived from the singular values:
+
+$$\text{explained\_variance}_j = \frac{\sigma_j^2}{n - 1}$$
+
+using $n-1$ degrees of freedom (Bessel's correction), consistent with scikit-learn.
+The explained variance ratio measures the proportion of total variance captured by each component:
+
+$$\text{explained\_variance\_ratio}_j = \frac{\sigma_j^2}{\sum_{i=1}^{p} \sigma_i^2}$$
+
+## Key Properties
+
+- PCA **always centers** the data before decomposition. For data that should not be centered (e.g., sparse matrices, TF-IDF), use TruncatedSVD instead.
+- The components are ordered by decreasing explained variance.
+- `inverse_transform` reconstructs an approximation: $\hat{X} = Z V_k^\top + \mathbf{1}\bar{x}^\top$.
+- Skigen uses `Eigen::JacobiSVD` for full SVD.
 
 Mirrors [`sklearn.decomposition.PCA`](https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html).
 
@@ -25,26 +47,26 @@ Skigen::PCA<Scalar> pca(Eigen::Index n_components = 0);
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `n_components` | `0` | Number of components to keep (0 = all) |
+| `n_components` | `0` | Number of components to keep ($0$ = all) |
 
 ## Methods
 
 | Method | Description |
 |--------|-------------|
-| `fit(X)` | Fit the model with X |
-| `transform(X)` | Apply dimensionality reduction |
-| `fit_transform(X)` | Fit and transform in one call |
-| `inverse_transform(X)` | Transform data back to original space |
+| `fit(X)` | Compute the SVD of the centered data |
+| `transform(X)` | Project $X$ onto the principal components |
+| `fit_transform(X)` | Fit and project in one call |
+| `inverse_transform(Z)` | Reconstruct from the reduced representation |
 
 ## Fitted Attributes
 
 | Accessor | Type | Description |
 |----------|------|-------------|
-| `components()` | `MatrixType` | Principal axes (rows) |
-| `explained_variance()` | `VectorType` | Variance per component |
-| `explained_variance_ratio()` | `VectorType` | Percentage of variance per component |
-| `singular_values()` | `VectorType` | Singular values |
-| `mean()` | `RowVectorType` | Per-feature mean |
+| `components()` | `MatrixType` | Principal axes (rows = components) |
+| `explained_variance()` | `VectorType` | Variance explained by each component ($\sigma_j^2 / (n-1)$) |
+| `explained_variance_ratio()` | `VectorType` | Fraction of total variance per component |
+| `singular_values()` | `VectorType` | Singular values $\sigma_1 \ge \sigma_2 \ge \cdots$ |
+| `mean()` | `RowVectorType` | Per-feature mean $\bar{x}$ |
 
 ## Example
 
@@ -62,5 +84,8 @@ int main() {
     Eigen::MatrixXd X_reduced = pca.transform(X);  // 100 x 3
     std::cout << "Explained variance ratio: "
               << pca.explained_variance_ratio().transpose() << "\n";
+
+    // Approximate reconstruction
+    Eigen::MatrixXd X_approx = pca.inverse_transform(X_reduced);
 }
 ```

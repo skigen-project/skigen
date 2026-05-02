@@ -6,6 +6,11 @@ date-released: "2026-05-02"
 license: MIT
 repository-code: "https://github.com/skigen-project/skigen"
 url: "https://skigen-project.github.io"
+doi: "10.5281/zenodo.19971277"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.19971277"
+    description: "Zenodo archive of Skigen 1.0.0"
 keywords:
   - Skigen
   - "machine learning"

@@ -5,11 +5,33 @@ title: ElasticNet
 
 # ElasticNet
 
-Combined L1 and L2 regularization via coordinate descent.
+ElasticNet combines $\ell_1$ (Lasso) and $\ell_2$ (Ridge) regularization, inheriting sparsity from Lasso and stability from Ridge.
+It is particularly useful when features are correlated: Lasso tends to arbitrarily select one feature from a correlated group, while ElasticNet distributes weight across them.
+
+## Objective Function
 
 $$\min_w \frac{1}{2n} \|Xw - y\|_2^2 + \alpha \left( \rho \|w\|_1 + \frac{1-\rho}{2} \|w\|_2^2 \right)$$
 
-Mirrors [`sklearn.linear_model.ElasticNet`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.ElasticNet.html).
+where $\rho \in [0, 1]$ is the `l1_ratio` controlling the mix between $\ell_1$ and $\ell_2$ penalties:
+- $\rho = 1$: pure Lasso
+- $\rho = 0$: pure Ridge (scaled by $1/(2n)$)
+
+This formulation matches [scikit-learn's `ElasticNet`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.ElasticNet.html).
+
+## Coordinate Descent
+
+Like Lasso, ElasticNet is solved via coordinate descent. The update for coefficient $j$ is:
+
+$$w_j \leftarrow \frac{S(\rho_j,\; n \alpha \rho)}{\|X_j\|_2^2 + n \alpha (1 - \rho)}$$
+
+where $\rho_j = X_j^\top(y - X_{\setminus j}\, w_{\setminus j})$ and $S$ is the soft-thresholding operator.
+The $\ell_2$ term adds $n\alpha(1-\rho)$ to the denominator, preventing the instability that Lasso can exhibit with correlated features.
+
+## When to Use
+
+- **Correlated features**: ElasticNet is preferred over Lasso when features are highly correlated.
+- **Grouped selection**: The $\ell_2$ component encourages correlated features to be selected together.
+- **Regularization path**: ElasticNet's convex combination provides a smooth transition between Ridge and Lasso behavior.
 
 ## Constructor
 
@@ -21,19 +43,26 @@ Skigen::ElasticNet<Scalar> model(Scalar alpha = 1, Scalar l1_ratio = 0.5,
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `alpha` | `1` | Overall regularization strength |
-| `l1_ratio` | `0.5` | Mix ratio (1 = Lasso, 0 = Ridge) |
-| `fit_intercept` | `true` | Whether to calculate the intercept |
-| `max_iter` | `1000` | Maximum iterations |
+| `alpha` | `1` | Overall regularization strength ($\alpha \ge 0$) |
+| `l1_ratio` | `0.5` | Mix ratio $\rho$ ($1$ = Lasso, $0$ = Ridge) |
+| `fit_intercept` | `true` | Whether to center the data and compute an intercept |
+| `max_iter` | `1000` | Maximum coordinate descent iterations |
 | `tol` | `1e-4` | Convergence tolerance |
 
 ## Methods
 
 | Method | Description |
 |--------|-------------|
-| `fit(X, y)` | Fit the model to training data |
-| `predict(X)` | Predict using the linear model |
-| `score(X, y)` | Return R² score |
+| `fit(X, y)` | Fit the model via coordinate descent |
+| `predict(X)` | Predict $\hat{y} = Xw + b$ |
+| `score(X, y)` | Return the $R^2$ coefficient of determination |
+
+## Fitted Attributes
+
+| Accessor | Type | Description |
+|----------|------|-------------|
+| `coef()` | `RowVectorType` | Estimated coefficients |
+| `intercept()` | `Scalar` | Intercept term |
 
 ## Example
 
@@ -44,3 +73,7 @@ Skigen::ElasticNet model(/*alpha=*/0.5, /*l1_ratio=*/0.7);
 model.fit(X, y);
 auto predictions = model.predict(X_test);
 ```
+
+## References
+
+- Zou, H. and Hastie, T. (2005). "Regularization and variable selection via the elastic net." *Journal of the Royal Statistical Society: Series B*, 67(2), 301–320.

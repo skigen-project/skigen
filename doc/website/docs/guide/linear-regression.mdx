@@ -5,11 +5,31 @@ title: LinearRegression
 
 # LinearRegression
 
-Ordinary Least Squares linear regression via ColPivHouseholderQR decomposition.
+Ordinary Least Squares (OLS) linear regression. Fits a linear model $\hat{y} = Xw + b$ by minimizing the sum of squared residuals.
+
+## Objective Function
 
 $$\hat{w} = \arg\min_w \|Xw - y\|_2^2$$
 
-The closed-form solution is $\hat{w} = (X^\top X)^{-1} X^\top y$, computed via QR decomposition for numerical stability.
+The gradient condition $X^\top(Xw - y) = 0$ yields the normal equation:
+
+$$X^\top X\, w = X^\top y$$
+
+## Solver
+
+Skigen solves the least squares problem via `Eigen::ColPivHouseholderQR`, which computes a column-pivoted QR decomposition of $X$. This is numerically more stable than forming and inverting $X^\top X$ directly, and it correctly handles rank-deficient design matrices.
+
+The factorization $X = QRP^\top$ yields the solution $w = R^{-1}Q^\top y$ (with appropriate permutation), and also provides the numerical rank of $X$.
+
+## Computational Complexity
+
+The QR factorization costs $O(np^2)$ where $n$ is the number of samples and $p$ is the number of features. For $n \gg p$, this is dominated by forming the $Q$ factor.
+
+## When to Use
+
+- OLS is the baseline linear model — use it when features are uncorrelated and the system is well-determined ($n > p$).
+- For ill-conditioned or underdetermined problems, prefer Ridge.
+- For feature selection, prefer Lasso or ElasticNet.
 
 Mirrors [`sklearn.linear_model.LinearRegression`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html).
 
@@ -21,23 +41,23 @@ Skigen::LinearRegression<Scalar> model(bool fit_intercept = true);
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `fit_intercept` | `true` | Whether to calculate the intercept |
+| `fit_intercept` | `true` | Whether to center the data and compute an intercept |
 
 ## Methods
 
 | Method | Description |
 |--------|-------------|
-| `fit(X, y)` | Fit the model to training data |
-| `predict(X)` | Predict using the linear model |
-| `score(X, y)` | Return R² score |
+| `fit(X, y)` | Fit the model via QR decomposition |
+| `predict(X)` | Predict $\hat{y} = Xw + b$ |
+| `score(X, y)` | Return the $R^2$ coefficient of determination |
 
 ## Fitted Attributes
 
 | Accessor | Type | Description |
 |----------|------|-------------|
-| `coef()` | `RowVectorType` | Estimated coefficients |
-| `intercept()` | `Scalar` | Intercept term |
-| `rank()` | `IndexType` | Rank of the design matrix |
+| `coef()` | `RowVectorType` | Estimated coefficient vector $\hat{w}$ |
+| `intercept()` | `Scalar` | Intercept term $b$ |
+| `rank()` | `IndexType` | Numerical rank of the design matrix $X$ |
 
 ## Example
 
@@ -57,6 +77,7 @@ int main() {
 
     std::cout << "Coef: " << model.coef() << "\n";
     std::cout << "Intercept: " << model.intercept() << "\n";
+    std::cout << "Rank: " << model.rank() << "\n";
     std::cout << "R²: " << model.score(X, y) << "\n";
 }
 ```

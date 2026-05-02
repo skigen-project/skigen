@@ -5,11 +5,37 @@ title: KMeans
 
 # KMeans
 
-K-Means clustering with Lloyd's algorithm and k-means++ initialization.
+K-Means partitions $n$ samples into $K$ clusters by minimizing the within-cluster sum of squared distances (inertia).
 
-$$\min_{\{\mu_k\}} \sum_{k=1}^{K} \sum_{x_i \in C_k} \|x_i - \mu_k\|_2^2$$
+## Objective Function
 
-where $\mu_k$ is the centroid of cluster $C_k$. Lloyd's algorithm alternates between assigning each sample to its nearest centroid and recomputing centroids as cluster means.
+$$\min_{\{C_k, \mu_k\}} \sum_{k=1}^{K} \sum_{x_i \in C_k} \|x_i - \mu_k\|_2^2$$
+
+where $\mu_k = \frac{1}{|C_k|}\sum_{x_i \in C_k} x_i$ is the centroid of cluster $C_k$.
+
+## Lloyd's Algorithm
+
+K-Means uses Lloyd's algorithm, which alternates two steps until convergence:
+
+1. **Assignment**: Assign each sample to the cluster with the nearest centroid:
+   $C_k = \{x_i : \|x_i - \mu_k\| \le \|x_i - \mu_j\| \;\forall\, j\}$
+2. **Update**: Recompute each centroid as the mean of its assigned samples:
+   $\mu_k \leftarrow \frac{1}{|C_k|}\sum_{x_i \in C_k} x_i$
+
+The algorithm terminates when assignments no longer change or `max_iter` is reached. The result is a local minimum — `n_init` independent runs with different initializations are performed, and the solution with the lowest inertia is kept.
+
+## k-means++ Initialization
+
+To avoid poor local minima, Skigen uses the k-means++ initialization strategy:
+
+1. Choose the first centroid $\mu_1$ uniformly at random from the data.
+2. For each subsequent centroid $\mu_k$, sample a data point $x_i$ with probability proportional to $D(x_i)^2$, where $D(x_i)$ is the distance from $x_i$ to its nearest existing centroid.
+
+This initialization spreads the initial centroids apart, leading to faster convergence and better final solutions (Arthur & Vassilvitskii, 2007).
+
+## Computational Complexity
+
+Each iteration of Lloyd's algorithm costs $O(nKp)$, where $n$ is the number of samples, $K$ is the number of clusters, and $p$ is the number of features.
 
 Mirrors [`sklearn.cluster.KMeans`](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html).
 
@@ -22,28 +48,28 @@ Skigen::KMeans<Scalar> km(int n_clusters = 8, int max_iter = 300,
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `n_clusters` | `8` | Number of clusters |
-| `max_iter` | `300` | Maximum iterations per run |
-| `n_init` | `10` | Number of initializations (best kept) |
+| `n_clusters` | `8` | Number of clusters $K$ |
+| `max_iter` | `300` | Maximum Lloyd iterations per run |
+| `n_init` | `10` | Number of independent initializations (best inertia kept) |
 | `random_state` | `42` | Random seed for reproducibility |
 
 ## Methods
 
 | Method | Description |
 |--------|-------------|
-| `fit(X)` | Compute k-means clustering |
-| `predict(X)` | Predict closest cluster for each sample |
-| `transform(X)` | Transform to cluster-distance space |
+| `fit(X)` | Compute K-Means clustering |
+| `predict(X)` | Assign each sample to the nearest centroid |
+| `transform(X)` | Transform to cluster-distance space ($n \times K$ matrix) |
 | `fit_predict(X)` | Fit and return cluster labels |
 
 ## Fitted Attributes
 
 | Accessor | Type | Description |
 |----------|------|-------------|
-| `cluster_centers()` | `MatrixType` | Centroid coordinates |
+| `cluster_centers()` | `MatrixType` | Centroid coordinates ($K \times p$) |
 | `labels()` | `IndexVector` | Cluster labels of training data |
 | `inertia()` | `Scalar` | Sum of squared distances to centroids |
-| `n_iter()` | `int` | Iterations run in best init |
+| `n_iter()` | `int` | Number of iterations in the best run |
 
 ## Example
 
@@ -64,3 +90,7 @@ int main() {
     auto labels = km.predict(X);
 }
 ```
+
+## References
+
+- Arthur, D. and Vassilvitskii, S. (2007). "k-means++: The advantages of careful seeding." *Proceedings of the 18th Annual ACM-SIAM Symposium on Discrete Algorithms*, 1027–1035.

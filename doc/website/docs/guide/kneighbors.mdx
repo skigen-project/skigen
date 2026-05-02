@@ -5,19 +5,40 @@ title: KNeighbors
 
 # KNeighborsClassifier / KNeighborsRegressor
 
-Brute-force k-nearest neighbors with majority voting (classifier) or averaging (regressor).
+Instance-based learning methods that make predictions by finding the $k$ closest training samples in feature space. No explicit model is trained — the training data itself serves as the model.
+
+## Distance Metric
+
+Distances are computed using the Euclidean ($\ell_2$) metric:
 
 $$d(x, x') = \sqrt{\sum_{j=1}^{p} (x_j - x'_j)^2}$$
 
-Classifier prediction by majority vote over the $k$ nearest neighbors $\mathcal{N}_k(x)$:
+## Classifier — Majority Vote
+
+Given a query point $x$, the classifier identifies the $k$ nearest neighbors $\mathcal{N}_k(x)$ and predicts the most frequent class label among them:
 
 $$\hat{y} = \arg\max_c \sum_{x_i \in \mathcal{N}_k(x)} \mathbf{1}(y_i = c)$$
 
-Regressor prediction by averaging:
+In case of a tie, the class with the smallest index is selected.
+
+## Regressor — Averaging
+
+The regressor predicts the mean target value of the $k$ nearest neighbors:
 
 $$\hat{y} = \frac{1}{k} \sum_{x_i \in \mathcal{N}_k(x)} y_i$$
 
-Mirrors [`sklearn.neighbors.KNeighborsClassifier`](https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsClassifier.html).
+## Computational Complexity
+
+Skigen uses brute-force search: prediction costs $O(np)$ per query point, where $n$ is the number of training samples and $p$ is the number of features. This is practical for small to moderate datasets.
+
+## When to Use
+
+- **Non-linear boundaries**: KNN naturally captures complex decision boundaries without assuming a parametric form.
+- **Small datasets**: Works well when the dataset fits in memory and $n$ is not too large.
+- **Feature scaling**: Euclidean distance is sensitive to feature scales — standardize features before use (e.g., with StandardScaler).
+- The choice of $k$ trades off bias and variance: small $k$ is flexible but noisy; large $k$ is smoother but may over-smooth.
+
+Mirrors [`sklearn.neighbors.KNeighborsClassifier`](https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsClassifier.html) and [`KNeighborsRegressor`](https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsRegressor.html).
 
 ## Constructor
 
@@ -28,7 +49,7 @@ Skigen::KNeighborsRegressor<Scalar>  reg(int n_neighbors = 5);
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `n_neighbors` | `5` | Number of neighbors to use |
+| `n_neighbors` | `5` | Number of neighbors $k$ |
 
 ## Methods (Classifier)
 
@@ -36,14 +57,14 @@ Skigen::KNeighborsRegressor<Scalar>  reg(int n_neighbors = 5);
 |--------|-------------|
 | `fit(X, y)` | Store training data |
 | `predict(X)` | Predict class labels by majority vote |
-| `score(X, y)` | Return accuracy score |
+| `score(X, y)` | Return classification accuracy |
 
 ## Methods (Regressor)
 
 | Method | Description |
 |--------|-------------|
 | `fit(X, y)` | Store training data |
-| `predict(X)` | Predict by averaging neighbors |
+| `predict(X)` | Predict by averaging neighbor targets |
 
 ## Example
 
@@ -53,4 +74,8 @@ Skigen::KNeighborsRegressor<Scalar>  reg(int n_neighbors = 5);
 Skigen::KNeighborsClassifier clf(3);
 clf.fit(X_train, y_train);
 std::cout << "Accuracy: " << clf.score(X_test, y_test) << "\n";
+
+Skigen::KNeighborsRegressor reg(5);
+reg.fit(X_train, y_train);
+auto predictions = reg.predict(X_test);
 ```

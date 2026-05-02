@@ -5,15 +5,38 @@ title: Ridge
 
 # Ridge
 
-L2-regularized least squares solved via Cholesky decomposition on the normal equation.
+Ridge regression addresses the instability of Ordinary Least Squares when features are correlated or when the design matrix is near-singular.
+It does so by adding an $\ell_2$ penalty on the coefficient vector, shrinking all coefficients toward zero and improving the conditioning of the problem.
 
-$$\min_w \frac{1}{2n} \|Xw - y\|_2^2 + \frac{\alpha}{2} \|w\|_2^2$$
+## Objective Function
 
-The closed-form solution is:
+$$\min_w \|Xw - y\|_2^2 + \alpha \|w\|_2^2$$
 
-$$\hat{w} = (X^\top X + \alpha n I)^{-1} X^\top y$$
+where $\alpha \ge 0$ controls the regularization strength: larger $\alpha$ increases shrinkage and reduces variance at the cost of higher bias.
+This formulation matches [scikit-learn's `Ridge`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Ridge.html), which minimizes $\|y - Xw\|_2^2 + \alpha\|w\|_2^2$.
 
-Mirrors [`sklearn.linear_model.Ridge`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Ridge.html).
+## Closed-Form Solution
+
+Setting the gradient to zero yields the normal equation:
+
+$$(X^\top X + \alpha I)\, w = X^\top y$$
+
+Skigen solves this system via Cholesky decomposition (`Eigen::LLT`), which exploits the fact that $X^\top X + \alpha I$ is symmetric positive definite for $\alpha > 0$.
+The solution is:
+
+$$\hat{w} = (X^\top X + \alpha I)^{-1} X^\top y$$
+
+When `fit_intercept` is enabled, the data is centered before fitting: $X_c = X - \mathbf{1}\bar{x}^\top$ and $y_c = y - \bar{y}$. The intercept is then recovered as $b = \bar{y} - \bar{x}^\top \hat{w}$.
+
+## Computational Complexity
+
+Forming $X^\top X$ costs $O(n p^2)$, and the Cholesky solve costs $O(p^3)$, giving an overall complexity of $O(n p^2 + p^3)$ — the same order as OLS.
+
+## When to Use
+
+- **Multicollinearity**: When features are correlated and OLS produces unstable estimates with large variance.
+- **Ill-conditioned problems**: When $X^\top X$ is near-singular, Ridge stabilizes the solution by shifting eigenvalues away from zero.
+- **$\ell_2$ preference**: When all features are expected to contribute and full sparsity (zeroing coefficients) is not desired — use Lasso or ElasticNet for that.
 
 ## Constructor
 
@@ -23,23 +46,23 @@ Skigen::Ridge<Scalar> model(Scalar alpha = 1, bool fit_intercept = true);
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `alpha` | `1` | Regularization strength |
-| `fit_intercept` | `true` | Whether to calculate the intercept |
+| `alpha` | `1` | Regularization strength ($\alpha \ge 0$) |
+| `fit_intercept` | `true` | Whether to center the data and compute an intercept |
 
 ## Methods
 
 | Method | Description |
 |--------|-------------|
-| `fit(X, y)` | Fit the model to training data |
-| `predict(X)` | Predict using the linear model |
-| `score(X, y)` | Return R² score |
+| `fit(X, y)` | Fit the model by solving $(X^\top X + \alpha I)w = X^\top y$ |
+| `predict(X)` | Predict $\hat{y} = Xw + b$ |
+| `score(X, y)` | Return the $R^2$ coefficient of determination |
 
 ## Fitted Attributes
 
 | Accessor | Type | Description |
 |----------|------|-------------|
-| `coef()` | `RowVectorType` | Estimated coefficients |
-| `intercept()` | `Scalar` | Intercept term |
+| `coef()` | `RowVectorType` | Estimated coefficient vector $\hat{w}$ |
+| `intercept()` | `Scalar` | Intercept term $b$ |
 
 ## Example
 

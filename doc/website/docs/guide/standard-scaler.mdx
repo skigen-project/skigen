@@ -5,9 +5,23 @@ title: StandardScaler
 
 # StandardScaler
 
-Standardize features by removing the mean and scaling to unit variance.
+Standardize features by removing the mean and scaling to unit variance, producing features with zero mean and unit standard deviation.
+
+## Formula
 
 $$Z_{ij} = \frac{X_{ij} - \mu_j}{s_j}$$
+
+where:
+- $\mu_j = \frac{1}{n}\sum_{i=1}^{n} X_{ij}$ is the sample mean of feature $j$
+- $s_j = \sqrt{\frac{1}{n}\sum_{i=1}^{n} (X_{ij} - \mu_j)^2}$ is the population standard deviation (ddof = 0)
+
+Skigen uses the population standard deviation (dividing by $n$, not $n-1$), matching scikit-learn's convention.
+
+## When to Use
+
+- **Before distance-based methods**: KNN, KMeans, and SVM are sensitive to feature scales.
+- **Before gradient-based optimizers**: Standardized features improve convergence of SGD and logistic regression.
+- **Not needed for**: Decision trees and ensemble methods based on trees, which are scale-invariant.
 
 Mirrors [`sklearn.preprocessing.StandardScaler`](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html).
 

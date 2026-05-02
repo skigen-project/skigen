@@ -5,13 +5,37 @@ title: DecisionTree
 
 # DecisionTreeClassifier
 
-CART decision tree classifier using Gini impurity with recursive binary splits.
+A CART (Classification and Regression Trees) decision tree classifier. The algorithm recursively partitions the feature space with binary splits, choosing at each node the feature and threshold that best separate the classes.
+
+## Splitting Criterion — Gini Impurity
+
+Gini impurity measures the probability that a randomly chosen sample from node $t$ would be misclassified if labeled according to the class distribution at that node:
 
 $$\text{Gini}(t) = 1 - \sum_{k=1}^{K} p_k^2$$
 
-where $p_k$ is the proportion of class $k$ samples at node $t$. At each split, the feature and threshold minimizing the weighted Gini impurity of the child nodes are selected:
+where $p_k$ is the proportion of class-$k$ samples at node $t$. A pure node ($\text{Gini} = 0$) contains only one class.
+
+At each split, the algorithm searches over all features and thresholds for the partition that minimizes the weighted Gini impurity of the two child nodes:
 
 $$\text{Gini}_{\text{split}} = \frac{n_L}{n} \,\text{Gini}(t_L) + \frac{n_R}{n} \,\text{Gini}(t_R)$$
+
+The **information gain** of a split is $\text{Gini}(t) - \text{Gini}_{\text{split}}$.
+
+## CART Algorithm
+
+The tree is built recursively using the CART algorithm:
+
+1. At each node, evaluate every possible split $(j, \theta)$ — feature $j$, threshold $\theta$ — and select the one that minimizes $\text{Gini}_{\text{split}}$.
+2. Create left child ($X_j \le \theta$) and right child ($X_j > \theta$).
+3. Recurse until a stopping condition is met: `max_depth` reached, fewer than `min_samples_split` samples, or the node is pure.
+
+Prediction assigns the majority class of the leaf node reached by the query sample.
+
+## When to Use
+
+- **Interpretability**: Decision trees are easy to visualize and explain.
+- **No scaling needed**: Trees are invariant to monotonic transformations of features.
+- **High variance**: Single trees are prone to overfitting — consider ensemble methods (Random Forest, Gradient Boosting) for better generalization.
 
 Mirrors [`sklearn.tree.DecisionTreeClassifier`](https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html).
 
@@ -24,8 +48,8 @@ Skigen::DecisionTreeClassifier<Scalar> tree(int max_depth = -1,
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `max_depth` | `-1` | Maximum tree depth (-1 = unlimited) |
-| `min_samples_split` | `2` | Minimum samples to split a node |
+| `max_depth` | `-1` | Maximum tree depth ($-1$ = unlimited) |
+| `min_samples_split` | `2` | Minimum samples required to split a node |
 
 ## Methods
 
@@ -33,7 +57,7 @@ Skigen::DecisionTreeClassifier<Scalar> tree(int max_depth = -1,
 |--------|-------------|
 | `fit(X, y)` | Build the decision tree |
 | `predict(X)` | Predict class labels |
-| `score(X, y)` | Return accuracy score |
+| `score(X, y)` | Return classification accuracy |
 
 ## Example
 

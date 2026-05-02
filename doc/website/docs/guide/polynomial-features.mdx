@@ -5,13 +5,36 @@ title: PolynomialFeatures
 
 # PolynomialFeatures
 
-Generates polynomial and interaction features up to specified degree.
+Generates a new feature matrix consisting of all polynomial combinations of the input features up to a given degree. This enables fitting polynomial relationships with a linear model.
+
+## Feature Expansion
 
 For input features $[x_1, x_2]$ with degree $d = 2$ and bias:
 
 $$\phi(x) = [1,\; x_1,\; x_2,\; x_1^2,\; x_1 x_2,\; x_2^2]$$
 
-The number of output features is $\binom{p + d}{d}$ with bias, or $\binom{p + d}{d} - 1$ without.
+The number of output features is:
+
+$$\text{output features} = \binom{p + d}{d} \quad \text{(with bias)}, \qquad \binom{p + d}{d} - 1 \quad \text{(without bias)}$$
+
+where $p$ is the number of input features and $d$ is the degree. For example, $p = 2,\, d = 3$ produces $\binom{5}{3} = 10$ features.
+
+## Interaction Only
+
+When `interaction_only = true`, only interaction features are generated (no powers $x_j^k$ for $k > 1$). For $[x_1, x_2]$ with $d = 2$, this yields $[1,\; x_1,\; x_2,\; x_1 x_2]$.
+
+## Usage with Linear Models
+
+Polynomial features combined with a linear model create a polynomial regression pipeline:
+
+```cpp
+auto pipe = Skigen::make_pipeline(
+    Skigen::PolynomialFeatures<>(3),
+    Skigen::LinearRegression<>()
+);
+```
+
+This fits $y = w_0 + w_1 x + w_2 x^2 + w_3 x^3$ while keeping the model linear in the parameters.
 
 Mirrors [`sklearn.preprocessing.PolynomialFeatures`](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.PolynomialFeatures.html).
 

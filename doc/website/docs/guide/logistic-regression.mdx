@@ -5,13 +5,36 @@ title: LogisticRegression
 
 # LogisticRegression
 
-L2-regularized logistic regression classifier with IRLS solver. Supports binary and multiclass (one-vs-rest) classification.
+$\ell_2$-regularized logistic regression for binary and multiclass classification, solved via Iteratively Reweighted Least Squares (IRLS).
+
+## Model
+
+The predicted probability that sample $x$ belongs to the positive class is given by the logistic (sigmoid) function:
 
 $$P(y = 1 \mid x) = \sigma(w^\top x + b) = \frac{1}{1 + e^{-(w^\top x + b)}}$$
 
+Decision boundary: a sample is assigned to the positive class when $P(y=1 \mid x) \ge 0.5$, i.e., when $w^\top x + b \ge 0$.
+
+## Objective Function
+
 $$\min_w -\frac{1}{n} \sum_{i=1}^{n} \left[ y_i \log \hat{p}_i + (1 - y_i) \log(1 - \hat{p}_i) \right] + \frac{1}{2C} \|w\|_2^2$$
 
-Mirrors [`sklearn.linear_model.LogisticRegression`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html).
+where $\hat{p}_i = \sigma(w^\top x_i + b)$ and $C > 0$ is the inverse regularization strength. Larger $C$ means less regularization. This formulation matches [scikit-learn's `LogisticRegression`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html).
+
+## IRLS Solver
+
+Skigen uses Iteratively Reweighted Least Squares (a Newton-type method) to solve the logistic regression problem. At each iteration:
+
+1. Compute predicted probabilities: $\hat{p}_i = \sigma(w^\top x_i + b)$
+2. Compute the diagonal weight matrix: $S_{ii} = \hat{p}_i(1 - \hat{p}_i)$
+3. Compute the working response: $z_i = w^\top x_i + (y_i - \hat{p}_i) / S_{ii}$
+4. Solve the weighted least squares problem: $w \leftarrow (X^\top S X + \frac{1}{C} I)^{-1} X^\top S z$
+
+The algorithm uses a diagonal Hessian approximation for efficiency and converges quadratically near the optimum. The sigmoid computation is numerically stabilized to avoid overflow for large inputs.
+
+## Multiclass Classification
+
+For more than two classes, Skigen uses the One-vs-Rest (OvR) strategy: a separate binary classifier is fitted for each class against all others. The class with the highest predicted probability is selected.
 
 ## Constructor
 
@@ -22,25 +45,25 @@ Skigen::LogisticRegression<Scalar> model(Scalar C = 1, bool fit_intercept = true
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `C` | `1` | Inverse regularization strength |
-| `fit_intercept` | `true` | Whether to calculate the intercept |
+| `C` | `1` | Inverse regularization strength ($C > 0$) |
+| `fit_intercept` | `true` | Whether to compute an intercept term |
 | `max_iter` | `100` | Maximum IRLS iterations |
-| `tol` | `1e-4` | Convergence tolerance |
+| `tol` | `1e-4` | Convergence tolerance on the log-likelihood |
 
 ## Methods
 
 | Method | Description |
 |--------|-------------|
-| `fit(X, y)` | Fit the classifier to training data |
+| `fit(X, y)` | Fit the classifier via IRLS |
 | `predict(X)` | Predict class labels |
 | `predict_proba(X)` | Predict class probabilities |
-| `score(X, y)` | Return accuracy score |
+| `score(X, y)` | Return classification accuracy |
 
 ## Fitted Attributes
 
 | Accessor | Type | Description |
 |----------|------|-------------|
-| `coef()` | `MatrixType` | Coefficient matrix |
+| `coef()` | `MatrixType` | Coefficient matrix (one row per class in OvR) |
 | `intercept()` | `VectorType` | Intercept vector |
 | `classes()` | `std::vector<int>` | Unique class labels |
 
@@ -61,5 +84,8 @@ int main() {
 
     auto predictions = model.predict(X);
     std::cout << "Accuracy: " << model.score(X, y) << "\n";
+
+    auto proba = model.predict_proba(X);
+    std::cout << "Probabilities:\n" << proba << "\n";
 }
 ```

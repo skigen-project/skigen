@@ -5,9 +5,21 @@ title: Normalizer
 
 # Normalizer
 
-Row-wise normalization to unit norm (L1, L2, or max). Stateless transformer.
+Normalizes each **row** (sample) independently to unit norm. This is a stateless transformer — `fit` is a no-op.
+
+## Formula
 
 $$\text{L2:}\quad \hat{x}_i = \frac{x_i}{\|x_i\|_2} \qquad \text{L1:}\quad \hat{x}_i = \frac{x_i}{\|x_i\|_1} \qquad \text{Max:}\quad \hat{x}_i = \frac{x_i}{\max_j |x_{ij}|}$$
+
+where $x_i$ is the $i$-th row (sample) of $X$.
+
+Note that Normalizer operates **row-wise** (per sample), unlike StandardScaler and other scalers which operate column-wise (per feature). This is a fundamental distinction.
+
+## When to Use
+
+- **Text classification**: After TF-IDF vectorization, L2 normalization ensures that documents of different lengths are comparable.
+- **Cosine similarity**: L2-normalized vectors have $\|x\| = 1$, so their dot product equals cosine similarity.
+- **Kernel methods**: Some kernels assume unit-norm inputs.
 
 Mirrors [`sklearn.preprocessing.Normalizer`](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.Normalizer.html).
 

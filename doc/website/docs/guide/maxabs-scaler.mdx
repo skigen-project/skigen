@@ -5,9 +5,19 @@ title: MaxAbsScaler
 
 # MaxAbsScaler
 
-Feature scaling by dividing each feature by its maximum absolute value. Scales to $[-1, 1]$ with optional clipping.
+Scales each feature by its maximum absolute value, mapping all features to the range $[-1, 1]$. Unlike StandardScaler and MinMaxScaler, MaxAbsScaler does not shift the data (no centering), so it **preserves sparsity**.
+
+## Formula
 
 $$Z_{ij} = \frac{X_{ij}}{\max_i |X_{ij}|}$$
+
+If $\max_i |X_{ij}| = 0$ for a feature (all zeros), the feature is left unchanged.
+
+## When to Use
+
+- **Sparse data**: The only scaler (besides Normalizer) that preserves zero entries, making it ideal for sparse matrices.
+- **Centered data**: When the data is already centered and only scaling is needed.
+- **Preserves sign**: The sign of each entry is unchanged, unlike MinMaxScaler which shifts values.
 
 Mirrors [`sklearn.preprocessing.MaxAbsScaler`](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MaxAbsScaler.html).
 
