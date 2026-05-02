@@ -7,6 +7,10 @@ title: RobustScaler
 
 Scaling using median centering and IQR-based scaling, robust to outliers.
 
+$$Z_{ij} = \frac{X_{ij} - \text{median}_j}{\text{IQR}_j}$$
+
+where $\text{IQR}_j = Q_{75}(X_j) - Q_{25}(X_j)$ is the interquartile range of feature $j$.
+
 Mirrors [`sklearn.preprocessing.RobustScaler`](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.RobustScaler.html).
 
 ## Constructor

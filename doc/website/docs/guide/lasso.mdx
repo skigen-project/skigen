@@ -7,6 +7,14 @@ title: Lasso
 
 L1-regularized linear regression using coordinate descent with soft-thresholding.
 
+$$\min_w \frac{1}{2n} \|Xw - y\|_2^2 + \alpha \|w\|_1$$
+
+The L1 penalty drives coefficients exactly to zero, performing feature selection. The coordinate descent update applies the soft-thresholding operator:
+
+$$w_j \leftarrow S\!\left(\frac{1}{n} X_j^\top (y - X_{\setminus j} w_{\setminus j}),\; \alpha\right)$$
+
+where $S(z, \gamma) = \text{sign}(z)\max(|z| - \gamma, 0)$.
+
 Mirrors [`sklearn.linear_model.Lasso`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Lasso.html).
 
 ## Constructor

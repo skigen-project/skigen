@@ -142,8 +142,10 @@ jobs:
         working-directory: doc/website
         run: npm ci
 
-      - name: Build
+      - name: Build (production)
         working-directory: doc/website
+        env:
+          SKIGEN_SITE_ENV: stable
         run: npm run build
 
       - name: Deploy to skigen-project.github.io
@@ -155,9 +157,22 @@ jobs:
           git clone -b main --single-branch "https://${SKIGEN_PROJECT_PAT}@github.com/skigen-project/skigen-project.github.io.git"
           cd skigen-project.github.io
 
+          # Preserve /dev directory (staging website)
+          if [ -d "dev" ]; then
+            cp -r dev /tmp/website-dev-backup
+          fi
+
+          # Remove everything except .git
           find . -maxdepth 1 ! -name '.git' ! -name '.' -exec rm -rf {} +
+
+          # Copy the stable Docusaurus build to the root
           cp -r ../doc/website/build/. .
           touch .nojekyll
+
+          # Restore /dev directory
+          if [ -d "/tmp/website-dev-backup" ]; then
+            cp -r /tmp/website-dev-backup dev
+          fi
 
           git add .
           git commit -m "Deploy website from skigen@${GITHUB_SHA::8}" --allow-empty

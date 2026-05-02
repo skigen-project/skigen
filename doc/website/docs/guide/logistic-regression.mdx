@@ -7,6 +7,10 @@ title: LogisticRegression
 
 L2-regularized logistic regression classifier with IRLS solver. Supports binary and multiclass (one-vs-rest) classification.
 
+$$P(y = 1 \mid x) = \sigma(w^\top x + b) = \frac{1}{1 + e^{-(w^\top x + b)}}$$
+
+$$\min_w -\frac{1}{n} \sum_{i=1}^{n} \left[ y_i \log \hat{p}_i + (1 - y_i) \log(1 - \hat{p}_i) \right] + \frac{1}{2C} \|w\|_2^2$$
+
 Mirrors [`sklearn.linear_model.LogisticRegression`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html).
 
 ## Constructor

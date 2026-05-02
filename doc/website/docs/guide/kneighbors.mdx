@@ -7,6 +7,16 @@ title: KNeighbors
 
 Brute-force k-nearest neighbors with majority voting (classifier) or averaging (regressor).
 
+$$d(x, x') = \sqrt{\sum_{j=1}^{p} (x_j - x'_j)^2}$$
+
+Classifier prediction by majority vote over the $k$ nearest neighbors $\mathcal{N}_k(x)$:
+
+$$\hat{y} = \arg\max_c \sum_{x_i \in \mathcal{N}_k(x)} \mathbf{1}(y_i = c)$$
+
+Regressor prediction by averaging:
+
+$$\hat{y} = \frac{1}{k} \sum_{x_i \in \mathcal{N}_k(x)} y_i$$
+
 Mirrors [`sklearn.neighbors.KNeighborsClassifier`](https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsClassifier.html).
 
 ## Constructor

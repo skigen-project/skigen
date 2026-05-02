@@ -9,6 +9,10 @@ Evaluation metrics for regression and classification tasks.
 
 ## Regression Metrics
 
+$$\text{MSE} = \frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2 \qquad \text{RMSE} = \sqrt{\text{MSE}}$$
+
+$$\text{MAE} = \frac{1}{n} \sum_{i=1}^{n} |y_i - \hat{y}_i| \qquad R^2 = 1 - \frac{\sum_i (y_i - \hat{y}_i)^2}{\sum_i (y_i - \bar{y})^2}$$
+
 ```cpp
 #include <Skigen/Metrics>
 
@@ -26,6 +30,10 @@ Skigen::Metrics::r2_score(y_true, y_pred);
 | `r2_score` | Coefficient of determination |
 
 ## Classification Metrics
+
+$$\\text{Accuracy} = \\frac{\\text{TP} + \\text{TN}}{n} \\qquad \\text{Precision} = \\frac{\\text{TP}}{\\text{TP} + \\text{FP}} \\qquad \\text{Recall} = \\frac{\\text{TP}}{\\text{TP} + \\text{FN}}$$
+
+$$F_1 = 2 \\cdot \\frac{\\text{Precision} \\cdot \\text{Recall}}{\\text{Precision} + \\text{Recall}}$$
 
 ```cpp
 #include <Skigen/Metrics>

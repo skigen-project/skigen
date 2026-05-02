@@ -4,19 +4,22 @@ import type * as Preset from '@docusaurus/preset-classic';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 
+const siteEnv = process.env.SKIGEN_SITE_ENV || 'stable';
+const isDev = siteEnv === 'dev';
+const versionLabel = isDev ? 'dev (latest)' : 'v1.0.0';
+
 const config: Config = {
     title: 'Skigen',
     tagline: 'High-performance machine learning for modern C++ and Eigen.',
     favicon: 'img/favicon.ico',
 
     url: 'https://skigen-project.github.io',
-    baseUrl: '/',
+    baseUrl: process.env.DOCUSAURUS_BASE_URL || '/',
 
     organizationName: 'skigen-project',
     projectName: 'skigen-project.github.io',
 
     onBrokenLinks: 'warn',
-    onBrokenMarkdownLinks: 'warn',
 
     i18n: {
         defaultLocale: 'en',
@@ -58,6 +61,9 @@ const config: Config = {
     markdown: {
         format: 'mdx',
         mermaid: true,
+        hooks: {
+            onBrokenMarkdownLinks: 'warn',
+        },
     },
 
     stylesheets: [
@@ -94,6 +100,21 @@ const config: Config = {
                     sidebarId: 'developmentSidebar',
                     position: 'left',
                     label: 'Development',
+                },
+                {
+                    type: 'dropdown',
+                    label: versionLabel,
+                    position: 'right',
+                    items: [
+                        {
+                            label: 'v1.0.0 (stable)',
+                            href: 'https://skigen-project.github.io/',
+                        },
+                        {
+                            label: 'dev (latest)',
+                            href: 'https://skigen-project.github.io/dev/',
+                        },
+                    ],
                 },
                 {
                     href: 'https://github.com/skigen-project/skigen',

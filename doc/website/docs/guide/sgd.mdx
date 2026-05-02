@@ -7,6 +7,18 @@ title: SGDClassifier
 
 Stochastic Gradient Descent linear models for classification (Hinge or Log loss) and regression.
 
+Hinge loss (linear SVM):
+
+$$L_i = \max(0,\; 1 - y_i \, w^\top x_i)$$
+
+Log loss (logistic regression):
+
+$$L_i = -\left[ y_i \log \sigma(w^\top x_i) + (1 - y_i) \log(1 - \sigma(w^\top x_i)) \right]$$
+
+Weight update per sample:
+
+$$w \leftarrow w - \eta \left( \nabla_w L_i + \alpha\, w \right)$$
+
 Mirrors [`sklearn.linear_model.SGDClassifier`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.SGDClassifier.html).
 
 ## Constructor

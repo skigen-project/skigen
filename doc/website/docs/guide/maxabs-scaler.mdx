@@ -5,7 +5,9 @@ title: MaxAbsScaler
 
 # MaxAbsScaler
 
-Feature scaling by dividing each feature by its maximum absolute value. Scales to [-1, 1] with optional clipping.
+Feature scaling by dividing each feature by its maximum absolute value. Scales to $[-1, 1]$ with optional clipping.
+
+$$Z_{ij} = \frac{X_{ij}}{\max_i |X_{ij}|}$$
 
 Mirrors [`sklearn.preprocessing.MaxAbsScaler`](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MaxAbsScaler.html).
 

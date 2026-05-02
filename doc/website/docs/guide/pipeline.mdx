@@ -7,6 +7,12 @@ title: Pipeline
 
 Compile-time pipeline chaining transformers and a final estimator. All steps are type-checked at compile time.
 
+For a pipeline with transformers $T_1, T_2, \ldots, T_m$ and estimator $E$:
+
+$$\hat{y} = E\!\left(T_m\!\left(\cdots T_2\!\left(T_1(X)\right)\cdots\right)\right)$$
+
+During `fit`, each transformer is fit and transforms the data before passing it to the next step.
+
 Mirrors [`sklearn.pipeline.Pipeline`](https://scikit-learn.org/stable/modules/generated/sklearn.pipeline.Pipeline.html).
 
 ## Construction

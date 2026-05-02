@@ -7,6 +7,12 @@ title: Ridge
 
 L2-regularized least squares solved via Cholesky decomposition on the normal equation.
 
+$$\min_w \frac{1}{2n} \|Xw - y\|_2^2 + \frac{\alpha}{2} \|w\|_2^2$$
+
+The closed-form solution is:
+
+$$\hat{w} = (X^\top X + \alpha n I)^{-1} X^\top y$$
+
 Mirrors [`sklearn.linear_model.Ridge`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Ridge.html).
 
 ## Constructor

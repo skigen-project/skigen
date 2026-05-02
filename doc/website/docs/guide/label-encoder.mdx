@@ -5,7 +5,11 @@ title: LabelEncoder
 
 # LabelEncoder
 
-Encodes categorical labels to contiguous integer indices [0, n_classes).
+Encodes categorical labels to contiguous integer indices $[0,\, n_{\text{classes}})$.
+
+$$f: \mathcal{L} \to \{0, 1, \ldots, |\mathcal{L}| - 1\}$$
+
+where $\mathcal{L}$ is the set of unique labels sorted in ascending order.
 
 Mirrors [`sklearn.preprocessing.LabelEncoder`](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.LabelEncoder.html).
 

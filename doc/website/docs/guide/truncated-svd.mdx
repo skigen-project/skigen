@@ -7,6 +7,10 @@ title: TruncatedSVD
 
 Dimensionality reduction via truncated SVD without centering. Suitable for sparse matrices.
 
+$$X \approx U_k \Sigma_k V_k^\top$$
+
+The projection to $k$ components is $Z = X V_k$, preserving the $k$ directions of largest variance without subtracting the mean.
+
 Mirrors [`sklearn.decomposition.TruncatedSVD`](https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.TruncatedSVD.html).
 
 ## Constructor

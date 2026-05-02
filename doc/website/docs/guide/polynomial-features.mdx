@@ -7,6 +7,12 @@ title: PolynomialFeatures
 
 Generates polynomial and interaction features up to specified degree.
 
+For input features $[x_1, x_2]$ with degree $d = 2$ and bias:
+
+$$\phi(x) = [1,\; x_1,\; x_2,\; x_1^2,\; x_1 x_2,\; x_2^2]$$
+
+The number of output features is $\binom{p + d}{d}$ with bias, or $\binom{p + d}{d} - 1$ without.
+
 Mirrors [`sklearn.preprocessing.PolynomialFeatures`](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.PolynomialFeatures.html).
 
 ## Constructor

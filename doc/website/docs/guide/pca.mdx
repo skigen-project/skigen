@@ -7,6 +7,14 @@ title: PCA
 
 Principal Component Analysis using full SVD with centering and explained variance computation.
 
+$$X_{\text{centered}} = X - \mathbf{1}\mu^\top, \qquad X_{\text{centered}} = U \Sigma V^\top$$
+
+The projection onto $k$ principal components is:
+
+$$Z = X_{\text{centered}} \, V_k$$
+
+where $V_k$ contains the first $k$ right singular vectors. The explained variance ratio for component $j$ is $\sigma_j^2 / \sum_i \sigma_i^2$.
+
 Mirrors [`sklearn.decomposition.PCA`](https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html).
 
 ## Constructor

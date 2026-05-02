@@ -7,6 +7,10 @@ title: LinearRegression
 
 Ordinary Least Squares linear regression via ColPivHouseholderQR decomposition.
 
+$$\hat{w} = \arg\min_w \|Xw - y\|_2^2$$
+
+The closed-form solution is $\hat{w} = (X^\top X)^{-1} X^\top y$, computed via QR decomposition for numerical stability.
+
 Mirrors [`sklearn.linear_model.LinearRegression`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html).
 
 ## Constructor

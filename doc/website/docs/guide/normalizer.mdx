@@ -7,6 +7,8 @@ title: Normalizer
 
 Row-wise normalization to unit norm (L1, L2, or max). Stateless transformer.
 
+$$\text{L2:}\quad \hat{x}_i = \frac{x_i}{\|x_i\|_2} \qquad \text{L1:}\quad \hat{x}_i = \frac{x_i}{\|x_i\|_1} \qquad \text{Max:}\quad \hat{x}_i = \frac{x_i}{\max_j |x_{ij}|}$$
+
 Mirrors [`sklearn.preprocessing.Normalizer`](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.Normalizer.html).
 
 ## Constructor

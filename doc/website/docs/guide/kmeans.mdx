@@ -7,6 +7,10 @@ title: KMeans
 
 K-Means clustering with Lloyd's algorithm and k-means++ initialization.
 
+$$\min_{\{\mu_k\}} \sum_{k=1}^{K} \sum_{x_i \in C_k} \|x_i - \mu_k\|_2^2$$
+
+where $\mu_k$ is the centroid of cluster $C_k$. Lloyd's algorithm alternates between assigning each sample to its nearest centroid and recomputing centroids as cluster means.
+
 Mirrors [`sklearn.cluster.KMeans`](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html).
 
 ## Constructor

@@ -9,7 +9,9 @@ Utilities for splitting data and evaluating models.
 
 ## train_test_split
 
-Splits arrays into random train and test subsets.
+Splits arrays into random train and test subsets. Given $n$ samples and test fraction $f$:
+
+$$n_{\text{test}} = \lfloor n \cdot f \rfloor, \qquad n_{\text{train}} = n - n_{\text{test}}$$
 
 ```cpp
 #include <Skigen/ModelSelection>

@@ -7,6 +7,12 @@ title: DecisionTree
 
 CART decision tree classifier using Gini impurity with recursive binary splits.
 
+$$\text{Gini}(t) = 1 - \sum_{k=1}^{K} p_k^2$$
+
+where $p_k$ is the proportion of class $k$ samples at node $t$. At each split, the feature and threshold minimizing the weighted Gini impurity of the child nodes are selected:
+
+$$\text{Gini}_{\text{split}} = \frac{n_L}{n} \,\text{Gini}(t_L) + \frac{n_R}{n} \,\text{Gini}(t_R)$$
+
 Mirrors [`sklearn.tree.DecisionTreeClassifier`](https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html).
 
 ## Constructor
