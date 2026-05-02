@@ -11,7 +11,7 @@ const versionLabel = isDev ? 'dev (latest)' : 'v1.0.0';
 const config: Config = {
     title: 'Skigen',
     tagline: 'High-performance machine learning for modern C++ and Eigen.',
-    favicon: 'img/favicon.ico',
+    favicon: 'img/skigen-logo_plain.svg',
 
     url: 'https://skigen-project.github.io',
     baseUrl: process.env.DOCUSAURUS_BASE_URL || '/',
