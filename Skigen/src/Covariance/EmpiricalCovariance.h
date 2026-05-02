@@ -10,6 +10,7 @@
 #include <Eigen/Core>
 #include <Eigen/Eigenvalues>
 #include <cmath>
+#include <numbers>
 
 namespace Skigen {
 
@@ -119,7 +120,7 @@ public:
         Scalar tr = (cov_inv * S_test).trace();
 
         return Scalar{-0.5} * (static_cast<Scalar>(p)
-            * std::log(Scalar{2} * static_cast<Scalar>(M_PI))
+            * std::log(Scalar{2} * std::numbers::pi_v<Scalar>)
             + log_det + tr);
     }
 
