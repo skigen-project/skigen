@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 The Skigen Contributors
+//
+// Skigen/Covariance — Covariance estimators (EmpiricalCovariance, LedoitWolf, OAS)
+//
+// Usage:
+//   #include <Skigen/Covariance>
+
+#ifndef SKIGEN_COVARIANCE
+#define SKIGEN_COVARIANCE
+
+#include "Core"
+#include "src/Covariance/EmpiricalCovariance.h"
+#include "src/Covariance/LedoitWolf.h"
+#include "src/Covariance/OAS.h"
+
+#endif // SKIGEN_COVARIANCE

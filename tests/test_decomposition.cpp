@@ -8,6 +8,7 @@
 #include <sstream>
 #include <string>
 #include <functional>
+#include <random>
 
 // ---------------------------------------------------------------------------
 // Minimal test harness
@@ -181,6 +182,108 @@ void test_pca_not_fitted() {
 }
 
 // ===================================================================
+// FactorAnalysis Tests
+// ===================================================================
+
+void test_fa_basic() {
+    // Generate data with known factor structure
+    // X = Z * W^T + noise, Z ~ N(0,I), W is (p × k)
+    std::mt19937 gen(42);
+    std::normal_distribution<double> dist(0.0, 1.0);
+
+    const int n = 500, p = 5, k = 2;
+
+    Eigen::MatrixXd Z(n, k);
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < k; ++j)
+            Z(i, j) = dist(gen);
+
+    Eigen::MatrixXd W_true(p, k);
+    W_true << 2.0, 0.0,
+              1.5, 0.5,
+              0.0, 2.0,
+              0.3, 1.0,
+              1.0, 0.0;
+
+    Eigen::MatrixXd noise(n, p);
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < p; ++j)
+            noise(i, j) = dist(gen) * 0.3;
+
+    Eigen::MatrixXd X = Z * W_true.transpose() + noise;
+
+    Skigen::FactorAnalysis<double> fa(k);
+    fa.fit(X);
+
+    ASSERT_TRUE(fa.is_fitted());
+    ASSERT_TRUE(fa.components().rows() == p);
+    ASSERT_TRUE(fa.components().cols() == k);
+    ASSERT_TRUE(fa.noise_variance().size() == p);
+    ASSERT_TRUE(fa.n_iter() > 0);
+
+    // Covariance should be symmetric and positive semi-definite
+    auto cov = fa.covariance();
+    ASSERT_TRUE(cov.rows() == p && cov.cols() == p);
+
+    double sym_err = (cov - cov.transpose()).norm();
+    ASSERT_NEAR(sym_err, 0.0, 1e-12);
+}
+
+void test_fa_noise_recovery() {
+    // Noise variances should be close to the true noise level
+    std::mt19937 gen(123);
+    std::normal_distribution<double> dist(0.0, 1.0);
+
+    const int n = 2000, p = 4, k = 1;
+
+    Eigen::MatrixXd Z(n, k);
+    for (int i = 0; i < n; ++i)
+        Z(i, 0) = dist(gen);
+
+    Eigen::VectorXd w(p);
+    w << 3.0, 2.0, 1.0, 0.5;
+
+    Eigen::VectorXd noise_std(p);
+    noise_std << 0.5, 0.3, 0.8, 0.2;
+
+    Eigen::MatrixXd X(n, p);
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < p; ++j)
+            X(i, j) = Z(i, 0) * w(j) + dist(gen) * noise_std(j);
+
+    Skigen::FactorAnalysis<double> fa(k);
+    fa.fit(X);
+
+    // Each noise_variance should be approximately noise_std^2
+    for (int j = 0; j < p; ++j) {
+        ASSERT_NEAR(fa.noise_variance()(j), noise_std(j) * noise_std(j), 0.15);
+    }
+}
+
+void test_fa_not_fitted() {
+    Skigen::FactorAnalysis<double> fa;
+    bool threw = false;
+    try { static_cast<void>(fa.components()); } catch (const std::runtime_error&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
+void test_fa_ll_improves() {
+    // Log-likelihood should be finite
+    std::mt19937 gen(99);
+    std::normal_distribution<double> dist(0.0, 1.0);
+    const int n = 200, p = 5;
+    Eigen::MatrixXd X(n, p);
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < p; ++j)
+            X(i, j) = dist(gen);
+
+    Skigen::FactorAnalysis<double> fa(2);
+    fa.fit(X);
+
+    ASSERT_TRUE(std::isfinite(fa.log_likelihood()));
+}
+
+// ===================================================================
 
 int main() {
     std::cout << "=== PCA Tests ===\n";
@@ -190,6 +293,12 @@ int main() {
     run_test("pca_inverse_transform", test_pca_inverse_transform);
     run_test("pca_fit_transform", test_pca_fit_transform);
     run_test("pca_not_fitted", test_pca_not_fitted);
+
+    std::cout << "\n=== FactorAnalysis Tests ===\n";
+    run_test("fa_basic", test_fa_basic);
+    run_test("fa_noise_recovery", test_fa_noise_recovery);
+    run_test("fa_not_fitted", test_fa_not_fitted);
+    run_test("fa_ll_improves", test_fa_ll_improves);
 
     std::cout << "\n" << g_passed << " passed, " << g_failed << " failed.\n";
     return g_failed > 0 ? 1 : 0;

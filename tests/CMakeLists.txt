@@ -120,3 +120,15 @@ target_link_libraries(skigen_test_remaining PRIVATE Skigen::Skigen)
 target_compile_options(skigen_test_remaining PRIVATE ${SKIGEN_WARNING_FLAGS})
 
 add_test(NAME skigen_test_remaining COMMAND skigen_test_remaining)
+
+# ---------------------------------------------------------------------------
+# Covariance tests (EmpiricalCovariance, LedoitWolf, OAS)
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_covariance
+    test_covariance.cpp
+)
+
+target_link_libraries(skigen_test_covariance PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_covariance PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_test(NAME skigen_test_covariance COMMAND skigen_test_covariance)

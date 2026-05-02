@@ -21,6 +21,7 @@
 #include "Cluster"
 #include "Neighbors"
 #include "Tree"
+#include "Covariance"
 
 namespace Skigen {
 
@@ -65,6 +66,18 @@ using PCAD              = PCA<double>;
 using PCAF              = PCA<float>;
 using TruncatedSVDD     = TruncatedSVD<double>;
 using TruncatedSVDF     = TruncatedSVD<float>;
+using FactorAnalysisD   = FactorAnalysis<double>;
+using FactorAnalysisF   = FactorAnalysis<float>;
+
+// ---------------------------------------------------------------------------
+// Covariance
+// ---------------------------------------------------------------------------
+using EmpiricalCovarianceD = EmpiricalCovariance<double>;
+using EmpiricalCovarianceF = EmpiricalCovariance<float>;
+using LedoitWolfD       = LedoitWolf<double>;
+using LedoitWolfF       = LedoitWolf<float>;
+using OASD              = OAS<double>;
+using OASF              = OAS<float>;
 
 // ---------------------------------------------------------------------------
 // Cluster
@@ -81,6 +94,8 @@ using KNeighborsClassifierD = KNeighborsClassifier<double>;
 using KNeighborsClassifierF = KNeighborsClassifier<float>;
 using KNeighborsRegressorD  = KNeighborsRegressor<double>;
 using KNeighborsRegressorF  = KNeighborsRegressor<float>;
+using LocalOutlierFactorD   = LocalOutlierFactor<double>;
+using LocalOutlierFactorF   = LocalOutlierFactor<float>;
 
 // ---------------------------------------------------------------------------
 // Tree

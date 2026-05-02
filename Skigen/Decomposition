@@ -6,5 +6,6 @@
 
 #include "src/Decomposition/PCA.h"
 #include "src/Decomposition/TruncatedSVD.h"
+#include "src/Decomposition/FactorAnalysis.h"
 
 #endif // SKIGEN_DECOMPOSITION

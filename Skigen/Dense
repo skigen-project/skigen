@@ -16,6 +16,7 @@
 #include "Cluster"
 #include "Neighbors"
 #include "Tree"
+#include "Covariance"
 #include "ModelSelection"
 #include "Pipeline"
 #include "Metrics"

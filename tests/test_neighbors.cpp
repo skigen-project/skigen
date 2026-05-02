@@ -156,6 +156,105 @@ void test_knn_regressor_not_fitted() {
 }
 
 // ===================================================================
+// LocalOutlierFactor Tests
+// ===================================================================
+
+void test_lof_basic_outlier() {
+    // Tight cluster of 5 inliers + 1 obvious outlier
+    Eigen::MatrixXd X(6, 2);
+    X << 0, 0,
+         0.1, 0,
+         0, 0.1,
+         0.1, 0.1,
+         0.05, 0.05,
+         10, 10;  // outlier
+
+    Skigen::LocalOutlierFactor<double> lof(3);
+    lof.fit(X);
+
+    ASSERT_TRUE(lof.is_fitted());
+    ASSERT_TRUE(lof.n_neighbors_used() == 3);
+
+    auto scores = lof.lof_scores();
+    ASSERT_TRUE(scores.size() == 6);
+
+    // Outlier should have the highest LOF score
+    Eigen::Index max_idx;
+    scores.maxCoeff(&max_idx);
+    ASSERT_TRUE(max_idx == 5);  // The outlier
+
+    // Outlier score should be significantly > 1
+    ASSERT_TRUE(scores(5) > 2.0);
+
+    // Inlier scores should be close to 1
+    for (int i = 0; i < 5; ++i) {
+        ASSERT_TRUE(scores(i) < 2.0);
+    }
+}
+
+void test_lof_negative_outlier_factor() {
+    Eigen::MatrixXd X(4, 2);
+    X << 0, 0, 1, 0, 0, 1, 1, 1;
+
+    Skigen::LocalOutlierFactor<double> lof(2);
+    lof.fit(X);
+
+    auto nof = lof.negative_outlier_factor();
+    // Negative outlier factor should be negative
+    for (Eigen::Index i = 0; i < nof.size(); ++i) {
+        ASSERT_TRUE(nof(i) <= 0);
+    }
+
+    // lof_scores should equal -nof
+    auto scores = lof.lof_scores();
+    for (Eigen::Index i = 0; i < nof.size(); ++i) {
+        ASSERT_NEAR(scores(i), -nof(i), 1e-14);
+    }
+}
+
+void test_lof_k_clamp() {
+    // n_neighbors > n_samples-1 should be clamped
+    Eigen::MatrixXd X(3, 1);
+    X << 0, 1, 100;
+
+    Skigen::LocalOutlierFactor<double> lof(50);
+    lof.fit(X);
+
+    ASSERT_TRUE(lof.n_neighbors_used() == 2);  // clamped to n-1
+}
+
+void test_lof_fit_predict_labels() {
+    Eigen::MatrixXd X(7, 2);
+    X << 0, 0,
+         0.1, 0,
+         0, 0.1,
+         0.1, 0.1,
+         0.05, 0.05,
+         -0.05, 0.05,
+         50, 50;  // outlier
+
+    Skigen::LocalOutlierFactor<double> lof(3);
+    lof.fit(X);
+
+    auto labels = lof.fit_predict_labels();
+    // The far-out point should be labeled -1
+    ASSERT_TRUE(labels(6) == -1);
+    // At least some inliers should be labeled +1
+    int inlier_count = 0;
+    for (Eigen::Index i = 0; i < 6; ++i) {
+        if (labels(i) == 1) ++inlier_count;
+    }
+    ASSERT_TRUE(inlier_count >= 3);
+}
+
+void test_lof_not_fitted() {
+    Skigen::LocalOutlierFactor<double> lof;
+    ASSERT_THROW(lof.negative_outlier_factor(), std::runtime_error);
+    ASSERT_THROW(lof.lof_scores(), std::runtime_error);
+    ASSERT_THROW(lof.fit_predict_labels(), std::runtime_error);
+}
+
+// ===================================================================
 
 int main() {
     std::cout << "=== KNeighborsClassifier Tests ===\n";
@@ -167,6 +266,13 @@ int main() {
     run_test("knn_regressor_basic", test_knn_regressor_basic);
     run_test("knn_regressor_score", test_knn_regressor_score);
     run_test("knn_regressor_not_fitted", test_knn_regressor_not_fitted);
+
+    std::cout << "\n=== LocalOutlierFactor Tests ===\n";
+    run_test("lof_basic_outlier", test_lof_basic_outlier);
+    run_test("lof_negative_outlier_factor", test_lof_negative_outlier_factor);
+    run_test("lof_k_clamp", test_lof_k_clamp);
+    run_test("lof_fit_predict_labels", test_lof_fit_predict_labels);
+    run_test("lof_not_fitted", test_lof_not_fitted);
 
     std::cout << "\n" << g_passed << " passed, " << g_failed << " failed.\n";
     return g_failed > 0 ? 1 : 0;
