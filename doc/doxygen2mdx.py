@@ -866,9 +866,9 @@ def main():
         if "internal" in name.lower():
             continue
 
-        # Skip base classes (Estimator, Predictor, Transformer)
+        # Skip base classes (Estimator, Predictor, Transformer, Classifier)
         short = name.split("::")[-1]
-        if short in ("Estimator", "Predictor", "Transformer"):
+        if short in ("Estimator", "Predictor", "Transformer", "Classifier"):
             continue
 
         # Enforce registration — throws if class is unknown
