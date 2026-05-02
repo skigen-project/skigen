@@ -1,16 +1,12 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 The Skigen Contributors
 #
-# Builds the Docusaurus website and pushes the generated files to
-# skigen-project.github.io so that the deployed content is inspectable.
+# Manual website deployment — use staging.yml / main.yml for automated deploys.
+# Kept for manual re-deployment via workflow_dispatch.
 
-name: Deploy Website
+name: Deploy Website (Manual)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'doc/website/**'
   workflow_dispatch:
 
 jobs:

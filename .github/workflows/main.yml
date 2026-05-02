@@ -1,0 +1,198 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 The Skigen Contributors
+#
+# ═══════════════════════════════════════════════════════════════════════════
+# Main Branch / Release Pipeline
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Triggered on pushes to `main` and version tags (v*).
+#
+# ┌────────────────────┬────────────────────────────────────────────────────┐
+# │ Trigger            │ What runs                                         │
+# ├────────────────────┼────────────────────────────────────────────────────┤
+# │ Push to main       │ Tests + build matrix, deploy production website   │
+# ├────────────────────┼────────────────────────────────────────────────────┤
+# │ Tag v* on main     │ GitHub Release with header-only tarball           │
+# └────────────────────┴────────────────────────────────────────────────────┘
+#
+# To cut a release:
+#   git tag v1.0.0 -a -m "Release v1.0.0"
+#   git push origin v1.0.0
+#
+# Branch model:  Feature → Staging → Main
+# ═══════════════════════════════════════════════════════════════════════════
+
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+
+concurrency:
+  group: main-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Build & test (skipped on tag pushes to avoid duplicate runs) ────────
+  build-linux:
+    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+    name: Linux (GCC ${{ matrix.gcc }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        gcc: [13, 14]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout Eigen
+        uses: actions/checkout@v4
+        with:
+          repository: skigen-project/eigen
+          ref: '3.4'
+          path: eigen
+
+      - name: Configure
+        run: |
+          cmake -B build \
+            -DCMAKE_CXX_COMPILER=g++-${{ matrix.gcc }} \
+            -DSKIGEN_BUILD_TESTS=ON \
+            -DSKIGEN_BUILD_EXAMPLES=ON \
+            -DSKIGEN_BUILD_BENCHMARKS=ON
+
+      - name: Build
+        run: cmake --build build -j$(nproc)
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  build-macos:
+    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+    name: macOS (AppleClang)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout Eigen
+        uses: actions/checkout@v4
+        with:
+          repository: skigen-project/eigen
+          ref: '3.4'
+          path: eigen
+
+      - name: Configure
+        run: |
+          cmake -B build \
+            -DSKIGEN_BUILD_TESTS=ON \
+            -DSKIGEN_BUILD_EXAMPLES=ON \
+            -DSKIGEN_BUILD_BENCHMARKS=ON
+
+      - name: Build
+        run: cmake --build build -j$(sysctl -n hw.logicalcpu)
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  build-windows:
+    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+    name: Windows (MSVC)
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout Eigen
+        uses: actions/checkout@v4
+        with:
+          repository: skigen-project/eigen
+          ref: '3.4'
+          path: eigen
+
+      - name: Configure
+        run: |
+          cmake -B build `
+            -DSKIGEN_BUILD_TESTS=ON `
+            -DSKIGEN_BUILD_EXAMPLES=ON `
+            -DSKIGEN_BUILD_BENCHMARKS=ON
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+
+  # ── Deploy production website (on main push, not on tags) ────────────────
+  deploy-website:
+    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+    needs: [build-linux, build-macos, build-windows]
+    name: Deploy Website
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: doc/website/package-lock.json
+
+      - name: Install dependencies
+        working-directory: doc/website
+        run: npm ci
+
+      - name: Build
+        working-directory: doc/website
+        run: npm run build
+
+      - name: Deploy to skigen-project.github.io
+        env:
+          SKIGEN_PROJECT_PAT: ${{ secrets.SKIGEN_PROJECT_PAT }}
+        run: |
+          git config --global user.email "deploy@skigen-project.github.io"
+          git config --global user.name "skigen-deploy"
+          git clone -b main --single-branch "https://${SKIGEN_PROJECT_PAT}@github.com/skigen-project/skigen-project.github.io.git"
+          cd skigen-project.github.io
+
+          find . -maxdepth 1 ! -name '.git' ! -name '.' -exec rm -rf {} +
+          cp -r ../doc/website/build/. .
+          touch .nojekyll
+
+          git add .
+          git commit -m "Deploy website from skigen@${GITHUB_SHA::8}" --allow-empty
+          git push origin main
+
+  # ── GitHub Release (on version tags only) ────────────────────────────────
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+
+      - name: Package headers
+        run: |
+          mkdir -p skigen-${{ steps.version.outputs.version }}
+          cp -r Skigen skigen-${{ steps.version.outputs.version }}/
+          cp -r cmake  skigen-${{ steps.version.outputs.version }}/
+          cp CMakeLists.txt LICENSE README.md skigen-${{ steps.version.outputs.version }}/
+          tar czf skigen-${{ steps.version.outputs.version }}.tar.gz \
+            skigen-${{ steps.version.outputs.version }}/
+          sha256sum skigen-${{ steps.version.outputs.version }}.tar.gz \
+            > skigen-${{ steps.version.outputs.version }}.tar.gz.sha256
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Skigen v${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          files: |
+            skigen-${{ steps.version.outputs.version }}.tar.gz
+            skigen-${{ steps.version.outputs.version }}.tar.gz.sha256

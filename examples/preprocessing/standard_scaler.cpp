@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 The Skigen Contributors
 
-// basic_pipeline.cpp — Demonstrates StandardScaler usage
-#include <Skigen/Dense>
+// standard_scaler.cpp — StandardScaler: zero-mean, unit-variance scaling
+#include <Skigen/Preprocessing>
 #include <Eigen/Core>
 #include <iostream>
 
@@ -17,21 +17,28 @@ int main() {
     std::cout << "Original data:\n" << X << "\n\n";
 
     // Fit and transform
-    Skigen::StandardScaler scaler;
+    Skigen::StandardScaler<double> scaler;
     Eigen::MatrixXd Z = scaler.fit_transform(X);
 
     std::cout << "Standardized:\n" << Z << "\n\n";
     std::cout << "Mean:  " << scaler.mean()  << "\n";
     std::cout << "Scale: " << scaler.scale() << "\n\n";
 
-    // Round-trip
+    // Round-trip: inverse_transform recovers the original data
     Eigen::MatrixXd X_back = scaler.inverse_transform(Z);
     std::cout << "Recovered:\n" << X_back << "\n\n";
 
-    // In-place transform
+    // In-place transform — avoids allocations
     Eigen::MatrixXd X_copy = X;
     scaler.transform_inplace(X_copy);
-    std::cout << "In-place standardized:\n" << X_copy << "\n";
+    std::cout << "In-place standardized:\n" << X_copy << "\n\n";
+
+    // float specialization — 2x SIMD density
+    Eigen::MatrixXf Xf = Eigen::MatrixXf::Random(1000, 100);
+    Skigen::StandardScaler<float> scalerf;
+    Eigen::MatrixXf Zf = scalerf.fit_transform(Xf);
+    std::cout << "Float scaler: " << Xf.rows() << "x" << Xf.cols()
+              << " -> mean(0)=" << scalerf.mean()(0) << "\n";
 
     return 0;
 }

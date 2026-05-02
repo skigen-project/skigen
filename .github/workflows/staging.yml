@@ -2,30 +2,28 @@
 # Copyright (c) 2026 The Skigen Contributors
 #
 # ═══════════════════════════════════════════════════════════════════════════
-# Pull Request Pipeline
+# Staging Branch Pipeline
 # ═══════════════════════════════════════════════════════════════════════════
 #
-# Triggered on pull requests targeting `staging` or `main`.
+# Triggered on pushes to `staging`.
 #
-# This is the FEATURE BRANCH pipeline:
-#   • Verifies the project builds across all platforms
-#   • Runs the full test suite
+# This is the DEVELOPMENT pipeline:
+#   • Full build + test across all platforms
 #   • Builds examples and benchmarks
-#   • No deployments, no releases
+#   • Deploys dev website
 #
 # Branch model:  Feature → Staging → Main
 # ═══════════════════════════════════════════════════════════════════════════
 
-name: Pull Request
+name: Staging
 
 on:
-  pull_request:
+  push:
     branches:
       - staging
-      - main
 
 concurrency:
-  group: pr-${{ github.event.pull_request.number }}
+  group: staging-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -59,6 +57,11 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build --output-on-failure
+
+      - name: Install (smoke test)
+        run: |
+          cmake --install build --prefix ${{ runner.temp }}/skigen-install
+          ls -la ${{ runner.temp }}/skigen-install/include/skigen/Skigen/
 
   build-macos:
     name: macOS (AppleClang)
@@ -111,3 +114,41 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build -C Release --output-on-failure
+
+  deploy-dev-website:
+    name: Deploy Dev Website
+    needs: [build-linux, build-macos, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: doc/website/package-lock.json
+
+      - name: Install dependencies
+        working-directory: doc/website
+        run: npm ci
+
+      - name: Build
+        working-directory: doc/website
+        run: npm run build
+
+      - name: Deploy to skigen-project.github.io
+        env:
+          SKIGEN_PROJECT_PAT: ${{ secrets.SKIGEN_PROJECT_PAT }}
+        run: |
+          git config --global user.email "deploy@skigen-project.github.io"
+          git config --global user.name "skigen-deploy"
+          git clone -b main --single-branch "https://${SKIGEN_PROJECT_PAT}@github.com/skigen-project/skigen-project.github.io.git"
+          cd skigen-project.github.io
+
+          find . -maxdepth 1 ! -name '.git' ! -name '.' -exec rm -rf {} +
+          cp -r ../doc/website/build/. .
+          touch .nojekyll
+
+          git add .
+          git commit -m "Deploy dev website from staging@${GITHUB_SHA::8}" --allow-empty
+          git push origin main

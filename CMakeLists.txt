@@ -38,11 +38,6 @@ endif()
 add_library(Skigen INTERFACE)
 add_library(Skigen::Skigen ALIAS Skigen)
 
-target_include_directories(Skigen INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-    $<INSTALL_INTERFACE:.>
-)
-
 target_link_libraries(Skigen INTERFACE Eigen3::Eigen)
 target_compile_features(Skigen INTERFACE cxx_std_23)
 
@@ -83,17 +78,88 @@ endif()
 # Install
 # ---------------------------------------------------------------------------
 include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 
-install(TARGETS Skigen EXPORT SkigenTargets)
+set(INCLUDE_INSTALL_DIR
+    "${CMAKE_INSTALL_INCLUDEDIR}/skigen"
+    CACHE PATH "Header install directory (relative to CMAKE_INSTALL_PREFIX)")
 
-install(DIRECTORY Skigen
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+set(CMAKEPACKAGE_INSTALL_DIR
+    "${CMAKE_INSTALL_DATADIR}/skigen/cmake"
+    CACHE PATH "CMake package config install directory")
+
+# Make paths relative to CMAKE_INSTALL_PREFIX if absolute
+foreach(var INCLUDE_INSTALL_DIR CMAKEPACKAGE_INSTALL_DIR)
+    if(IS_ABSOLUTE "${${var}}")
+        file(RELATIVE_PATH "${var}" "${CMAKE_INSTALL_PREFIX}" "${${var}}")
+    endif()
+endforeach()
+
+# Update the interface target to use the install path
+target_include_directories(Skigen INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:${INCLUDE_INSTALL_DIR}>
 )
 
+# Install headers
+install(DIRECTORY Skigen
+    DESTINATION ${INCLUDE_INSTALL_DIR}
+    COMPONENT Devel
+)
+
+# CMake package export — only when Eigen was found via find_package
+# (source-tree Eigen3_source target is not exportable)
 if(Eigen3_FOUND)
+    install(TARGETS Skigen EXPORT SkigenTargets)
+
+    configure_package_config_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/SkigenConfig.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/SkigenConfig.cmake"
+        INSTALL_DESTINATION ${CMAKEPACKAGE_INSTALL_DIR}
+    )
+
+    write_basic_package_version_file(
+        "${CMAKE_CURRENT_BINARY_DIR}/SkigenConfigVersion.cmake"
+        VERSION ${PROJECT_VERSION}
+        COMPATIBILITY SameMajorVersion
+    )
+
     install(EXPORT SkigenTargets
         FILE SkigenTargets.cmake
         NAMESPACE Skigen::
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Skigen
+        DESTINATION ${CMAKEPACKAGE_INSTALL_DIR}
+    )
+
+    install(FILES
+        "${CMAKE_CURRENT_BINARY_DIR}/SkigenConfig.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/SkigenConfigVersion.cmake"
+        DESTINATION ${CMAKEPACKAGE_INSTALL_DIR}
+    )
+
+    export(EXPORT SkigenTargets
+        FILE "${CMAKE_CURRENT_BINARY_DIR}/SkigenTargets.cmake"
+        NAMESPACE Skigen::
+    )
+else()
+    message(STATUS "Eigen from source tree — CMake package export disabled. "
+                   "Install Eigen3 system-wide for find_package(Skigen) support.")
+endif()
+
+# Uninstall target
+if(NOT TARGET uninstall AND PROJECT_IS_TOP_LEVEL)
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/SkigenUninstall.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/SkigenUninstall.cmake"
+        @ONLY
+    )
+    add_custom_target(uninstall
+        COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_BINARY_DIR}/SkigenUninstall.cmake"
     )
 endif()
+
+# Print install summary
+message(STATUS "")
+message(STATUS "Skigen v${PROJECT_VERSION} — install layout:")
+message(STATUS "  Headers:    \${CMAKE_INSTALL_PREFIX}/${INCLUDE_INSTALL_DIR}/Skigen/")
+message(STATUS "  CMake pkg:  \${CMAKE_INSTALL_PREFIX}/${CMAKEPACKAGE_INSTALL_DIR}/")
+message(STATUS "")
