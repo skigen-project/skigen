@@ -63,6 +63,13 @@
       "sidebar_label": "Skigen::Metrics",
       "test": "tests/test_metrics.cpp",
       "benchmark": null
+    },
+    "Covariance": {
+      "include": "Skigen/Covariance",
+      "dir_slug": "covariance",
+      "sidebar_label": "Skigen::Covariance",
+      "test": "tests/test_covariance.cpp",
+      "benchmark": null
     }
   },
   "classes": [
@@ -318,6 +325,61 @@
       "example": "examples/pipeline/pipeline.cpp",
       "example_snippet": "example_pipeline",
       "sidebar_position": 1
+    },
+    {
+      "name": "EmpiricalCovariance",
+      "module": "Covariance",
+      "documented": true,
+      "guide": "/docs/guide/covariance",
+      "sklearn": "sklearn.covariance.EmpiricalCovariance",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.covariance.EmpiricalCovariance.html",
+      "example": "examples/covariance/covariance.cpp",
+      "example_snippet": "example_empirical_covariance",
+      "sidebar_position": 1
+    },
+    {
+      "name": "LedoitWolf",
+      "module": "Covariance",
+      "documented": true,
+      "guide": "/docs/guide/covariance",
+      "sklearn": "sklearn.covariance.LedoitWolf",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.covariance.LedoitWolf.html",
+      "example": "examples/covariance/covariance.cpp",
+      "example_snippet": "example_ledoit_wolf",
+      "sidebar_position": 2
+    },
+    {
+      "name": "OAS",
+      "module": "Covariance",
+      "documented": true,
+      "guide": "/docs/guide/covariance",
+      "sklearn": "sklearn.covariance.OAS",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.covariance.OAS.html",
+      "example": "examples/covariance/covariance.cpp",
+      "example_snippet": "example_oas",
+      "sidebar_position": 3
+    },
+    {
+      "name": "FactorAnalysis",
+      "module": "Decomposition",
+      "documented": true,
+      "guide": "/docs/guide/factor-analysis",
+      "sklearn": "sklearn.decomposition.FactorAnalysis",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.FactorAnalysis.html",
+      "example": "examples/decomposition/factor_analysis.cpp",
+      "example_snippet": "example_factor_analysis",
+      "sidebar_position": 3
+    },
+    {
+      "name": "LocalOutlierFactor",
+      "module": "Neighbors",
+      "documented": true,
+      "guide": "/docs/guide/local-outlier-factor",
+      "sklearn": "sklearn.neighbors.LocalOutlierFactor",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.LocalOutlierFactor.html",
+      "example": "examples/neighbors/local_outlier_factor.cpp",
+      "example_snippet": "example_lof",
+      "sidebar_position": 3
     }
   ]
 }

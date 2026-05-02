@@ -35,6 +35,12 @@ skigen_add_example(ex_sgd                 linear_model/sgd.cpp)
 # ---------------------------------------------------------------------------
 skigen_add_example(ex_pca                 decomposition/pca.cpp)
 skigen_add_example(ex_truncated_svd       decomposition/truncated_svd.cpp)
+skigen_add_example(ex_factor_analysis     decomposition/factor_analysis.cpp)
+
+# ---------------------------------------------------------------------------
+# Covariance examples
+# ---------------------------------------------------------------------------
+skigen_add_example(ex_covariance          covariance/covariance.cpp)
 
 # ---------------------------------------------------------------------------
 # Cluster examples
@@ -45,6 +51,7 @@ skigen_add_example(ex_kmeans              cluster/kmeans.cpp)
 # Neighbors examples
 # ---------------------------------------------------------------------------
 skigen_add_example(ex_kneighbors          neighbors/kneighbors.cpp)
+skigen_add_example(ex_lof                 neighbors/local_outlier_factor.cpp)
 
 # ---------------------------------------------------------------------------
 # Tree examples

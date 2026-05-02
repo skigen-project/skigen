@@ -8,6 +8,7 @@
 #include "../Core/Validation.h"
 
 #include <Eigen/Core>
+#include <Eigen/Eigenvalues>
 #include <algorithm>
 #include <cmath>
 
@@ -140,6 +141,34 @@ public:
 
         this->fitted_ = true;
         return *this;
+    }
+
+    /// @brief Return the Gaussian log-likelihood of X under the fitted model.
+    ///
+    /// @param X Data matrix of shape (n_samples, n_features).
+    /// @return Average log-likelihood per sample.
+    [[nodiscard]] Scalar score(const Eigen::Ref<const MatrixType>& X) const {
+        this->check_is_fitted();
+        const auto n = X.rows();
+        const auto p = X.cols();
+
+        MatrixType X_c = assume_centered_
+            ? MatrixType(X) : (X.rowwise() - location_).eval();
+
+        MatrixType S_test = (X_c.transpose() * X_c)
+                            / static_cast<Scalar>(n);
+
+        Eigen::SelfAdjointEigenSolver<MatrixType> solver(covariance_);
+        auto evals = solver.eigenvalues().array().max(Scalar{1e-30}).eval();
+        Scalar log_det = evals.log().sum();
+        MatrixType cov_inv = solver.eigenvectors()
+            * evals.inverse().matrix().asDiagonal()
+            * solver.eigenvectors().transpose();
+        Scalar tr = (cov_inv * S_test).trace();
+
+        return Scalar{-0.5} * (static_cast<Scalar>(p)
+            * std::log(Scalar{2} * static_cast<Scalar>(M_PI))
+            + log_det + tr);
     }
 
 private:

@@ -1,5 +1,11 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 The Skigen Contributors
+//
+// Skigen/Neighbors — Nearest-neighbor estimators and outlier detection
+//   (KNeighborsClassifier, KNeighborsRegressor, LocalOutlierFactor)
+//
+// Usage:
+//   #include <Skigen/Neighbors>
 
 #ifndef SKIGEN_NEIGHBORS
 #define SKIGEN_NEIGHBORS

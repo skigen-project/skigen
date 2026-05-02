@@ -1,5 +1,11 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 The Skigen Contributors
+//
+// Skigen/Decomposition — Dimensionality reduction algorithms
+//   (PCA, TruncatedSVD, FactorAnalysis)
+//
+// Usage:
+//   #include <Skigen/Decomposition>
 
 #ifndef SKIGEN_DECOMPOSITION
 #define SKIGEN_DECOMPOSITION
@@ -7,8 +13,5 @@
 #include "src/Decomposition/PCA.h"
 #include "src/Decomposition/TruncatedSVD.h"
 #include "src/Decomposition/FactorAnalysis.h"
-#include "src/Decomposition/CSP.h"
-#include "src/Decomposition/SPoC.h"
-#include "src/Decomposition/SSD.h"
 
 #endif // SKIGEN_DECOMPOSITION

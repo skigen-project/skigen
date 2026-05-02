@@ -28,7 +28,7 @@ namespace Skigen {
 /// The transformation is:
 ///
 /// @f[
-///   X_\text{scaled} = \frac{X - X_\min}{X_\max - X_\min}
+///   X_{\text{scaled}} = \frac{X - X_{\text{min}}}{X_{\text{max}} - X_{\text{min}}}
 ///     \cdot (\text{max} - \text{min}) + \text{min}
 /// @f]
 ///
