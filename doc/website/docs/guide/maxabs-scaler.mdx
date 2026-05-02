@@ -8,8 +8,9 @@ title: MaxAbsScaler
 Scales each feature by its maximum absolute value, mapping all features to the range $[-1, 1]$. Unlike StandardScaler and MinMaxScaler, MaxAbsScaler does not shift the data (no centering), so it **preserves sparsity**.
 
 ## Formula
-
-$$Z_{ij} = \frac{X_{ij}}{\max_i |X_{ij}|}$$
+$$
+Z_{ij} = \frac{X_{ij}}{\max_i |X_{ij}|}
+$$
 
 If $\max_i |X_{ij}| = 0$ for a feature (all zeros), the feature is left unchanged.
 

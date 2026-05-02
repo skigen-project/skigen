@@ -8,8 +8,9 @@ title: Normalizer
 Normalizes each **row** (sample) independently to unit norm. This is a stateless transformer — `fit` is a no-op.
 
 ## Formula
-
-$$\text{L2:}\quad \hat{x}_i = \frac{x_i}{\|x_i\|_2} \qquad \text{L1:}\quad \hat{x}_i = \frac{x_i}{\|x_i\|_1} \qquad \text{Max:}\quad \hat{x}_i = \frac{x_i}{\max_j |x_{ij}|}$$
+$$
+\text{L2:}\quad \hat{x}_i = \frac{x_i}{\|x_i\|_2} \qquad \text{L1:}\quad \hat{x}_i = \frac{x_i}{\|x_i\|_1} \qquad \text{Max:}\quad \hat{x}_i = \frac{x_i}{\max_j |x_{ij}|}
+$$
 
 where $x_i$ is the $i$-th row (sample) of $X$.
 

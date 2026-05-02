@@ -9,8 +9,9 @@ Ridge regression addresses the instability of Ordinary Least Squares when featur
 It does so by adding an $\ell_2$ penalty on the coefficient vector, shrinking all coefficients toward zero and improving the conditioning of the problem.
 
 ## Objective Function
-
-$$\min_w \|Xw - y\|_2^2 + \alpha \|w\|_2^2$$
+$$
+\min_w \|Xw - y\|_2^2 + \alpha \|w\|_2^2
+$$
 
 where $\alpha \ge 0$ controls the regularization strength: larger $\alpha$ increases shrinkage and reduces variance at the cost of higher bias.
 This formulation matches [scikit-learn's `Ridge`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Ridge.html), which minimizes $\|y - Xw\|_2^2 + \alpha\|w\|_2^2$.
@@ -18,13 +19,15 @@ This formulation matches [scikit-learn's `Ridge`](https://scikit-learn.org/stabl
 ## Closed-Form Solution
 
 Setting the gradient to zero yields the normal equation:
-
-$$(X^\top X + \alpha I)\, w = X^\top y$$
+$$
+(X^\top X + \alpha I)\, w = X^\top y
+$$
 
 Skigen solves this system via Cholesky decomposition (`Eigen::LLT`), which exploits the fact that $X^\top X + \alpha I$ is symmetric positive definite for $\alpha > 0$.
 The solution is:
-
-$$\hat{w} = (X^\top X + \alpha I)^{-1} X^\top y$$
+$$
+\hat{w} = (X^\top X + \alpha I)^{-1} X^\top y
+$$
 
 When `fit_intercept` is enabled, the data is centered before fitting: $X_c = X - \mathbf{1}\bar{x}^\top$ and $y_c = y - \bar{y}$. The intercept is then recovered as $b = \bar{y} - \bar{x}^\top \hat{w}$.
 

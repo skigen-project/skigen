@@ -12,34 +12,39 @@ Linear models fitted via Stochastic Gradient Descent, well-suited for large-scal
 ### Classifier
 
 **Hinge loss** (linear SVM) — for maximum-margin classification with labels $y_i \in \{-1, +1\}$:
-
-$$L_i = \max(0,\; 1 - y_i \, w^\top x_i)$$
+$$
+L_i = \max(0,\; 1 - y_i \, w^\top x_i)
+$$
 
 **Log loss** (logistic regression) — for probabilistic binary classification with labels $y_i \in \{0, 1\}$:
-
-$$L_i = -\left[ y_i \log \sigma(w^\top x_i) + (1 - y_i) \log(1 - \sigma(w^\top x_i)) \right]$$
+$$
+L_i = -\left[ y_i \log \sigma(w^\top x_i) + (1 - y_i) \log(1 - \sigma(w^\top x_i)) \right]
+$$
 
 where $\sigma(z) = 1/(1 + e^{-z})$ is the sigmoid function.
 
 ### Regressor
 
 **Squared error loss**:
-
-$$L_i = \frac{1}{2}(y_i - w^\top x_i)^2$$
+$$
+L_i = \frac{1}{2}(y_i - w^\top x_i)^2
+$$
 
 ## Weight Update Rule
 
 For each randomly selected sample $(x_i, y_i)$, the weight vector is updated as:
-
-$$w \leftarrow w - \eta_t \left( \nabla_w L_i + \alpha\, w \right)$$
+$$
+w \leftarrow w - \eta_t \left( \nabla_w L_i + \alpha\, w \right)
+$$
 
 where $\alpha\, w$ is the $\ell_2$ regularization gradient and $\eta_t$ is the learning rate at step $t$.
 
 ## Learning Rate Schedule
 
 Skigen uses an inverse scaling schedule matching scikit-learn's `"invscaling"`:
-
-$$\eta_t = \frac{\eta_0}{1 + \eta_0 \cdot \alpha \cdot t}$$
+$$
+\eta_t = \frac{\eta_0}{1 + \eta_0 \cdot \alpha \cdot t}
+$$
 
 This schedule gradually decreases the step size, ensuring convergence to the optimum.
 

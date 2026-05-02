@@ -10,14 +10,16 @@ A CART (Classification and Regression Trees) decision tree classifier. The algor
 ## Splitting Criterion — Gini Impurity
 
 Gini impurity measures the probability that a randomly chosen sample from node $t$ would be misclassified if labeled according to the class distribution at that node:
-
-$$\text{Gini}(t) = 1 - \sum_{k=1}^{K} p_k^2$$
+$$
+\text{Gini}(t) = 1 - \sum_{k=1}^{K} p_k^2
+$$
 
 where $p_k$ is the proportion of class-$k$ samples at node $t$. A pure node ($\text{Gini} = 0$) contains only one class.
 
 At each split, the algorithm searches over all features and thresholds for the partition that minimizes the weighted Gini impurity of the two child nodes:
-
-$$\text{Gini}_{\text{split}} = \frac{n_L}{n} \,\text{Gini}(t_L) + \frac{n_R}{n} \,\text{Gini}(t_R)$$
+$$
+\text{Gini}_{\text{split}} = \frac{n_L}{n} \,\text{Gini}(t_L) + \frac{n_R}{n} \,\text{Gini}(t_R)
+$$
 
 The **information gain** of a split is $\text{Gini}(t) - \text{Gini}_{\text{split}}$.
 

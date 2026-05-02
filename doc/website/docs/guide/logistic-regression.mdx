@@ -10,14 +10,16 @@ $\ell_2$-regularized logistic regression for binary and multiclass classificatio
 ## Model
 
 The predicted probability that sample $x$ belongs to the positive class is given by the logistic (sigmoid) function:
-
-$$P(y = 1 \mid x) = \sigma(w^\top x + b) = \frac{1}{1 + e^{-(w^\top x + b)}}$$
+$$
+P(y = 1 \mid x) = \sigma(w^\top x + b) = \frac{1}{1 + e^{-(w^\top x + b)}}
+$$
 
 Decision boundary: a sample is assigned to the positive class when $P(y=1 \mid x) \ge 0.5$, i.e., when $w^\top x + b \ge 0$.
 
 ## Objective Function
-
-$$\min_w -\frac{1}{n} \sum_{i=1}^{n} \left[ y_i \log \hat{p}_i + (1 - y_i) \log(1 - \hat{p}_i) \right] + \frac{1}{2C} \|w\|_2^2$$
+$$
+\min_w -\frac{1}{n} \sum_{i=1}^{n} \left[ y_i \log \hat{p}_i + (1 - y_i) \log(1 - \hat{p}_i) \right] + \frac{1}{2C} \|w\|_2^2
+$$
 
 where $\hat{p}_i = \sigma(w^\top x_i + b)$ and $C > 0$ is the inverse regularization strength. Larger $C$ means less regularization. This formulation matches [scikit-learn's `LogisticRegression`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html).
 

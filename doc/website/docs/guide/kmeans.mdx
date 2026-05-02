@@ -8,8 +8,9 @@ title: KMeans
 K-Means partitions $n$ samples into $K$ clusters by minimizing the within-cluster sum of squared distances (inertia).
 
 ## Objective Function
-
-$$\min_{\{C_k, \mu_k\}} \sum_{k=1}^{K} \sum_{x_i \in C_k} \|x_i - \mu_k\|_2^2$$
+$$
+\min_{\{C_k, \mu_k\}} \sum_{k=1}^{K} \sum_{x_i \in C_k} \|x_i - \mu_k\|_2^2
+$$
 
 where $\mu_k = \frac{1}{|C_k|}\sum_{x_i \in C_k} x_i$ is the centroid of cluster $C_k$.
 

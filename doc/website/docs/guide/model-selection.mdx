@@ -10,8 +10,9 @@ Utilities for splitting data into train/test sets and evaluating models via cros
 ## train_test_split
 
 Splits the data arrays $X$ and $y$ into random train and test subsets. Given $n$ samples and test fraction $f$:
-
-$$n_{\text{test}} = \lfloor n \cdot f \rfloor, \qquad n_{\text{train}} = n - n_{\text{test}}$$
+$$
+n_{\text{test}} = \lfloor n \cdot f \rfloor, \qquad n_{\text{train}} = n - n_{\text{test}}
+$$
 
 When `shuffle = true` (default), the data is randomly permuted before splitting using the Fisher–Yates shuffle with the given `random_state` seed. This ensures reproducibility.
 

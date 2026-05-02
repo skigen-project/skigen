@@ -10,12 +10,14 @@ Dimensionality reduction via truncated Singular Value Decomposition. Unlike PCA,
 ## Algorithm
 
 Given an $n \times p$ data matrix $X$ (not centered), compute the rank-$k$ SVD approximation:
-
-$$X \approx U_k \Sigma_k V_k^\top$$
+$$
+X \approx U_k \Sigma_k V_k^\top
+$$
 
 The projection to $k$ components is:
-
-$$Z = X V_k \in \mathbb{R}^{n \times k}$$
+$$
+Z = X V_k \in \mathbb{R}^{n \times k}
+$$
 
 The explained variance for component $j$ is the variance of the $j$-th column of $Z$, and the explained variance ratio is its proportion of the total variance in $X$.
 

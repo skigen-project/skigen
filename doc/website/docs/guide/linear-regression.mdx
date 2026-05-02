@@ -8,12 +8,14 @@ title: LinearRegression
 Ordinary Least Squares (OLS) linear regression. Fits a linear model $\hat{y} = Xw + b$ by minimizing the sum of squared residuals.
 
 ## Objective Function
-
-$$\hat{w} = \arg\min_w \|Xw - y\|_2^2$$
+$$
+\hat{w} = \arg\min_w \|Xw - y\|_2^2
+$$
 
 The gradient condition $X^\top(Xw - y) = 0$ yields the normal equation:
-
-$$X^\top X\, w = X^\top y$$
+$$
+X^\top X\, w = X^\top y
+$$
 
 ## Solver
 

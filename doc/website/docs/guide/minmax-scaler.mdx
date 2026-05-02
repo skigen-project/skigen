@@ -8,8 +8,9 @@ title: MinMaxScaler
 Linearly scales each feature to a specified range $[\text{min},\, \text{max}]$ (default $[0, 1]$), based on the per-feature minimum and maximum observed during fitting.
 
 ## Formula
-
-$$Z_{ij} = \frac{X_{ij} - X_j^{\min}}{X_j^{\max} - X_j^{\min}} \cdot (\text{max} - \text{min}) + \text{min}$$
+$$
+Z_{ij} = \frac{X_{ij} - X_j^{\min}}{X_j^{\max} - X_j^{\min}} \cdot (\text{max} - \text{min}) + \text{min}
+$$
 
 If $X_j^{\max} = X_j^{\min}$ for a feature (zero range), the feature is set to $\text{min}$.
 

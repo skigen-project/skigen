@@ -10,22 +10,25 @@ Instance-based learning methods that make predictions by finding the $k$ closest
 ## Distance Metric
 
 Distances are computed using the Euclidean ($\ell_2$) metric:
-
-$$d(x, x') = \sqrt{\sum_{j=1}^{p} (x_j - x'_j)^2}$$
+$$
+d(x, x') = \sqrt{\sum_{j=1}^{p} (x_j - x'_j)^2}
+$$
 
 ## Classifier — Majority Vote
 
 Given a query point $x$, the classifier identifies the $k$ nearest neighbors $\mathcal{N}_k(x)$ and predicts the most frequent class label among them:
-
-$$\hat{y} = \arg\max_c \sum_{x_i \in \mathcal{N}_k(x)} \mathbf{1}(y_i = c)$$
+$$
+\hat{y} = \arg\max_c \sum_{x_i \in \mathcal{N}_k(x)} \mathbf{1}(y_i = c)
+$$
 
 In case of a tie, the class with the smallest index is selected.
 
 ## Regressor — Averaging
 
 The regressor predicts the mean target value of the $k$ nearest neighbors:
-
-$$\hat{y} = \frac{1}{k} \sum_{x_i \in \mathcal{N}_k(x)} y_i$$
+$$
+\hat{y} = \frac{1}{k} \sum_{x_i \in \mathcal{N}_k(x)} y_i
+$$
 
 ## Computational Complexity
 

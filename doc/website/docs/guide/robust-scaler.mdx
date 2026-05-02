@@ -8,8 +8,9 @@ title: RobustScaler
 Centers and scales features using statistics that are robust to outliers: the median for centering and the interquartile range (IQR) for scaling.
 
 ## Formula
-
-$$Z_{ij} = \frac{X_{ij} - \text{median}_j}{\text{IQR}_j}$$
+$$
+Z_{ij} = \frac{X_{ij} - \text{median}_j}{\text{IQR}_j}
+$$
 
 where:
 - $\text{median}_j$ is the median of feature $j$

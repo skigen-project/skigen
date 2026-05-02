@@ -8,8 +8,9 @@ title: LabelEncoder
 Encodes categorical labels to contiguous integer indices $[0,\, n_{\text{classes}})$, suitable for use as targets in classification models.
 
 ## Mapping
-
-$$f: \mathcal{L} \to \{0, 1, \ldots, |\mathcal{L}| - 1\}$$
+$$
+f: \mathcal{L} \to \{0, 1, \ldots, |\mathcal{L}| - 1\}
+$$
 
 where $\mathcal{L}$ is the set of unique labels sorted in ascending order. The mapping uses sorted order and binary search for $O(\log |\mathcal{L}|)$ lookup per label.
 

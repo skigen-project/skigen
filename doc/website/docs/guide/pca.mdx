@@ -16,19 +16,22 @@ Given an $n \times p$ data matrix $X$:
 3. **Truncate** to $k$ components by keeping only the first $k$ columns of $V$ (right singular vectors).
 
 The projection onto the $k$-dimensional subspace is:
-
-$$Z = X_c \, V_k \in \mathbb{R}^{n \times k}$$
+$$
+Z = X_c \, V_k \in \mathbb{R}^{n \times k}
+$$
 
 ## Explained Variance
 
 The explained variance of the $j$-th component is derived from the singular values:
-
-$$\text{explained\_variance}_j = \frac{\sigma_j^2}{n - 1}$$
+$$
+\text{explained\_variance}_j = \frac{\sigma_j^2}{n - 1}
+$$
 
 using $n-1$ degrees of freedom (Bessel's correction), consistent with scikit-learn.
 The explained variance ratio measures the proportion of total variance captured by each component:
-
-$$\text{explained\_variance\_ratio}_j = \frac{\sigma_j^2}{\sum_{i=1}^{p} \sigma_i^2}$$
+$$
+\text{explained\_variance\_ratio}_j = \frac{\sigma_j^2}{\sum_{i=1}^{p} \sigma_i^2}
+$$
 
 ## Key Properties
 

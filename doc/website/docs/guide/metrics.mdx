@@ -12,26 +12,30 @@ Evaluation metrics for quantifying model performance on regression and classific
 ### Mean Squared Error (MSE)
 
 The average of squared differences between predictions and true values. Penalizes large errors quadratically.
-
-$$\text{MSE}(y, \hat{y}) = \frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2$$
+$$
+\text{MSE}(y, \hat{y}) = \frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2
+$$
 
 ### Root Mean Squared Error (RMSE)
 
 The square root of MSE, expressed in the same units as the target variable.
-
-$$\text{RMSE}(y, \hat{y}) = \sqrt{\text{MSE}(y, \hat{y})}$$
+$$
+\text{RMSE}(y, \hat{y}) = \sqrt{\text{MSE}(y, \hat{y})}
+$$
 
 ### Mean Absolute Error (MAE)
 
 The average of absolute differences. Less sensitive to outliers than MSE.
-
-$$\text{MAE}(y, \hat{y}) = \frac{1}{n} \sum_{i=1}^{n} |y_i - \hat{y}_i|$$
+$$
+\text{MAE}(y, \hat{y}) = \frac{1}{n} \sum_{i=1}^{n} |y_i - \hat{y}_i|
+$$
 
 ### Coefficient of Determination ($R^2$)
 
 Measures the proportion of variance in the target explained by the model. A score of $1.0$ indicates perfect prediction; $0.0$ corresponds to always predicting the mean $\bar{y}$.
-
-$$R^2(y, \hat{y}) = 1 - \frac{\sum_{i=1}^{n} (y_i - \hat{y}_i)^2}{\sum_{i=1}^{n} (y_i - \bar{y})^2}$$
+$$
+R^2(y, \hat{y}) = 1 - \frac{\sum_{i=1}^{n} (y_i - \hat{y}_i)^2}{\sum_{i=1}^{n} (y_i - \bar{y})^2}
+$$
 
 The score can be negative if the model is worse than predicting the mean.
 
@@ -60,26 +64,30 @@ All binary classification metrics below are defined in terms of the confusion ma
 - **FN** (False Negatives): positive samples incorrectly predicted as negative
 
 ### Accuracy
-
-$$\text{Accuracy} = \frac{\text{TP} + \text{TN}}{n}$$
+$$
+\text{Accuracy} = \frac{\text{TP} + \text{TN}}{n}
+$$
 
 ### Precision
 
 Fraction of predicted positives that are truly positive. High precision means few false alarms.
-
-$$\text{Precision} = \frac{\text{TP}}{\text{TP} + \text{FP}}$$
+$$
+\text{Precision} = \frac{\text{TP}}{\text{TP} + \text{FP}}
+$$
 
 ### Recall
 
 Fraction of actual positives that are correctly identified. High recall means few missed positives.
-
-$$\text{Recall} = \frac{\text{TP}}{\text{TP} + \text{FN}}$$
+$$
+\text{Recall} = \frac{\text{TP}}{\text{TP} + \text{FN}}
+$$
 
 ### F1 Score
 
 The harmonic mean of precision and recall, balancing both concerns equally.
-
-$$F_1 = 2 \cdot \frac{\text{Precision} \cdot \text{Recall}}{\text{Precision} + \text{Recall}} = \frac{2\,\text{TP}}{2\,\text{TP} + \text{FP} + \text{FN}}$$
+$$
+F_1 = 2 \cdot \frac{\text{Precision} \cdot \text{Recall}}{\text{Precision} + \text{Recall}} = \frac{2\,\text{TP}}{2\,\text{TP} + \text{FP} + \text{FN}}
+$$
 
 ```cpp
 #include <Skigen/Metrics>

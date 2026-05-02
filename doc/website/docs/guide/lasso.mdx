@@ -8,8 +8,9 @@ title: Lasso
 The Lasso (Least Absolute Shrinkage and Selection Operator) is a linear regression model with an $\ell_1$ penalty that induces sparsity — it drives some coefficients exactly to zero, effectively performing feature selection.
 
 ## Objective Function
-
-$$\min_w \frac{1}{2n} \|Xw - y\|_2^2 + \alpha \|w\|_1$$
+$$
+\min_w \frac{1}{2n} \|Xw - y\|_2^2 + \alpha \|w\|_1
+$$
 
 where $n$ is the number of samples and $\alpha \ge 0$ controls the regularization strength.
 This formulation matches [scikit-learn's `Lasso`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Lasso.html).
@@ -20,18 +21,21 @@ Skigen solves the Lasso via coordinate descent with soft-thresholding.
 At each iteration, the algorithm optimizes one coefficient $w_j$ at a time while holding all others fixed.
 
 Define the partial residual correlation:
-
-$$\rho_j = X_j^\top\!\left(y - X_{\setminus j}\, w_{\setminus j}\right)$$
+$$
+\rho_j = X_j^\top\!\left(y - X_{\setminus j}\, w_{\setminus j}\right)
+$$
 
 where $X_{\setminus j}$ denotes all columns except $j$. The closed-form update for coordinate $j$ is:
-
-$$w_j \leftarrow \frac{S(\rho_j,\; n\alpha)}{\|X_j\|_2^2}$$
+$$
+w_j \leftarrow \frac{S(\rho_j,\; n\alpha)}{\|X_j\|_2^2}
+$$
 
 where $S(z, \gamma) = \operatorname{sign}(z)\max(|z| - \gamma,\, 0)$ is the soft-thresholding operator.
 
 In practice, $\rho_j$ is computed efficiently using the running residual $r = y - Xw$:
-
-$$\rho_j = X_j^\top r + \|X_j\|_2^2 \, w_j^{\text{old}}$$
+$$
+\rho_j = X_j^\top r + \|X_j\|_2^2 \, w_j^{\text{old}}
+$$
 
 The algorithm cycles over all features until convergence (maximum coefficient change $< \texttt{tol}$) or `max_iter` iterations.
 

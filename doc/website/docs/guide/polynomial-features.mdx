@@ -10,12 +10,14 @@ Generates a new feature matrix consisting of all polynomial combinations of the 
 ## Feature Expansion
 
 For input features $[x_1, x_2]$ with degree $d = 2$ and bias:
-
-$$\phi(x) = [1,\; x_1,\; x_2,\; x_1^2,\; x_1 x_2,\; x_2^2]$$
+$$
+\phi(x) = [1,\; x_1,\; x_2,\; x_1^2,\; x_1 x_2,\; x_2^2]
+$$
 
 The number of output features is:
-
-$$\text{output features} = \binom{p + d}{d} \quad \text{(with bias)}, \qquad \binom{p + d}{d} - 1 \quad \text{(without bias)}$$
+$$
+\text{output features} = \binom{p + d}{d} \quad \text{(with bias)}, \qquad \binom{p + d}{d} - 1 \quad \text{(without bias)}
+$$
 
 where $p$ is the number of input features and $d$ is the degree. For example, $p = 2,\, d = 3$ produces $\binom{5}{3} = 10$ features.
 
