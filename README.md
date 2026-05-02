@@ -7,8 +7,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/skigen-project/skigen/actions"><img src="https://github.com/skigen-project/skigen/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
+  <a href="https://github.com/skigen-project/skigen/releases/latest"><img src="https://img.shields.io/badge/version-1.0.0-blue.svg" alt="Version 1.0.0"></a>&nbsp;
+  <a href="https://github.com/skigen-project/skigen/actions/workflows/main.yml"><img src="https://github.com/skigen-project/skigen/actions/workflows/main.yml/badge.svg?branch=main" alt="Release"></a>&nbsp;
+  <a href="https://github.com/skigen-project/skigen/actions/workflows/staging.yml"><img src="https://github.com/skigen-project/skigen/actions/workflows/staging.yml/badge.svg?branch=staging" alt="Staging"></a>
+  <br>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>&nbsp;
   <a href="https://skigen-project.github.io"><img src="https://img.shields.io/badge/docs-website-green.svg" alt="Docs"></a>
 </p>
 
