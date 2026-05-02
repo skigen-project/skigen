@@ -51,6 +51,20 @@ concept PredictorLike = EstimatorLike<T> &&
         { t.score(X, y) } -> std::same_as<typename T::ScalarType>;
     };
 
+// ---------------------------------------------------------------------------
+// Classifier concept: Estimator + fit(X,y_int)/predict/score with int labels
+// ---------------------------------------------------------------------------
+
+template <typename T>
+concept ClassifierLike = EstimatorLike<T> &&
+    requires(T t,
+             const typename T::MatrixType& X,
+             const typename T::LabelType& y) {
+        { t.fit(X, y) } -> std::same_as<T&>;
+        { t.predict(X) } -> std::same_as<typename T::LabelType>;
+        { t.score(X, y) } -> std::same_as<typename T::ScalarType>;
+    };
+
 } // namespace Skigen
 
 #endif // SKIGEN_CORE_CONCEPTS_H

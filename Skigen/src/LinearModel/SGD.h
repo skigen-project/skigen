@@ -4,6 +4,7 @@
 #ifndef SKIGEN_LINEAR_MODEL_SGD_H
 #define SKIGEN_LINEAR_MODEL_SGD_H
 
+#include "../Core/Base.h"
 #include "../Core/Validation.h"
 
 #include <Eigen/Core>
@@ -12,7 +13,6 @@
 #include <map>
 #include <numeric>
 #include <random>
-#include <stdexcept>
 #include <vector>
 
 namespace Skigen {
@@ -72,11 +72,16 @@ namespace Skigen {
 ///
 /// @snippet sgd.cpp example_sgd_classifier
 template <typename Scalar = double>
-class SGDClassifier {
+class SGDClassifier
+    : public Classifier<SGDClassifier<Scalar>, Scalar> {
 public:
-    using MatrixType = Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>;
-    using VectorType = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
-    using RowVectorType = Eigen::Matrix<Scalar, 1, Eigen::Dynamic>;
+    using Base = Classifier<SGDClassifier<Scalar>, Scalar>;
+    using typename Base::MatrixType;
+    using typename Base::VectorType;
+    using typename Base::RowVectorType;
+    using typename Base::IndexType;
+    using typename Base::ScalarType;
+    using typename Base::LabelType;
     using IndexVector = Eigen::VectorXi;
 
     /// Loss function type.
@@ -97,23 +102,14 @@ public:
         : loss_(loss), alpha_(alpha), max_iter_(max_iter), tol_(tol),
           eta0_(eta0), random_state_(random_state) {}
 
-    /// @brief Whether the estimator has been fitted.
-    [[nodiscard]] bool is_fitted() const noexcept { return fitted_; }
-
     /// @brief Coefficient matrix (n_classes × n_features or 1 × n_features).
-    ///
-    /// @return Read-only reference to the coefficient matrix.
-    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const MatrixType& coef() const {
-        if (!fitted_) throw std::runtime_error("SGDClassifier not fitted.");
+        this->check_is_fitted();
         return coef_;
     }
     /// @brief Intercept (bias) vector of shape (n_classes,) or (1,).
-    ///
-    /// @return Read-only reference to the intercept vector.
-    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const VectorType& intercept() const {
-        if (!fitted_) throw std::runtime_error("SGDClassifier not fitted.");
+        this->check_is_fitted();
         return intercept_;
     }
 
@@ -127,14 +123,12 @@ public:
     /// @param y Target vector of shape (n_samples,) with integer class labels.
     /// @return Reference to the fitted estimator (`*this`).
     /// @throws std::invalid_argument if X and y have inconsistent lengths.
-    SGDClassifier& fit(const Eigen::Ref<const MatrixType>& X,
+    SGDClassifier& fit_impl(const Eigen::Ref<const MatrixType>& X,
                        const Eigen::Ref<const IndexVector>& y) {
         internal::check_non_empty(X);
-        if (X.rows() != y.rows()) {
-            throw std::invalid_argument("X and y have inconsistent lengths.");
-        }
+        internal::check_consistent_length(X, y);
 
-        n_features_in_ = X.cols();
+        this->n_features_in_ = X.cols();
         const Eigen::Index n = X.rows();
         const Eigen::Index p = X.cols();
 
@@ -180,18 +174,13 @@ public:
             }
         }
 
-        fitted_ = true;
+        this->fitted_ = true;
         return *this;
     }
 
     /// @brief Predict class labels for samples in X.
-    ///
-    /// @param X Sample matrix of shape (n_samples, n_features).
-    /// @return Integer vector of predicted class labels (n_samples,).
-    /// @throws std::runtime_error if the model has not been fitted.
-    [[nodiscard]] IndexVector predict(
+    [[nodiscard]] IndexVector predict_impl(
         const Eigen::Ref<const MatrixType>& X) const {
-        if (!fitted_) throw std::runtime_error("SGDClassifier not fitted.");
 
         MatrixType scores = X * coef_.transpose();
         scores.rowwise() += intercept_.transpose();
@@ -213,21 +202,6 @@ public:
         return predictions;
     }
 
-    /// @brief Return the mean accuracy on the given test data and labels.
-    ///
-    /// @param X Test samples of shape (n_samples, n_features).
-    /// @param y True class labels of shape (n_samples,).
-    /// @return Mean accuracy (fraction of correctly classified samples).
-    [[nodiscard]] Scalar score(const Eigen::Ref<const MatrixType>& X,
-                               const Eigen::Ref<const IndexVector>& y) const {
-        IndexVector preds = predict(X);
-        int correct = 0;
-        for (Eigen::Index i = 0; i < y.size(); ++i) {
-            if (preds(i) == y(i)) ++correct;
-        }
-        return static_cast<Scalar>(correct) / static_cast<Scalar>(y.size());
-    }
-
 private:
     Loss loss_;
     Scalar alpha_;
@@ -236,8 +210,6 @@ private:
     Scalar eta0_;
     unsigned int random_state_;
 
-    bool fitted_ = false;
-    Eigen::Index n_features_in_ = 0;
     MatrixType coef_;
     VectorType intercept_;
     std::vector<int> classes_;
@@ -340,11 +312,15 @@ private:
 ///
 /// @snippet sgd.cpp example_sgd_regressor
 template <typename Scalar = double>
-class SGDRegressor {
+class SGDRegressor
+    : public Predictor<SGDRegressor<Scalar>, Scalar> {
 public:
-    using MatrixType = Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>;
-    using VectorType = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
-    using RowVectorType = Eigen::Matrix<Scalar, 1, Eigen::Dynamic>;
+    using Base = Predictor<SGDRegressor<Scalar>, Scalar>;
+    using typename Base::MatrixType;
+    using typename Base::VectorType;
+    using typename Base::RowVectorType;
+    using typename Base::IndexType;
+    using typename Base::ScalarType;
 
     /// @brief Construct an SGDRegressor.
     ///
@@ -360,23 +336,14 @@ public:
         : alpha_(alpha), max_iter_(max_iter), tol_(tol),
           eta0_(eta0), random_state_(random_state) {}
 
-    /// @brief Whether the estimator has been fitted.
-    [[nodiscard]] bool is_fitted() const noexcept { return fitted_; }
-
     /// @brief Parameter vector @f$w@f$ (1 × n_features).
-    ///
-    /// @return Read-only reference to the coefficient row-vector.
-    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const RowVectorType& coef() const {
-        if (!fitted_) throw std::runtime_error("SGDRegressor not fitted.");
+        this->check_is_fitted();
         return coef_;
     }
     /// @brief Independent term in the decision function.
-    ///
-    /// @return The intercept value.
-    /// @throws std::runtime_error if the model has not been fitted.
-    [[nodiscard]] Scalar intercept() const {
-        if (!fitted_) throw std::runtime_error("SGDRegressor not fitted.");
+    [[nodiscard]] Scalar intercept_value() const {
+        this->check_is_fitted();
         return intercept_;
     }
 
@@ -386,14 +353,12 @@ public:
     /// @param y Target vector of shape (n_samples,).
     /// @return Reference to the fitted estimator (`*this`).
     /// @throws std::invalid_argument if X and y have inconsistent lengths.
-    SGDRegressor& fit(const Eigen::Ref<const MatrixType>& X,
+    SGDRegressor& fit_impl(const Eigen::Ref<const MatrixType>& X,
                       const Eigen::Ref<const VectorType>& y) {
         internal::check_non_empty(X);
-        if (X.rows() != y.rows()) {
-            throw std::invalid_argument("X and y have inconsistent lengths.");
-        }
+        internal::check_consistent_length(X, y);
 
-        n_features_in_ = X.cols();
+        this->n_features_in_ = X.cols();
         const Eigen::Index n = X.rows();
         const Eigen::Index p = X.cols();
 
@@ -421,29 +386,20 @@ public:
             if (total_update / static_cast<Scalar>(n) < tol_) break;
         }
 
-        fitted_ = true;
+        this->fitted_ = true;
         return *this;
     }
 
     /// @brief Predict using the linear model.
-    ///
-    /// @param X Sample matrix of shape (n_samples, n_features).
-    /// @return Predicted values of shape (n_samples,).
-    /// @throws std::runtime_error if the model has not been fitted.
-    [[nodiscard]] VectorType predict(
+    [[nodiscard]] VectorType predict_impl(
         const Eigen::Ref<const MatrixType>& X) const {
-        if (!fitted_) throw std::runtime_error("SGDRegressor not fitted.");
         return (X * coef_.transpose()).array() + intercept_;
     }
 
     /// @brief Return the @f$R^2@f$ coefficient of determination on test data.
-    ///
-    /// @param X Test samples of shape (n_samples, n_features).
-    /// @param y True values of shape (n_samples,).
-    /// @return @f$R^2@f$ score.
-    [[nodiscard]] Scalar score(const Eigen::Ref<const MatrixType>& X,
+    [[nodiscard]] ScalarType score_impl(const Eigen::Ref<const MatrixType>& X,
                                const Eigen::Ref<const VectorType>& y) const {
-        VectorType y_pred = predict(X);
+        VectorType y_pred = predict_impl(X);
         Scalar ss_res = (y - y_pred).squaredNorm();
         Scalar ss_tot = (y.array() - y.mean()).matrix().squaredNorm();
         if (ss_tot == Scalar{0}) return Scalar{0};
@@ -457,8 +413,6 @@ private:
     Scalar eta0_;
     unsigned int random_state_;
 
-    bool fitted_ = false;
-    Eigen::Index n_features_in_ = 0;
     RowVectorType coef_;
     Scalar intercept_{0};
 };

@@ -120,6 +120,51 @@ public:
     }
 };
 
+// ---------------------------------------------------------------------------
+// Classifier — CRTP base for fit(X, y)/predict(X)/score(X, y) with integer labels
+// ---------------------------------------------------------------------------
+
+/// @brief CRTP base for classifiers that use integer (Eigen::VectorXi) labels.
+///
+/// Unlike Predictor (which uses floating-point target vectors), Classifier
+/// operates on `Eigen::VectorXi` labels and returns mean accuracy as score.
+template <typename Derived, typename Scalar = double>
+class Classifier : public Estimator<Derived, Scalar> {
+public:
+    using typename Estimator<Derived, Scalar>::MatrixType;
+    using typename Estimator<Derived, Scalar>::VectorType;
+    using typename Estimator<Derived, Scalar>::RowVectorType;
+    using typename Estimator<Derived, Scalar>::IndexType;
+    using typename Estimator<Derived, Scalar>::ScalarType;
+    using LabelType = Eigen::VectorXi;
+
+    Derived& fit(const Eigen::Ref<const MatrixType>& X,
+                 const Eigen::Ref<const LabelType>& y) {
+        return static_cast<Derived*>(this)->fit_impl(X, y);
+    }
+
+    [[nodiscard]] LabelType predict(
+        const Eigen::Ref<const MatrixType>& X) const {
+        this->check_is_fitted();
+        this->validate_feature_count(X);
+        return static_cast<const Derived*>(this)->predict_impl(X);
+    }
+
+    [[nodiscard]] ScalarType score(
+        const Eigen::Ref<const MatrixType>& X,
+        const Eigen::Ref<const LabelType>& y) const {
+        this->check_is_fitted();
+        this->validate_feature_count(X);
+        LabelType preds = static_cast<const Derived*>(this)->predict_impl(X);
+        int correct = 0;
+        for (Eigen::Index i = 0; i < y.size(); ++i) {
+            if (preds(i) == y(i)) ++correct;
+        }
+        return static_cast<ScalarType>(correct) /
+               static_cast<ScalarType>(y.size());
+    }
+};
+
 } // namespace Skigen
 
 #endif // SKIGEN_CORE_BASE_H

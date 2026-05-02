@@ -4,13 +4,13 @@
 #ifndef SKIGEN_CLUSTER_KMEANS_H
 #define SKIGEN_CLUSTER_KMEANS_H
 
+#include "../Core/Base.h"
 #include "../Core/Validation.h"
 
 #include <Eigen/Core>
 #include <algorithm>
 #include <limits>
 #include <random>
-#include <stdexcept>
 #include <vector>
 
 namespace Skigen {
@@ -64,10 +64,13 @@ namespace Skigen {
 ///
 /// @snippet kmeans.cpp example_kmeans
 template <typename Scalar = double>
-class KMeans {
+class KMeans : public Estimator<KMeans<Scalar>, Scalar> {
 public:
-    using MatrixType = Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>;
-    using VectorType = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
+    using Base = Estimator<KMeans<Scalar>, Scalar>;
+    using typename Base::MatrixType;
+    using typename Base::VectorType;
+    using typename Base::IndexType;
+    using typename Base::ScalarType;
     using IndexVector = Eigen::VectorXi;
 
     /// @brief Construct a KMeans estimator.
@@ -83,33 +86,31 @@ public:
 
     // -- Accessors ----------------------------------------------------------
 
-    /// @brief Whether the estimator has been fitted.
-    [[nodiscard]] bool is_fitted() const noexcept { return fitted_; }
     /// @brief The number of clusters.
     [[nodiscard]] int n_clusters() const noexcept { return n_clusters_; }
 
     /// @brief Cluster centers (n_clusters × n_features).
     /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const MatrixType& cluster_centers() const {
-        if (!fitted_) throw std::runtime_error("KMeans has not been fitted yet.");
+        this->check_is_fitted();
         return cluster_centers_;
     }
     /// @brief Labels of each training point from the best run.
     /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const IndexVector& labels() const {
-        if (!fitted_) throw std::runtime_error("KMeans has not been fitted yet.");
+        this->check_is_fitted();
         return labels_;
     }
     /// @brief Sum of squared distances to closest cluster center.
     /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] Scalar inertia() const {
-        if (!fitted_) throw std::runtime_error("KMeans has not been fitted yet.");
+        this->check_is_fitted();
         return inertia_;
     }
     /// @brief Number of iterations in the best run.
     /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] int n_iter() const {
-        if (!fitted_) throw std::runtime_error("KMeans has not been fitted yet.");
+        this->check_is_fitted();
         return n_iter_;
     }
 
@@ -127,7 +128,9 @@ public:
         internal::check_non_empty(X);
         if (X.rows() < n_clusters_) {
             throw std::invalid_argument(
-                "n_samples must be >= n_clusters.");
+                "n_samples (" + std::to_string(X.rows()) +
+                ") must be >= n_clusters (" +
+                std::to_string(n_clusters_) + ").");
         }
 
         Scalar best_inertia = std::numeric_limits<Scalar>::max();
@@ -179,7 +182,8 @@ public:
             }
         }
 
-        fitted_ = true;
+        this->n_features_in_ = X.cols();
+        this->fitted_ = true;
         return *this;
     }
 
@@ -189,7 +193,8 @@ public:
     /// @return Index of the closest cluster for each sample.
     /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] IndexVector predict(const Eigen::Ref<const MatrixType>& X) const {
-        if (!fitted_) throw std::runtime_error("KMeans has not been fitted yet.");
+        this->check_is_fitted();
+        this->validate_feature_count(X);
         IndexVector labels(X.rows());
         assign_labels(X, cluster_centers_, labels);
         return labels;
@@ -204,7 +209,8 @@ public:
     /// @return Distance matrix of shape (n_samples, n_clusters).
     /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] MatrixType transform(const Eigen::Ref<const MatrixType>& X) const {
-        if (!fitted_) throw std::runtime_error("KMeans has not been fitted yet.");
+        this->check_is_fitted();
+        this->validate_feature_count(X);
         // Returns distance to each cluster center
         MatrixType distances(X.rows(), n_clusters_);
         for (Eigen::Index i = 0; i < X.rows(); ++i) {
@@ -221,7 +227,6 @@ private:
     int n_init_;
     unsigned int random_state_;
 
-    bool fitted_ = false;
     MatrixType cluster_centers_;
     IndexVector labels_;
     Scalar inertia_ = Scalar{0};

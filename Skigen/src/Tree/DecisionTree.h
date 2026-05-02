@@ -4,6 +4,7 @@
 #ifndef SKIGEN_TREE_DECISION_TREE_H
 #define SKIGEN_TREE_DECISION_TREE_H
 
+#include "../Core/Base.h"
 #include "../Core/Validation.h"
 
 #include <Eigen/Core>
@@ -12,7 +13,6 @@
 #include <map>
 #include <memory>
 #include <numeric>
-#include <stdexcept>
 #include <vector>
 
 namespace Skigen {
@@ -72,9 +72,14 @@ struct TreeNode {
 ///
 /// @snippet decision_tree.cpp example_decision_tree_classifier
 template <typename Scalar = double>
-class DecisionTreeClassifier {
+class DecisionTreeClassifier
+    : public Classifier<DecisionTreeClassifier<Scalar>, Scalar> {
 public:
-    using MatrixType = Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>;
+    using Base = Classifier<DecisionTreeClassifier<Scalar>, Scalar>;
+    using typename Base::MatrixType;
+    using typename Base::IndexType;
+    using typename Base::ScalarType;
+    using typename Base::LabelType;
     using IndexVector = Eigen::VectorXi;
 
     /// @brief Construct a DecisionTreeClassifier.
@@ -84,23 +89,13 @@ public:
     explicit DecisionTreeClassifier(int max_depth = -1, int min_samples_split = 2)
         : max_depth_(max_depth), min_samples_split_(min_samples_split) {}
 
-    /// @brief Whether the estimator has been fitted.
-    [[nodiscard]] bool is_fitted() const noexcept { return fitted_; }
-
     /// @brief Build a decision tree classifier from the training set.
-    ///
-    /// @param X Training data of shape (n_samples, n_features).
-    /// @param y Target values of shape (n_samples,) with integer class labels.
-    /// @return Reference to the fitted estimator (`*this`).
-    /// @throws std::invalid_argument if X and y have inconsistent lengths.
-    DecisionTreeClassifier& fit(const Eigen::Ref<const MatrixType>& X,
+    DecisionTreeClassifier& fit_impl(const Eigen::Ref<const MatrixType>& X,
                                 const Eigen::Ref<const IndexVector>& y) {
         internal::check_non_empty(X);
-        if (X.rows() != y.rows()) {
-            throw std::invalid_argument("X and y have inconsistent lengths.");
-        }
+        internal::check_consistent_length(X, y);
 
-        n_features_in_ = X.cols();
+        this->n_features_in_ = X.cols();
 
         // Collect class labels
         std::map<int, int> class_counts;
@@ -112,19 +107,13 @@ public:
         std::iota(indices.begin(), indices.end(), Eigen::Index{0});
 
         root_ = build_tree(X, y, indices, 0);
-        fitted_ = true;
+        this->fitted_ = true;
         return *this;
     }
 
     /// @brief Predict class labels for samples in X.
-    ///
-    /// @param X Sample matrix of shape (n_samples, n_features).
-    /// @return Integer vector of predicted class labels (n_samples,).
-    /// @throws std::runtime_error if the model has not been fitted.
-    [[nodiscard]] IndexVector predict(
+    [[nodiscard]] IndexVector predict_impl(
         const Eigen::Ref<const MatrixType>& X) const {
-        if (!fitted_) throw std::runtime_error(
-            "DecisionTreeClassifier has not been fitted yet.");
 
         IndexVector predictions(X.rows());
         for (Eigen::Index i = 0; i < X.rows(); ++i) {
@@ -133,26 +122,9 @@ public:
         return predictions;
     }
 
-    /// @brief Return the mean accuracy on the given test data and labels.
-    ///
-    /// @param X Test samples of shape (n_samples, n_features).
-    /// @param y True class labels of shape (n_samples,).
-    /// @return Mean accuracy.
-    [[nodiscard]] Scalar score(const Eigen::Ref<const MatrixType>& X,
-                               const Eigen::Ref<const IndexVector>& y) const {
-        IndexVector preds = predict(X);
-        int correct = 0;
-        for (Eigen::Index i = 0; i < y.size(); ++i) {
-            if (preds(i) == y(i)) ++correct;
-        }
-        return static_cast<Scalar>(correct) / static_cast<Scalar>(y.size());
-    }
-
 private:
     int max_depth_;
     int min_samples_split_;
-    bool fitted_ = false;
-    Eigen::Index n_features_in_ = 0;
     std::unique_ptr<internal::TreeNode<Scalar>> root_;
 
     using Node = internal::TreeNode<Scalar>;
@@ -290,10 +262,14 @@ private:
 ///
 /// @snippet decision_tree.cpp example_decision_tree_regressor
 template <typename Scalar = double>
-class DecisionTreeRegressor {
+class DecisionTreeRegressor
+    : public Predictor<DecisionTreeRegressor<Scalar>, Scalar> {
 public:
-    using MatrixType = Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>;
-    using VectorType = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
+    using Base = Predictor<DecisionTreeRegressor<Scalar>, Scalar>;
+    using typename Base::MatrixType;
+    using typename Base::VectorType;
+    using typename Base::IndexType;
+    using typename Base::ScalarType;
 
     /// @brief Construct a DecisionTreeRegressor.
     ///
@@ -302,41 +278,25 @@ public:
     explicit DecisionTreeRegressor(int max_depth = -1, int min_samples_split = 2)
         : max_depth_(max_depth), min_samples_split_(min_samples_split) {}
 
-    /// @brief Whether the estimator has been fitted.
-    [[nodiscard]] bool is_fitted() const noexcept { return fitted_; }
-
     /// @brief Build a decision tree regressor from the training set.
-    ///
-    /// @param X Training data of shape (n_samples, n_features).
-    /// @param y Target values of shape (n_samples,).
-    /// @return Reference to the fitted estimator (`*this`).
-    /// @throws std::invalid_argument if X and y have inconsistent lengths.
-    DecisionTreeRegressor& fit(const Eigen::Ref<const MatrixType>& X,
+    DecisionTreeRegressor& fit_impl(const Eigen::Ref<const MatrixType>& X,
                                const Eigen::Ref<const VectorType>& y) {
         internal::check_non_empty(X);
-        if (X.rows() != y.rows()) {
-            throw std::invalid_argument("X and y have inconsistent lengths.");
-        }
+        internal::check_consistent_length(X, y);
 
-        n_features_in_ = X.cols();
+        this->n_features_in_ = X.cols();
 
         std::vector<Eigen::Index> indices(static_cast<std::size_t>(X.rows()));
         std::iota(indices.begin(), indices.end(), Eigen::Index{0});
 
         root_ = build_tree(X, y, indices, 0);
-        fitted_ = true;
+        this->fitted_ = true;
         return *this;
     }
 
     /// @brief Predict target values for X.
-    ///
-    /// @param X Sample matrix of shape (n_samples, n_features).
-    /// @return Predicted values of shape (n_samples,).
-    /// @throws std::runtime_error if the model has not been fitted.
-    [[nodiscard]] VectorType predict(
+    [[nodiscard]] VectorType predict_impl(
         const Eigen::Ref<const MatrixType>& X) const {
-        if (!fitted_) throw std::runtime_error(
-            "DecisionTreeRegressor has not been fitted yet.");
 
         VectorType predictions(X.rows());
         for (Eigen::Index i = 0; i < X.rows(); ++i) {
@@ -346,13 +306,9 @@ public:
     }
 
     /// @brief Return the @f$R^2@f$ coefficient of determination.
-    ///
-    /// @param X Test samples of shape (n_samples, n_features).
-    /// @param y True values of shape (n_samples,).
-    /// @return @f$R^2@f$ score.
-    [[nodiscard]] Scalar score(const Eigen::Ref<const MatrixType>& X,
+    [[nodiscard]] ScalarType score_impl(const Eigen::Ref<const MatrixType>& X,
                                const Eigen::Ref<const VectorType>& y) const {
-        VectorType y_pred = predict(X);
+        VectorType y_pred = predict_impl(X);
         Scalar ss_res = (y - y_pred).squaredNorm();
         Scalar ss_tot = (y.array() - y.mean()).matrix().squaredNorm();
         if (ss_tot == Scalar{0}) return Scalar{0};
@@ -362,8 +318,6 @@ public:
 private:
     int max_depth_;
     int min_samples_split_;
-    bool fitted_ = false;
-    Eigen::Index n_features_in_ = 0;
     std::unique_ptr<internal::TreeNode<Scalar>> root_;
 
     using Node = internal::TreeNode<Scalar>;

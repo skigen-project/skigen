@@ -19,5 +19,6 @@
 #include "ModelSelection"
 #include "Pipeline"
 #include "Metrics"
+#include "TypeAliases"
 
 #endif // SKIGEN_DENSE

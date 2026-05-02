@@ -4,13 +4,13 @@
 #ifndef SKIGEN_LINEAR_MODEL_LOGISTIC_REGRESSION_H
 #define SKIGEN_LINEAR_MODEL_LOGISTIC_REGRESSION_H
 
+#include "../Core/Base.h"
 #include "../Core/Validation.h"
 
 #include <Eigen/Core>
 #include <algorithm>
 #include <cmath>
 #include <map>
-#include <stdexcept>
 #include <vector>
 
 namespace Skigen {
@@ -78,11 +78,16 @@ namespace Skigen {
 ///
 /// @snippet logistic_regression.cpp example_logistic_regression
 template <typename Scalar = double>
-class LogisticRegression {
+class LogisticRegression
+    : public Classifier<LogisticRegression<Scalar>, Scalar> {
 public:
-    using MatrixType = Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>;
-    using VectorType = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
-    using RowVectorType = Eigen::Matrix<Scalar, 1, Eigen::Dynamic>;
+    using Base = Classifier<LogisticRegression<Scalar>, Scalar>;
+    using typename Base::MatrixType;
+    using typename Base::VectorType;
+    using typename Base::RowVectorType;
+    using typename Base::IndexType;
+    using typename Base::ScalarType;
+    using typename Base::LabelType;
     using IndexVector = Eigen::VectorXi;
 
     /// @brief Construct a LogisticRegression estimator.
@@ -96,23 +101,14 @@ public:
                                 int max_iter = 100, Scalar tol = Scalar{1e-4})
         : C_(C), fit_intercept_(fit_intercept), max_iter_(max_iter), tol_(tol) {}
 
-    /// @brief Whether the estimator has been fitted.
-    [[nodiscard]] bool is_fitted() const noexcept { return fitted_; }
-
     /// @brief Coefficient matrix (n_classes × n_features or 1 × n_features for binary).
-    ///
-    /// @return Read-only reference to the coefficient matrix.
-    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const MatrixType& coef() const {
-        if (!fitted_) throw std::runtime_error("LogisticRegression not fitted.");
+        this->check_is_fitted();
         return coef_;
     }
     /// @brief Intercept (bias) vector of shape (n_classes,) or (1,).
-    ///
-    /// @return Read-only reference to the intercept vector.
-    /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const VectorType& intercept() const {
-        if (!fitted_) throw std::runtime_error("LogisticRegression not fitted.");
+        this->check_is_fitted();
         return intercept_;
     }
     /// @brief Unique class labels sorted in ascending order.
@@ -120,7 +116,7 @@ public:
     /// @return Read-only reference to the class label vector.
     /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const std::vector<int>& classes() const {
-        if (!fitted_) throw std::runtime_error("LogisticRegression not fitted.");
+        this->check_is_fitted();
         return classes_;
     }
 
@@ -137,14 +133,12 @@ public:
     ///
     /// @note **sklearn parity gap:** `sample_weight`, `class_weight`
     ///   parameters are not yet supported.
-    LogisticRegression& fit(const Eigen::Ref<const MatrixType>& X,
+    LogisticRegression& fit_impl(const Eigen::Ref<const MatrixType>& X,
                             const Eigen::Ref<const IndexVector>& y) {
         internal::check_non_empty(X);
-        if (X.rows() != y.rows()) {
-            throw std::invalid_argument("X and y have inconsistent lengths.");
-        }
+        internal::check_consistent_length(X, y);
 
-        n_features_in_ = X.cols();
+        this->n_features_in_ = X.cols();
 
         // Discover classes
         std::map<int, int> class_map;
@@ -198,22 +192,13 @@ public:
             }
         }
 
-        fitted_ = true;
+        this->fitted_ = true;
         return *this;
     }
 
     /// @brief Predict class labels for samples in X.
-    ///
-    /// For binary classification, the predicted class is the one with
-    /// non-negative decision function value. For multiclass, the class
-    /// with the highest decision function value is chosen.
-    ///
-    /// @param X Sample matrix of shape (n_samples, n_features).
-    /// @return Integer vector of predicted class labels (n_samples,).
-    /// @throws std::runtime_error if the model has not been fitted.
-    [[nodiscard]] IndexVector predict(
+    [[nodiscard]] IndexVector predict_impl(
         const Eigen::Ref<const MatrixType>& X) const {
-        if (!fitted_) throw std::runtime_error("LogisticRegression not fitted.");
 
         MatrixType scores = decision_function(X);
         IndexVector predictions(X.rows());
@@ -246,7 +231,8 @@ public:
     /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] MatrixType predict_proba(
         const Eigen::Ref<const MatrixType>& X) const {
-        if (!fitted_) throw std::runtime_error("LogisticRegression not fitted.");
+        this->check_is_fitted();
+        this->validate_feature_count(X);
 
         MatrixType scores = decision_function(X);
 
@@ -273,30 +259,12 @@ public:
         }
     }
 
-    /// @brief Return the mean accuracy on the given test data and labels.
-    ///
-    /// @param X Test samples of shape (n_samples, n_features).
-    /// @param y True class labels of shape (n_samples,).
-    /// @return Mean accuracy (fraction of correctly classified samples).
-    /// @throws std::runtime_error if the model has not been fitted.
-    [[nodiscard]] Scalar score(const Eigen::Ref<const MatrixType>& X,
-                               const Eigen::Ref<const IndexVector>& y) const {
-        IndexVector preds = predict(X);
-        int correct = 0;
-        for (Eigen::Index i = 0; i < y.size(); ++i) {
-            if (preds(i) == y(i)) ++correct;
-        }
-        return static_cast<Scalar>(correct) / static_cast<Scalar>(y.size());
-    }
-
 private:
     Scalar C_;
     bool fit_intercept_;
     int max_iter_;
     Scalar tol_;
 
-    bool fitted_ = false;
-    Eigen::Index n_features_in_ = 0;
     MatrixType coef_;
     VectorType intercept_;
     std::vector<int> classes_;

@@ -1,0 +1,95 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 The Skigen Contributors
+//
+// Skigen/TypeAliases — Convenience type aliases for common scalar types.
+//
+// Provides shorthand names like StandardScalerD (double), StandardScalerF
+// (float) analogous to Eigen's MatrixXd/MatrixXf pattern.
+//
+// Usage:
+//   #include <Skigen/Dense>       // includes this automatically
+//   Skigen::StandardScalerD scaler;
+//   Skigen::RidgeD ridge(1.0);
+
+#ifndef SKIGEN_TYPE_ALIASES
+#define SKIGEN_TYPE_ALIASES
+
+#include "Core"
+#include "Preprocessing"
+#include "LinearModel"
+#include "Decomposition"
+#include "Cluster"
+#include "Neighbors"
+#include "Tree"
+
+namespace Skigen {
+
+// ---------------------------------------------------------------------------
+// Preprocessing
+// ---------------------------------------------------------------------------
+using StandardScalerD   = StandardScaler<double>;
+using StandardScalerF   = StandardScaler<float>;
+using MinMaxScalerD     = MinMaxScaler<double>;
+using MinMaxScalerF     = MinMaxScaler<float>;
+using MaxAbsScalerD     = MaxAbsScaler<double>;
+using MaxAbsScalerF     = MaxAbsScaler<float>;
+using RobustScalerD     = RobustScaler<double>;
+using RobustScalerF     = RobustScaler<float>;
+using NormalizerD       = Normalizer<double>;
+using NormalizerF       = Normalizer<float>;
+using PolynomialFeaturesD = PolynomialFeatures<double>;
+using PolynomialFeaturesF = PolynomialFeatures<float>;
+
+// ---------------------------------------------------------------------------
+// Linear Models
+// ---------------------------------------------------------------------------
+using LinearRegressionD = LinearRegression<double>;
+using LinearRegressionF = LinearRegression<float>;
+using RidgeD            = Ridge<double>;
+using RidgeF            = Ridge<float>;
+using LassoD            = Lasso<double>;
+using LassoF            = Lasso<float>;
+using ElasticNetD       = ElasticNet<double>;
+using ElasticNetF       = ElasticNet<float>;
+using LogisticRegressionD = LogisticRegression<double>;
+using LogisticRegressionF = LogisticRegression<float>;
+using SGDClassifierD    = SGDClassifier<double>;
+using SGDClassifierF    = SGDClassifier<float>;
+using SGDRegressorD     = SGDRegressor<double>;
+using SGDRegressorF     = SGDRegressor<float>;
+
+// ---------------------------------------------------------------------------
+// Decomposition
+// ---------------------------------------------------------------------------
+using PCAD              = PCA<double>;
+using PCAF              = PCA<float>;
+using TruncatedSVDD     = TruncatedSVD<double>;
+using TruncatedSVDF     = TruncatedSVD<float>;
+
+// ---------------------------------------------------------------------------
+// Cluster
+// ---------------------------------------------------------------------------
+using KMeansD           = KMeans<double>;
+using KMeansF           = KMeans<float>;
+using MiniBatchKMeansD  = MiniBatchKMeans<double>;
+using MiniBatchKMeansF  = MiniBatchKMeans<float>;
+
+// ---------------------------------------------------------------------------
+// Neighbors
+// ---------------------------------------------------------------------------
+using KNeighborsClassifierD = KNeighborsClassifier<double>;
+using KNeighborsClassifierF = KNeighborsClassifier<float>;
+using KNeighborsRegressorD  = KNeighborsRegressor<double>;
+using KNeighborsRegressorF  = KNeighborsRegressor<float>;
+
+// ---------------------------------------------------------------------------
+// Tree
+// ---------------------------------------------------------------------------
+using DecisionTreeClassifierD = DecisionTreeClassifier<double>;
+using DecisionTreeClassifierF = DecisionTreeClassifier<float>;
+using DecisionTreeRegressorD  = DecisionTreeRegressor<double>;
+using DecisionTreeRegressorF  = DecisionTreeRegressor<float>;
+
+} // namespace Skigen
+
+#endif // SKIGEN_TYPE_ALIASES

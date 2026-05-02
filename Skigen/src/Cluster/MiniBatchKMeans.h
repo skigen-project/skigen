@@ -4,6 +4,7 @@
 #ifndef SKIGEN_CLUSTER_MINI_BATCH_KMEANS_H
 #define SKIGEN_CLUSTER_MINI_BATCH_KMEANS_H
 
+#include "../Core/Base.h"
 #include "../Core/Validation.h"
 #include "KMeans.h"
 
@@ -12,7 +13,6 @@
 #include <limits>
 #include <numeric>
 #include <random>
-#include <stdexcept>
 #include <vector>
 
 namespace Skigen {
@@ -63,10 +63,13 @@ namespace Skigen {
 ///
 /// @snippet kmeans.cpp example_mini_batch_kmeans
 template <typename Scalar = double>
-class MiniBatchKMeans {
+class MiniBatchKMeans : public Estimator<MiniBatchKMeans<Scalar>, Scalar> {
 public:
-    using MatrixType = Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>;
-    using VectorType = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
+    using Base = Estimator<MiniBatchKMeans<Scalar>, Scalar>;
+    using typename Base::MatrixType;
+    using typename Base::VectorType;
+    using typename Base::IndexType;
+    using typename Base::ScalarType;
     using IndexVector = Eigen::VectorXi;
 
     /// @brief Construct a MiniBatchKMeans estimator.
@@ -81,26 +84,25 @@ public:
           max_iter_(max_iter), random_state_(random_state) {}
 
     /// @brief Whether the estimator has been fitted.
-    [[nodiscard]] bool is_fitted() const noexcept { return fitted_; }
     /// @brief The number of clusters.
     [[nodiscard]] int n_clusters() const noexcept { return n_clusters_; }
 
     /// @brief Cluster centers (n_clusters × n_features).
     /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const MatrixType& cluster_centers() const {
-        if (!fitted_) throw std::runtime_error("MiniBatchKMeans not fitted.");
+        this->check_is_fitted();
         return cluster_centers_;
     }
     /// @brief Labels of each training point.
     /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] const IndexVector& labels() const {
-        if (!fitted_) throw std::runtime_error("MiniBatchKMeans not fitted.");
+        this->check_is_fitted();
         return labels_;
     }
     /// @brief Sum of squared distances to closest cluster center.
     /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] Scalar inertia() const {
-        if (!fitted_) throw std::runtime_error("MiniBatchKMeans not fitted.");
+        this->check_is_fitted();
         return inertia_;
     }
 
@@ -115,7 +117,10 @@ public:
     MiniBatchKMeans& fit(const Eigen::Ref<const MatrixType>& X) {
         internal::check_non_empty(X);
         if (X.rows() < n_clusters_) {
-            throw std::invalid_argument("n_samples must be >= n_clusters.");
+            throw std::invalid_argument(
+                "n_samples (" + std::to_string(X.rows()) +
+                ") must be >= n_clusters (" +
+                std::to_string(n_clusters_) + ").");
         }
 
         const Eigen::Index n = X.rows();
@@ -176,7 +181,8 @@ public:
             inertia_ += best_dist;
         }
 
-        fitted_ = true;
+        this->n_features_in_ = X.cols();
+        this->fitted_ = true;
         return *this;
     }
 
@@ -186,7 +192,8 @@ public:
     /// @return Index of the closest cluster for each sample.
     /// @throws std::runtime_error if the model has not been fitted.
     [[nodiscard]] IndexVector predict(const Eigen::Ref<const MatrixType>& X) const {
-        if (!fitted_) throw std::runtime_error("MiniBatchKMeans not fitted.");
+        this->check_is_fitted();
+        this->validate_feature_count(X);
         IndexVector labels(X.rows());
         for (Eigen::Index i = 0; i < X.rows(); ++i) {
             Scalar best_dist = std::numeric_limits<Scalar>::max();
@@ -206,7 +213,6 @@ private:
     int max_iter_;
     unsigned int random_state_;
 
-    bool fitted_ = false;
     MatrixType cluster_centers_;
     IndexVector labels_;
     Scalar inertia_ = Scalar{0};
