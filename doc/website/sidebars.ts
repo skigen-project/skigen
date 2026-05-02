@@ -61,6 +61,7 @@ const sidebars: SidebarsConfig = {
                 'guide/metrics',
             ],
         },
+        'cite',
     ],
     developmentSidebar: [
         'development/building',

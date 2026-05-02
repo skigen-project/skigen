@@ -140,6 +140,7 @@ const config: Config = {
                     title: 'Community',
                     items: [
                         { label: 'GitHub', href: 'https://github.com/skigen-project/skigen' },
+                        { label: 'How to Cite', to: '/docs/cite' },
                     ],
                 },
             ],
