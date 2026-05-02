@@ -31,3 +31,4 @@ doc/website/docs/api/
 *.obj
 *.exe
 *.out
+eigen

@@ -7,5 +7,8 @@
 #include "src/Decomposition/PCA.h"
 #include "src/Decomposition/TruncatedSVD.h"
 #include "src/Decomposition/FactorAnalysis.h"
+#include "src/Decomposition/CSP.h"
+#include "src/Decomposition/SPoC.h"
+#include "src/Decomposition/SSD.h"
 
 #endif // SKIGEN_DECOMPOSITION

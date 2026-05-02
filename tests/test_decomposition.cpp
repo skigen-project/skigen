@@ -284,6 +284,174 @@ void test_fa_ll_improves() {
 }
 
 // ===================================================================
+// CSP Tests
+// ===================================================================
+
+static void test_csp_basic_separation() {
+    // Create two classes of epochs with different spatial covariance
+    std::mt19937 gen(42);
+    std::normal_distribution<double> dist(0.0, 1.0);
+
+    const int n_ch = 4, n_times = 100, n_epochs = 10;
+
+    // Class 1: high variance in channel 0, low elsewhere
+    std::vector<Eigen::MatrixXd> epochs1;
+    for (int e = 0; e < n_epochs; ++e) {
+        Eigen::MatrixXd epoch(n_ch, n_times);
+        for (int i = 0; i < n_ch; ++i)
+            for (int j = 0; j < n_times; ++j)
+                epoch(i, j) = dist(gen) * (i == 0 ? 5.0 : 0.5);
+        epochs1.push_back(std::move(epoch));
+    }
+
+    // Class 2: high variance in last channel
+    std::vector<Eigen::MatrixXd> epochs2;
+    for (int e = 0; e < n_epochs; ++e) {
+        Eigen::MatrixXd epoch(n_ch, n_times);
+        for (int i = 0; i < n_ch; ++i)
+            for (int j = 0; j < n_times; ++j)
+                epoch(i, j) = dist(gen) * (i == n_ch - 1 ? 5.0 : 0.5);
+        epochs2.push_back(std::move(epoch));
+    }
+
+    Skigen::CSP<double> csp(4);
+    csp.fit(epochs1, epochs2);
+
+    ASSERT_TRUE(csp.filters().rows() == 4);
+    ASSERT_TRUE(csp.filters().cols() == n_ch);
+    ASSERT_TRUE(csp.patterns().rows() == n_ch);
+    ASSERT_TRUE(csp.patterns().cols() == 4);
+
+    auto features = csp.transform(epochs1);
+    ASSERT_TRUE(features.rows() == n_epochs);
+    ASSERT_TRUE(features.cols() == 4);
+}
+
+static void test_csp_not_fitted() {
+    Skigen::CSP<double> csp;
+    try {
+        std::vector<Eigen::MatrixXd> dummy{Eigen::MatrixXd::Ones(2, 10)};
+        static_cast<void>(csp.transform(dummy));
+        ASSERT_TRUE(false);
+    } catch (const std::runtime_error&) {
+        ASSERT_TRUE(true);
+    }
+}
+
+static void test_csp_fit_transform() {
+    std::mt19937 gen(123);
+    std::normal_distribution<double> dist(0.0, 1.0);
+
+    const int n_ch = 3, n_times = 50, n_per_class = 5;
+
+    std::vector<Eigen::MatrixXd> e1, e2;
+    for (int e = 0; e < n_per_class; ++e) {
+        Eigen::MatrixXd ep1(n_ch, n_times), ep2(n_ch, n_times);
+        for (int i = 0; i < n_ch; ++i)
+            for (int j = 0; j < n_times; ++j) {
+                ep1(i, j) = dist(gen) * (i == 0 ? 3.0 : 1.0);
+                ep2(i, j) = dist(gen) * (i == 2 ? 3.0 : 1.0);
+            }
+        e1.push_back(std::move(ep1));
+        e2.push_back(std::move(ep2));
+    }
+
+    Skigen::CSP<double> csp(2);
+    auto features = csp.fit_transform(e1, e2);
+    ASSERT_TRUE(features.rows() == 2 * n_per_class);
+    ASSERT_TRUE(features.cols() == 2);
+}
+
+// ===================================================================
+// SPoC Tests
+// ===================================================================
+
+static void test_spoc_basic() {
+    std::mt19937 gen(77);
+    std::normal_distribution<double> dist(0.0, 1.0);
+
+    const int n_ch = 4, n_times = 80, n_epochs = 15;
+
+    std::vector<Eigen::MatrixXd> epochs;
+    Eigen::VectorXd target(n_epochs);
+
+    for (int e = 0; e < n_epochs; ++e) {
+        double t = static_cast<double>(e) / (n_epochs - 1);
+        target(e) = t;  // linearly increasing target
+
+        Eigen::MatrixXd epoch(n_ch, n_times);
+        for (int i = 0; i < n_ch; ++i)
+            for (int j = 0; j < n_times; ++j)
+                epoch(i, j) = dist(gen) * (i == 0 ? 1.0 + 3.0 * t : 1.0);
+        epochs.push_back(std::move(epoch));
+    }
+
+    Skigen::SPoC<double> spoc(2);
+    spoc.fit(epochs, target);
+
+    ASSERT_TRUE(spoc.filters().rows() == 2);
+    ASSERT_TRUE(spoc.filters().cols() == n_ch);
+    ASSERT_TRUE(spoc.eigenvalues().size() == 2);
+
+    auto features = spoc.transform(epochs);
+    ASSERT_TRUE(features.rows() == n_epochs);
+    ASSERT_TRUE(features.cols() == 2);
+}
+
+static void test_spoc_not_fitted() {
+    Skigen::SPoC<double> spoc;
+    try {
+        static_cast<void>(spoc.filters());
+        ASSERT_TRUE(false);
+    } catch (const std::runtime_error&) {
+        ASSERT_TRUE(true);
+    }
+}
+
+// ===================================================================
+// SSD Tests
+// ===================================================================
+
+static void test_ssd_basic() {
+    // Generate continuous data with a dominant oscillation in one channel
+    const int n_ch = 3, n_times = 1000;
+    const double sfreq = 250.0;
+    Eigen::MatrixXd data(n_ch, n_times);
+
+    std::mt19937 gen(99);
+    std::normal_distribution<double> dist(0.0, 0.1);
+
+    for (int t = 0; t < n_times; ++t) {
+        double time = static_cast<double>(t) / sfreq;
+        // 10 Hz oscillation in channel 0
+        data(0, t) = std::sin(2.0 * M_PI * 10.0 * time) + dist(gen);
+        data(1, t) = dist(gen);
+        data(2, t) = dist(gen);
+    }
+
+    Skigen::SSD<double> ssd(2);
+    ssd.fit(data, sfreq, 8.0, 12.0, 2.0, 30.0, 0.05);
+
+    ASSERT_TRUE(ssd.filters().rows() == 2);
+    ASSERT_TRUE(ssd.filters().cols() == n_ch);
+    ASSERT_TRUE(ssd.eigenvalues().size() == 2);
+
+    auto filtered = ssd.transform(data);
+    ASSERT_TRUE(filtered.rows() == 2);
+    ASSERT_TRUE(filtered.cols() == n_times);
+}
+
+static void test_ssd_not_fitted() {
+    Skigen::SSD<double> ssd;
+    try {
+        static_cast<void>(ssd.filters());
+        ASSERT_TRUE(false);
+    } catch (const std::runtime_error&) {
+        ASSERT_TRUE(true);
+    }
+}
+
+// ===================================================================
 
 int main() {
     std::cout << "=== PCA Tests ===\n";
@@ -299,6 +467,19 @@ int main() {
     run_test("fa_noise_recovery", test_fa_noise_recovery);
     run_test("fa_not_fitted", test_fa_not_fitted);
     run_test("fa_ll_improves", test_fa_ll_improves);
+
+    std::cout << "\n=== CSP Tests ===\n";
+    run_test("csp_basic_separation", test_csp_basic_separation);
+    run_test("csp_not_fitted", test_csp_not_fitted);
+    run_test("csp_fit_transform", test_csp_fit_transform);
+
+    std::cout << "\n=== SPoC Tests ===\n";
+    run_test("spoc_basic", test_spoc_basic);
+    run_test("spoc_not_fitted", test_spoc_not_fitted);
+
+    std::cout << "\n=== SSD Tests ===\n";
+    run_test("ssd_basic", test_ssd_basic);
+    run_test("ssd_not_fitted", test_ssd_not_fitted);
 
     std::cout << "\n" << g_passed << " passed, " << g_failed << " failed.\n";
     return g_failed > 0 ? 1 : 0;
