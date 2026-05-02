@@ -154,8 +154,8 @@ export default function Home(): React.JSX.Element {
                                 <span className={styles.statLabel}>Just #include</span>
                             </div>
                             <div className={styles.statItem}>
-                                <span className={styles.statNumber}>3</span>
-                                <span className={styles.statLabel}>Platform targets</span>
+                                <span className={styles.statNumber}>scikit-learn</span>
+                                <span className={styles.statLabel}>API compatible</span>
                             </div>
                         </div>
                     </div>
