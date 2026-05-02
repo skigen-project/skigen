@@ -36,11 +36,11 @@ jobs:
 
       - name: Deploy to skigen-project.github.io
         env:
-          GIT_CREDENTIALS: ${{ secrets.GIT_CREDENTIALS }}
+          SKIGEN_PROJECT_PAT: ${{ secrets.SKIGEN_PROJECT_PAT }}
         run: |
           git config --global user.email "deploy@skigen-project.github.io"
           git config --global user.name "skigen-deploy"
-          git clone -b main --single-branch "https://${GIT_CREDENTIALS}@github.com/skigen-project/skigen-project.github.io.git"
+          git clone -b main --single-branch "https://${SKIGEN_PROJECT_PAT}@github.com/skigen-project/skigen-project.github.io.git"
           cd skigen-project.github.io
 
           # Remove everything except .git

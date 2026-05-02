@@ -12,12 +12,12 @@ jobs:
     steps:
       - name: Mirror Eigen from GitLab to GitHub
         env:
-          GIT_CREDENTIALS: ${{ secrets.GIT_CREDENTIALS }}
+          SKIGEN_PROJECT_PAT: ${{ secrets.SKIGEN_PROJECT_PAT }}
         run: |
           git clone --bare https://gitlab.com/libeigen/eigen.git eigen-mirror
           cd eigen-mirror
 
           # Push all branches and tags to the GitHub mirror
-          git remote add github "https://x-access-token:${GIT_CREDENTIALS}@github.com/skigen-project/eigen.git"
+          git remote add github "https://x-access-token:${SKIGEN_PROJECT_PAT}@github.com/skigen-project/eigen.git"
           git push github --all --force
           git push github --tags --force
