@@ -85,7 +85,8 @@ skigen_add_example(ex_isotonic_regression isotonic/isotonic_regression.cpp)
 # ---------------------------------------------------------------------------
 skigen_add_example(ex_random_forest_classifier    ensemble/random_forest_classifier.cpp)
 skigen_add_example(ex_random_forest_regressor     ensemble/random_forest_regressor.cpp)
-skigen_add_example(ex_gradient_boosting_regressor ensemble/gradient_boosting_regressor.cpp)
+skigen_add_example(ex_gradient_boosting_regressor  ensemble/gradient_boosting_regressor.cpp)
+skigen_add_example(ex_gradient_boosting_classifier ensemble/gradient_boosting_classifier.cpp)
 
 # ---------------------------------------------------------------------------
 # Metrics examples

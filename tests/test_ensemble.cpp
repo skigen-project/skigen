@@ -521,6 +521,123 @@ void test_gbr_not_fitted_throws() {
 }
 
 // ---------------------------------------------------------------------------
+// GradientBoostingClassifier (binary, log-loss)
+// ---------------------------------------------------------------------------
+
+void test_gbc_binary_separable_high_accuracy() {
+    constexpr int n = 200;
+    Eigen::MatrixXd X(n, 2);
+    Eigen::VectorXi y(n);
+    std::mt19937_64 rng(11);
+    std::normal_distribution<double> ns(0.0, 0.5);
+    for (int i = 0; i < n; ++i) {
+        const double cls = (i < n / 2) ? -1.0 : 1.0;
+        X(i, 0) = cls + ns(rng);
+        X(i, 1) = cls + ns(rng);
+        y(i)    = (cls > 0) ? 1 : 0;
+    }
+    Skigen::GradientBoostingClassifier<double> gb(
+        Skigen::GradientBoostingClassifier<double>::Loss::LogLoss,
+        0.1, /*n_estimators=*/100);
+    gb.fit(X, y);
+    auto preds = gb.predict(X);
+    int correct = 0;
+    for (int i = 0; i < n; ++i) if (preds(i) == y(i)) ++correct;
+    const double acc = static_cast<double>(correct) / n;
+    ASSERT_TRUE(acc > 0.95);
+}
+
+void test_gbc_predict_proba_shape_and_rows_sum_to_one() {
+    constexpr int n = 30;
+    Eigen::MatrixXd X(n, 1);
+    Eigen::VectorXi y(n);
+    for (int i = 0; i < n; ++i) {
+        X(i, 0) = i;
+        y(i)    = (i >= n / 2) ? 1 : 0;
+    }
+    Skigen::GradientBoostingClassifier<double> gb(
+        Skigen::GradientBoostingClassifier<double>::Loss::LogLoss,
+        0.1, 50);
+    gb.fit(X, y);
+    Eigen::MatrixXd P = gb.predict_proba(X);
+    ASSERT_TRUE(P.rows() == n);
+    ASSERT_TRUE(P.cols() == 2);
+    for (int i = 0; i < n; ++i) {
+        ASSERT_NEAR(P(i, 0) + P(i, 1), 1.0, 1e-12);
+        ASSERT_TRUE(P(i, 0) >= 0.0 && P(i, 0) <= 1.0);
+        ASSERT_TRUE(P(i, 1) >= 0.0 && P(i, 1) <= 1.0);
+    }
+}
+
+void test_gbc_init_log_odds() {
+    // 80% class 1, 20% class 0  ->  log(0.8/0.2) = log 4
+    constexpr int n = 50;
+    Eigen::MatrixXd X(n, 1);
+    Eigen::VectorXi y(n);
+    for (int i = 0; i < n; ++i) {
+        X(i, 0) = i;
+        y(i)    = (i < n * 4 / 5) ? 1 : 0;
+    }
+    Skigen::GradientBoostingClassifier<double> gb;
+    gb.fit(X, y);
+    ASSERT_NEAR(gb.init(), std::log(4.0), 1e-9);
+}
+
+void test_gbc_train_score_decreases() {
+    constexpr int n = 40;
+    Eigen::MatrixXd X(n, 1);
+    Eigen::VectorXi y(n);
+    for (int i = 0; i < n; ++i) {
+        X(i, 0) = i;
+        y(i)    = (i >= n / 2) ? 1 : 0;
+    }
+    Skigen::GradientBoostingClassifier<double> gb(
+        Skigen::GradientBoostingClassifier<double>::Loss::LogLoss,
+        0.1, /*n_estimators=*/30);
+    gb.fit(X, y);
+    Eigen::VectorXd s = gb.train_score();
+    ASSERT_TRUE(s.size() == 30);
+    ASSERT_TRUE(s(s.size() - 1) < s(0));
+}
+
+void test_gbc_classes_recorded() {
+    constexpr int n = 20;
+    Eigen::MatrixXd X(n, 1);
+    Eigen::VectorXi y(n);
+    for (int i = 0; i < n; ++i) {
+        X(i, 0) = i;
+        y(i)    = (i >= n / 2) ? 7 : 3;   // arbitrary class labels
+    }
+    Skigen::GradientBoostingClassifier<double> gb(
+        Skigen::GradientBoostingClassifier<double>::Loss::LogLoss, 0.1, 20);
+    gb.fit(X, y);
+    ASSERT_TRUE(gb.classes()(0) == 3);
+    ASSERT_TRUE(gb.classes()(1) == 7);
+    ASSERT_TRUE(gb.n_classes() == 2);
+}
+
+void test_gbc_multiclass_throws() {
+    Eigen::MatrixXd X(6, 1); X << 0, 1, 2, 3, 4, 5;
+    Eigen::VectorXi y(6);    y << 0, 1, 2, 0, 1, 2;
+    Skigen::GradientBoostingClassifier<double> gb(
+        Skigen::GradientBoostingClassifier<double>::Loss::LogLoss, 0.1, 5);
+    bool threw = false;
+    try { gb.fit(X, y); }
+    catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
+void test_gbc_unsupported_loss_throws() {
+    bool threw = false;
+    try {
+        Skigen::GradientBoostingClassifier<double> gb(
+            Skigen::GradientBoostingClassifier<double>::Loss::Exponential);
+        (void)gb;
+    } catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
+// ---------------------------------------------------------------------------
 
 int main() {
     std::cout << "=== RandomForestClassifier Tests ===\n";
@@ -553,6 +670,15 @@ int main() {
     run_test("gbr_unsupported_loss_throws",         test_gbr_unsupported_loss_throws);
     run_test("gbr_subsample_below_one_throws",      test_gbr_subsample_below_one_throws);
     run_test("gbr_not_fitted_throws",               test_gbr_not_fitted_throws);
+
+    std::cout << "\n=== GradientBoostingClassifier Tests ===\n";
+    run_test("gbc_binary_separable_high_accuracy",            test_gbc_binary_separable_high_accuracy);
+    run_test("gbc_predict_proba_shape_and_rows_sum_to_one",   test_gbc_predict_proba_shape_and_rows_sum_to_one);
+    run_test("gbc_init_log_odds",                             test_gbc_init_log_odds);
+    run_test("gbc_train_score_decreases",                     test_gbc_train_score_decreases);
+    run_test("gbc_classes_recorded",                          test_gbc_classes_recorded);
+    run_test("gbc_multiclass_throws",                         test_gbc_multiclass_throws);
+    run_test("gbc_unsupported_loss_throws",                   test_gbc_unsupported_loss_throws);
 
     std::cout << "\n" << g_passed << " passed, " << g_failed << " failed.\n";
     return g_failed > 0 ? 1 : 0;

@@ -9,5 +9,6 @@
 #include "src/Ensemble/RandomForestClassifier.h"
 #include "src/Ensemble/RandomForestRegressor.h"
 #include "src/Ensemble/GradientBoostingRegressor.h"
+#include "src/Ensemble/GradientBoostingClassifier.h"
 
 #endif // SKIGEN_ENSEMBLE
