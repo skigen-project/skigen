@@ -448,6 +448,44 @@ void test_mini_batch_kmeans_predict() {
     ASSERT_TRUE(labels(0) != labels(1));
 }
 
+void test_mini_batch_kmeans_partial_fit_separates_clusters() {
+    Eigen::MatrixXd X(8, 2);
+    X << 0, 0,  0, 1,  1, 0,  1, 1,
+        10,10, 10,11, 11,10, 11,11;
+
+    Skigen::MiniBatchKMeans<double> mbk(/*n_clusters=*/2);
+    mbk.partial_fit(X.topRows(4));     // first batch initialises with k-means++
+    mbk.partial_fit(X.bottomRows(4));  // second batch updates centers
+
+    // Centers should separate the two clusters at (~0.5, ~0.5) and (~10.5, ~10.5).
+    Eigen::MatrixXd centers = mbk.cluster_centers();
+    // Identify which row is which cluster by looking at first coordinate.
+    int low_row = centers(0, 0) < centers(1, 0) ? 0 : 1;
+    int hi_row  = 1 - low_row;
+    ASSERT_TRUE(centers(low_row, 0) < 5.0);
+    ASSERT_TRUE(centers(hi_row,  0) > 5.0);
+}
+
+void test_mini_batch_kmeans_partial_fit_first_call_too_small_throws() {
+    Eigen::MatrixXd X(2, 2); X << 1, 2, 3, 4;
+    Skigen::MiniBatchKMeans<double> mbk(/*n_clusters=*/3);
+    bool threw = false;
+    try { mbk.partial_fit(X); }
+    catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
+void test_mini_batch_kmeans_partial_fit_feature_mismatch_throws() {
+    Eigen::MatrixXd X1(4, 2); X1 << 0,0, 0,1, 10,10, 10,11;
+    Eigen::MatrixXd X2(2, 3); X2.setOnes();
+    Skigen::MiniBatchKMeans<double> mbk(2);
+    mbk.partial_fit(X1);
+    bool threw = false;
+    try { mbk.partial_fit(X2); }
+    catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
 // ===================================================================
 // CrossValidation Tests
 // ===================================================================
@@ -736,6 +774,12 @@ int main() {
     std::cout << "\n=== MiniBatchKMeans Tests ===\n";
     run_test("mini_batch_kmeans_basic", test_mini_batch_kmeans_basic);
     run_test("mini_batch_kmeans_predict", test_mini_batch_kmeans_predict);
+    run_test("mini_batch_kmeans_partial_fit_separates_clusters",
+             test_mini_batch_kmeans_partial_fit_separates_clusters);
+    run_test("mini_batch_kmeans_partial_fit_first_call_too_small_throws",
+             test_mini_batch_kmeans_partial_fit_first_call_too_small_throws);
+    run_test("mini_batch_kmeans_partial_fit_feature_mismatch_throws",
+             test_mini_batch_kmeans_partial_fit_feature_mismatch_throws);
 
     std::cout << "\n=== CrossValidation Tests ===\n";
     run_test("cross_val_score", test_cross_val_score);

@@ -186,6 +186,63 @@ public:
         return *this;
     }
 
+    /// @brief Online update of the cluster centers from a single batch.
+    ///
+    /// Mirrors sklearn's `MiniBatchKMeans.partial_fit`. The first call
+    /// initialises centers via k-means++ on the supplied batch (which must
+    /// therefore contain at least `n_clusters` samples); subsequent calls
+    /// perform a single streaming pass over `X`, updating each assigned
+    /// center's running mean.
+    ///
+    /// Unlike `fit`, `partial_fit` does **not** populate `labels_` or
+    /// `inertia_` (matching sklearn behaviour — those attributes refer to
+    /// the last `fit` call only).
+    ///
+    /// @param X Batch of training data, shape (n_samples_batch, n_features).
+    /// @return Reference to the fitted estimator (`*this`).
+    /// @throws std::invalid_argument on first call if `n_samples_batch <
+    ///   n_clusters`, or on subsequent calls if the feature count differs.
+    MiniBatchKMeans& partial_fit(const Eigen::Ref<const MatrixType>& X) {
+        internal::check_non_empty(X);
+
+        if (!this->fitted_) {
+            if (X.rows() < n_clusters_) {
+                throw std::invalid_argument(
+                    "partial_fit: first batch must contain at least "
+                    "n_clusters (" + std::to_string(n_clusters_) +
+                    ") samples; got " + std::to_string(X.rows()) + ".");
+            }
+            this->n_features_in_ = X.cols();
+            std::mt19937 rng(random_state_);
+            cluster_centers_ = kmeans_plus_plus(X, rng);
+            cluster_counts_  = Eigen::VectorXi::Ones(n_clusters_);
+            this->fitted_ = true;
+        } else {
+            if (X.cols() != this->n_features_in_) {
+                throw std::invalid_argument(
+                    "X has " + std::to_string(X.cols()) +
+                    " features, but partial_fit was previously called with " +
+                    std::to_string(this->n_features_in_) + " features.");
+            }
+        }
+
+        for (Eigen::Index i = 0; i < X.rows(); ++i) {
+            Scalar best = std::numeric_limits<Scalar>::max();
+            int best_k = 0;
+            for (int k = 0; k < n_clusters_; ++k) {
+                const Scalar d =
+                    (X.row(i) - cluster_centers_.row(k)).squaredNorm();
+                if (d < best) { best = d; best_k = k; }
+            }
+            cluster_counts_(best_k) += 1;
+            const Scalar lr =
+                Scalar{1} / static_cast<Scalar>(cluster_counts_(best_k));
+            cluster_centers_.row(best_k) +=
+                lr * (X.row(i) - cluster_centers_.row(best_k));
+        }
+        return *this;
+    }
+
     /// @brief Predict the closest cluster each sample belongs to.
     ///
     /// @param X New data of shape (n_samples, n_features).
@@ -214,6 +271,7 @@ private:
     unsigned int random_state_;
 
     MatrixType cluster_centers_;
+    Eigen::VectorXi cluster_counts_;   ///< Per-center sample count for partial_fit running mean.
     IndexVector labels_;
     Scalar inertia_ = Scalar{0};
 
