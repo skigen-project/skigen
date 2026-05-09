@@ -21,7 +21,10 @@
 #include "Cluster"
 #include "Neighbors"
 #include "Tree"
+#include "NaiveBayes"
 #include "Covariance"
+#include "FeatureSelection"
+#include "Isotonic"
 
 namespace Skigen {
 
@@ -58,6 +61,10 @@ using SGDClassifierD    = SGDClassifier<double>;
 using SGDClassifierF    = SGDClassifier<float>;
 using SGDRegressorD     = SGDRegressor<double>;
 using SGDRegressorF     = SGDRegressor<float>;
+using BayesianRidgeD    = BayesianRidge<double>;
+using BayesianRidgeF    = BayesianRidge<float>;
+using ARDRegressionD    = ARDRegression<double>;
+using ARDRegressionF    = ARDRegression<float>;
 
 // ---------------------------------------------------------------------------
 // Decomposition
@@ -104,6 +111,34 @@ using DecisionTreeClassifierD = DecisionTreeClassifier<double>;
 using DecisionTreeClassifierF = DecisionTreeClassifier<float>;
 using DecisionTreeRegressorD  = DecisionTreeRegressor<double>;
 using DecisionTreeRegressorF  = DecisionTreeRegressor<float>;
+
+// ---------------------------------------------------------------------------
+// Naive Bayes
+// ---------------------------------------------------------------------------
+using GaussianNBD       = GaussianNB<double>;
+using GaussianNBF       = GaussianNB<float>;
+using MultinomialNBD    = MultinomialNB<double>;
+using MultinomialNBF    = MultinomialNB<float>;
+using BernoulliNBD      = BernoulliNB<double>;
+using BernoulliNBF      = BernoulliNB<float>;
+
+// ---------------------------------------------------------------------------
+// Feature Selection
+// ---------------------------------------------------------------------------
+using VarianceThresholdD = VarianceThreshold<double>;
+using VarianceThresholdF = VarianceThreshold<float>;
+using SelectKBestFClassifD     = SelectKBestFClassif<double>;
+using SelectKBestFClassifF     = SelectKBestFClassif<float>;
+using SelectKBestFRegressionD  = SelectKBestFRegression<double>;
+using SelectKBestFRegressionF  = SelectKBestFRegression<float>;
+using SelectKBestChi2D         = SelectKBestChi2<double>;
+using SelectKBestChi2F         = SelectKBestChi2<float>;
+
+// ---------------------------------------------------------------------------
+// Isotonic
+// ---------------------------------------------------------------------------
+using IsotonicRegressionD = IsotonicRegression<double>;
+using IsotonicRegressionF = IsotonicRegression<float>;
 
 } // namespace Skigen
 

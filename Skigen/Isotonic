@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 The Skigen Contributors
+//
+// Skigen/Isotonic — Isotonic regression (PAVA) and helpers used by
+// downstream calibration models.
+//
+// Usage:
+//   #include <Skigen/Isotonic>
+
+#ifndef SKIGEN_ISOTONIC
+#define SKIGEN_ISOTONIC
+
+#include "Core"
+#include "src/Isotonic/IsotonicRegression.h"
+
+#endif // SKIGEN_ISOTONIC

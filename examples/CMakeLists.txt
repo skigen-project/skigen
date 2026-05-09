@@ -29,6 +29,8 @@ skigen_add_example(ex_lasso               linear_model/lasso.cpp)
 skigen_add_example(ex_elastic_net         linear_model/elastic_net.cpp)
 skigen_add_example(ex_logistic_regression linear_model/logistic_regression.cpp)
 skigen_add_example(ex_sgd                 linear_model/sgd.cpp)
+skigen_add_example(ex_bayesian_ridge      linear_model/bayesian_ridge.cpp)
+skigen_add_example(ex_ard_regression      linear_model/ard_regression.cpp)
 
 # ---------------------------------------------------------------------------
 # Decomposition examples
@@ -57,6 +59,26 @@ skigen_add_example(ex_lof                 neighbors/local_outlier_factor.cpp)
 # Tree examples
 # ---------------------------------------------------------------------------
 skigen_add_example(ex_decision_tree       tree/decision_tree.cpp)
+
+# ---------------------------------------------------------------------------
+# Naive Bayes examples
+# ---------------------------------------------------------------------------
+skigen_add_example(ex_gaussian_nb         naive_bayes/gaussian_nb.cpp)
+skigen_add_example(ex_multinomial_nb      naive_bayes/multinomial_nb.cpp)
+skigen_add_example(ex_bernoulli_nb        naive_bayes/bernoulli_nb.cpp)
+
+# ---------------------------------------------------------------------------
+# Feature selection examples
+# ---------------------------------------------------------------------------
+skigen_add_example(ex_variance_threshold  feature_selection/variance_threshold.cpp)
+skigen_add_example(ex_select_k_best       feature_selection/select_k_best.cpp)
+skigen_add_example(ex_select_from_model   feature_selection/select_from_model.cpp)
+skigen_add_example(ex_rfe                 feature_selection/rfe.cpp)
+
+# ---------------------------------------------------------------------------
+# Isotonic examples
+# ---------------------------------------------------------------------------
+skigen_add_example(ex_isotonic_regression isotonic/isotonic_regression.cpp)
 
 # ---------------------------------------------------------------------------
 # Metrics examples

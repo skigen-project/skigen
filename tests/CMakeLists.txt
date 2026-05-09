@@ -132,3 +132,39 @@ target_link_libraries(skigen_test_covariance PRIVATE Skigen::Skigen)
 target_compile_options(skigen_test_covariance PRIVATE ${SKIGEN_WARNING_FLAGS})
 
 add_test(NAME skigen_test_covariance COMMAND skigen_test_covariance)
+
+# ---------------------------------------------------------------------------
+# Naive Bayes tests (GaussianNB, MultinomialNB, BernoulliNB)
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_naive_bayes
+    test_naive_bayes.cpp
+)
+
+target_link_libraries(skigen_test_naive_bayes PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_naive_bayes PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_test(NAME skigen_test_naive_bayes COMMAND skigen_test_naive_bayes)
+
+# ---------------------------------------------------------------------------
+# Feature selection tests (VarianceThreshold, SelectKBest, SelectFromModel, RFE)
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_feature_selection
+    test_feature_selection.cpp
+)
+
+target_link_libraries(skigen_test_feature_selection PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_feature_selection PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_test(NAME skigen_test_feature_selection COMMAND skigen_test_feature_selection)
+
+# ---------------------------------------------------------------------------
+# Isotonic tests (IsotonicRegression — PAVA)
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_isotonic
+    test_isotonic.cpp
+)
+
+target_link_libraries(skigen_test_isotonic PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_isotonic PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_test(NAME skigen_test_isotonic COMMAND skigen_test_isotonic)

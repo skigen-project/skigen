@@ -5,6 +5,8 @@
 
 #include <cmath>
 #include <iostream>
+#include <optional>
+#include <random>
 #include <sstream>
 #include <string>
 #include <functional>
@@ -521,6 +523,179 @@ void test_pipeline_not_fitted() {
 }
 
 // ===================================================================
+// BayesianRidge / ARDRegression Tests
+// ===================================================================
+
+static Eigen::MatrixXd make_linear_dataset(int n, int p,
+                                           const Eigen::VectorXd& true_w,
+                                           Eigen::VectorXd& y_out,
+                                           double noise_std = 0.05,
+                                           unsigned seed = 0) {
+    std::mt19937 rng(seed);
+    std::normal_distribution<double> nx(0.0, 1.0);
+    std::normal_distribution<double> nn(0.0, noise_std);
+    Eigen::MatrixXd X(n, p);
+    y_out.resize(n);
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < p; ++j) X(i, j) = nx(rng);
+        y_out(i) = X.row(i).dot(true_w) + nn(rng);
+    }
+    return X;
+}
+
+void test_bayesian_ridge_recovers_coefs() {
+    Eigen::VectorXd w(3);
+    w << 2.0, -1.0, 3.0;
+    Eigen::VectorXd y;
+    Eigen::MatrixXd X = make_linear_dataset(200, 3, w, y, 0.05, 1);
+
+    Skigen::BayesianRidge<double> br;
+    br.fit(X, y);
+    const auto& c = br.coef();
+    ASSERT_TRUE(c.size() == 3);
+    ASSERT_NEAR(c(0), 2.0, 0.1);
+    ASSERT_NEAR(c(1), -1.0, 0.1);
+    ASSERT_NEAR(c(2), 3.0, 0.1);
+    ASSERT_TRUE(br.alpha() > 0.0);
+    ASSERT_TRUE(br.lambda_() > 0.0);
+    ASSERT_TRUE(br.n_iter() >= 1);
+}
+
+void test_bayesian_ridge_predict_with_std() {
+    Eigen::VectorXd w(2);
+    w << 1.5, -2.0;
+    Eigen::VectorXd y;
+    Eigen::MatrixXd X = make_linear_dataset(100, 2, w, y, 0.1, 2);
+
+    Skigen::BayesianRidge<double> br;
+    br.fit(X, y);
+
+    Eigen::MatrixXd X_test = X.topRows(10);
+    auto [m, s] = br.predict(X_test, Skigen::with_std);
+    ASSERT_TRUE(m.size() == 10);
+    ASSERT_TRUE(s.size() == 10);
+    for (Eigen::Index i = 0; i < s.size(); ++i) {
+        ASSERT_TRUE(s(i) > 0.0);
+    }
+}
+
+void test_bayesian_ridge_compute_score() {
+    Eigen::VectorXd w(2);
+    w << 1.0, -1.0;
+    Eigen::VectorXd y;
+    Eigen::MatrixXd X = make_linear_dataset(80, 2, w, y, 0.1, 3);
+
+    Skigen::BayesianRidge<double> br(
+        300, 1e-3, 1e-6, 1e-6, 1e-6, 1e-6,
+        std::nullopt, std::nullopt, /*compute_score=*/true);
+    br.fit(X, y);
+    const auto& sc = br.scores();
+    ASSERT_TRUE(sc.size() >= 2);
+    // Final value should not be much smaller than the initial one.
+    ASSERT_TRUE(sc(sc.size() - 1) >= sc(0) - 1e-6);
+}
+
+void test_bayesian_ridge_not_fitted() {
+    Skigen::BayesianRidge<double> br;
+    Eigen::MatrixXd X(2, 2);
+    X << 1, 2, 3, 4;
+    ASSERT_THROW(br.predict(X), std::runtime_error);
+    ASSERT_THROW(br.coef(), std::runtime_error);
+    ASSERT_THROW(br.predict(X, Skigen::with_std), std::runtime_error);
+}
+
+void test_bayesian_ridge_feature_mismatch() {
+    Eigen::VectorXd w(3);
+    w << 1.0, 2.0, 3.0;
+    Eigen::VectorXd y;
+    Eigen::MatrixXd X = make_linear_dataset(50, 3, w, y, 0.1, 4);
+    Skigen::BayesianRidge<double> br;
+    br.fit(X, y);
+    Eigen::MatrixXd X_bad(5, 2);
+    X_bad.setRandom();
+    ASSERT_THROW(br.predict(X_bad), std::invalid_argument);
+}
+
+void test_ard_prunes_noise_features() {
+    // Only feature 0 carries signal; features 1..4 are independent noise.
+    constexpr int n = 200;
+    std::mt19937 rng(11);
+    std::normal_distribution<double> nx(0.0, 1.0);
+    std::normal_distribution<double> nn(0.0, 0.05);
+    Eigen::MatrixXd X(n, 5);
+    Eigen::VectorXd y(n);
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < 5; ++j) X(i, j) = nx(rng);
+        y(i) = 2.5 * X(i, 0) + nn(rng);
+    }
+
+    Skigen::ARDRegression<double> ard;
+    ard.fit(X, y);
+
+    const auto& c = ard.coef();
+    const auto& lam = ard.lambda_();
+    ASSERT_NEAR(c(0), 2.5, 0.1);
+    for (int j = 1; j < 5; ++j) {
+        ASSERT_TRUE(std::abs(c(j)) < 0.1);
+        ASSERT_TRUE(lam(j) > ard.threshold_lambda());
+    }
+}
+
+void test_ard_lambda_shape() {
+    Eigen::VectorXd w(4);
+    w << 1.0, -0.5, 2.0, 0.0;
+    Eigen::VectorXd y;
+    Eigen::MatrixXd X = make_linear_dataset(100, 4, w, y, 0.1, 5);
+    Skigen::ARDRegression<double> ard;
+    ard.fit(X, y);
+    ASSERT_TRUE(ard.lambda_().size() == 4);
+    ASSERT_TRUE(ard.coef().size() == 4);
+}
+
+void test_ard_predict_score_no_pruning() {
+    // All features informative → ARD should produce a usable predictor
+    // and behave similarly to BayesianRidge.
+    Eigen::VectorXd w(3);
+    w << 1.0, -1.0, 0.5;
+    Eigen::VectorXd y;
+    Eigen::MatrixXd X = make_linear_dataset(150, 3, w, y, 0.1, 6);
+
+    Skigen::ARDRegression<double> ard;
+    Skigen::BayesianRidge<double> br;
+    ard.fit(X, y);
+    br.fit(X, y);
+
+    double r2_ard = ard.score(X, y);
+    double r2_br = br.score(X, y);
+    ASSERT_TRUE(r2_ard > 0.9);
+    ASSERT_TRUE(r2_br > 0.9);
+    ASSERT_TRUE(std::abs(r2_ard - r2_br) < 0.05);
+
+    auto [m, s] = ard.predict(X.topRows(5), Skigen::with_std);
+    ASSERT_TRUE(m.size() == 5 && s.size() == 5);
+    for (Eigen::Index i = 0; i < s.size(); ++i) {
+        ASSERT_TRUE(s(i) > 0.0);
+    }
+}
+
+void test_ard_not_fitted_and_feature_mismatch() {
+    Skigen::ARDRegression<double> ard;
+    Eigen::MatrixXd X(3, 2);
+    X << 1, 2, 3, 4, 5, 6;
+    ASSERT_THROW(ard.predict(X), std::runtime_error);
+
+    Eigen::VectorXd w(2);
+    w << 1.0, -1.0;
+    Eigen::VectorXd y;
+    Eigen::MatrixXd Xtr = make_linear_dataset(40, 2, w, y, 0.1, 7);
+    ard.fit(Xtr, y);
+
+    Eigen::MatrixXd X_bad(3, 5);
+    X_bad.setRandom();
+    ASSERT_THROW(ard.predict(X_bad), std::invalid_argument);
+}
+
+// ===================================================================
 
 int main() {
     std::cout << "=== PolynomialFeatures Tests ===\n";
@@ -569,6 +744,19 @@ int main() {
     run_test("pipeline_basic", test_pipeline_basic);
     run_test("pipeline_score", test_pipeline_score);
     run_test("pipeline_not_fitted", test_pipeline_not_fitted);
+
+    std::cout << "\n=== BayesianRidge Tests ===\n";
+    run_test("bayesian_ridge_recovers_coefs", test_bayesian_ridge_recovers_coefs);
+    run_test("bayesian_ridge_predict_with_std", test_bayesian_ridge_predict_with_std);
+    run_test("bayesian_ridge_compute_score", test_bayesian_ridge_compute_score);
+    run_test("bayesian_ridge_not_fitted", test_bayesian_ridge_not_fitted);
+    run_test("bayesian_ridge_feature_mismatch", test_bayesian_ridge_feature_mismatch);
+
+    std::cout << "\n=== ARDRegression Tests ===\n";
+    run_test("ard_prunes_noise_features", test_ard_prunes_noise_features);
+    run_test("ard_lambda_shape", test_ard_lambda_shape);
+    run_test("ard_predict_score_no_pruning", test_ard_predict_score_no_pruning);
+    run_test("ard_not_fitted_and_feature_mismatch", test_ard_not_fitted_and_feature_mismatch);
 
     std::cout << "\n" << g_passed << " passed, " << g_failed << " failed.\n";
     return g_failed > 0 ? 1 : 0;
