@@ -162,6 +162,49 @@ public:
         return *this;
     }
 
+    /// @brief Online update of `data_min_`, `data_max_`, and the scaling
+    ///   parameters by extending the running per-feature extrema with a new
+    ///   batch.
+    ///
+    /// Matches sklearn's `MinMaxScaler.partial_fit` contract: subsequent
+    /// `partial_fit` calls produce the same fitted state as a single `fit`
+    /// over the concatenated data.
+    ///
+    /// @param X Batch of training data, shape (n_samples_batch, n_features).
+    /// @return Reference to the fitted transformer (`*this`).
+    /// @throws std::invalid_argument on feature-count mismatch or empty X.
+    MinMaxScaler& partial_fit(const Eigen::Ref<const MatrixType>& X) {
+        internal::check_non_empty(X);
+
+        if (!this->fitted_) {
+            return fit_impl(X);
+        }
+
+        if (X.cols() != this->n_features_in_) {
+            throw std::invalid_argument(
+                "X has " + std::to_string(X.cols()) + " features, but "
+                "partial_fit was previously called with " +
+                std::to_string(this->n_features_in_) + " features.");
+        }
+
+        const RowVectorType batch_min = X.colwise().minCoeff();
+        const RowVectorType batch_max = X.colwise().maxCoeff();
+        data_min_ = data_min_.cwiseMin(batch_min);
+        data_max_ = data_max_.cwiseMax(batch_max);
+        data_range_ = data_max_ - data_min_;
+
+        RowVectorType safe_range = data_range_;
+        internal::handle_zeros_in_scale(safe_range);
+
+        const Scalar range_min = feature_range_.first;
+        const Scalar range_max = feature_range_.second;
+        scale_ = (range_max - range_min) / safe_range.array();
+        min_ = RowVectorType(range_min - (data_min_.array() * scale_.array()));
+
+        n_samples_seen_ += X.rows();
+        return *this;
+    }
+
     /// @brief Scale features of X according to `feature_range`.
     ///
     /// @param X Data matrix of shape (n_samples, n_features).

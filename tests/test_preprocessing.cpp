@@ -388,6 +388,94 @@ void test_label_encoder_not_fitted() {
 }
 
 // ===================================================================
+// partial_fit (streaming) for MinMaxScaler and MaxAbsScaler
+// ===================================================================
+
+void test_minmax_partial_fit_first_call_equals_fit() {
+    Eigen::MatrixXd X(5, 2);
+    X << 1, 10, 2, 20, 3, 30, 4, 40, 5, 50;
+
+    Skigen::MinMaxScaler<double> a, b;
+    a.fit(X);
+    b.partial_fit(X);
+
+    for (int j = 0; j < 2; ++j) {
+        ASSERT_NEAR(a.data_min()(j), b.data_min()(j), 1e-12);
+        ASSERT_NEAR(a.data_max()(j), b.data_max()(j), 1e-12);
+        ASSERT_NEAR(a.scale()(j),    b.scale()(j),    1e-12);
+        ASSERT_NEAR(a.min()(j),      b.min()(j),      1e-12);
+    }
+}
+
+void test_minmax_partial_fit_batched_equals_monolithic() {
+    Eigen::MatrixXd X(8, 2);
+    X << 1, 10, -2, 25, 3, 7, 4, 40, 5, 50, -6, 12, 7, 70, 0, 5;
+
+    Skigen::MinMaxScaler<double> mono;
+    mono.fit(X);
+
+    Skigen::MinMaxScaler<double> stream;
+    stream.partial_fit(X.topRows(3));
+    stream.partial_fit(X.middleRows(3, 3));
+    stream.partial_fit(X.bottomRows(2));
+
+    for (int j = 0; j < 2; ++j) {
+        ASSERT_NEAR(mono.data_min()(j), stream.data_min()(j), 1e-12);
+        ASSERT_NEAR(mono.data_max()(j), stream.data_max()(j), 1e-12);
+        ASSERT_NEAR(mono.scale()(j),    stream.scale()(j),    1e-12);
+    }
+    Eigen::MatrixXd Zm = mono.transform(X);
+    Eigen::MatrixXd Zs = stream.transform(X);
+    for (int i = 0; i < X.rows(); ++i) for (int j = 0; j < 2; ++j) {
+        ASSERT_NEAR(Zm(i, j), Zs(i, j), 1e-12);
+    }
+}
+
+void test_minmax_partial_fit_feature_mismatch_throws() {
+    Eigen::MatrixXd X1(3, 2); X1 << 1, 2, 3, 4, 5, 6;
+    Eigen::MatrixXd X2(2, 3); X2.setOnes();
+    Skigen::MinMaxScaler<double> sc;
+    sc.partial_fit(X1);
+    ASSERT_THROW(sc.partial_fit(X2), std::invalid_argument);
+}
+
+void test_maxabs_partial_fit_batched_equals_monolithic() {
+    Eigen::MatrixXd X(6, 3);
+    X << 1, -5, 2,
+         3,  4, -6,
+        -7,  2, 1,
+         8, -1, 0,
+        -2,  9, 4,
+         5,  3, -3;
+
+    Skigen::MaxAbsScaler<double> mono;
+    mono.fit(X);
+
+    Skigen::MaxAbsScaler<double> stream;
+    stream.partial_fit(X.topRows(2));
+    stream.partial_fit(X.middleRows(2, 2));
+    stream.partial_fit(X.bottomRows(2));
+
+    for (int j = 0; j < 3; ++j) {
+        ASSERT_NEAR(mono.max_abs()(j), stream.max_abs()(j), 1e-12);
+        ASSERT_NEAR(mono.scale()(j),   stream.scale()(j),   1e-12);
+    }
+    Eigen::MatrixXd Zm = mono.transform(X);
+    Eigen::MatrixXd Zs = stream.transform(X);
+    for (int i = 0; i < X.rows(); ++i) for (int j = 0; j < 3; ++j) {
+        ASSERT_NEAR(Zm(i, j), Zs(i, j), 1e-12);
+    }
+}
+
+void test_maxabs_partial_fit_feature_mismatch_throws() {
+    Eigen::MatrixXd X1(2, 2); X1 << 1, 2, 3, 4;
+    Eigen::MatrixXd X2(2, 4); X2.setOnes();
+    Skigen::MaxAbsScaler<double> sc;
+    sc.partial_fit(X1);
+    ASSERT_THROW(sc.partial_fit(X2), std::invalid_argument);
+}
+
+// ===================================================================
 // Main
 // ===================================================================
 
@@ -423,6 +511,13 @@ int main() {
     run_test("label_encoder_round_trip",   test_label_encoder_round_trip);
     run_test("label_encoder_unseen_label", test_label_encoder_unseen_label);
     run_test("label_encoder_not_fitted",   test_label_encoder_not_fitted);
+
+    std::cout << "\n=== partial_fit (streaming) Tests ===\n";
+    run_test("minmax_partial_fit_first_call_equals_fit",     test_minmax_partial_fit_first_call_equals_fit);
+    run_test("minmax_partial_fit_batched_equals_monolithic", test_minmax_partial_fit_batched_equals_monolithic);
+    run_test("minmax_partial_fit_feature_mismatch_throws",   test_minmax_partial_fit_feature_mismatch_throws);
+    run_test("maxabs_partial_fit_batched_equals_monolithic", test_maxabs_partial_fit_batched_equals_monolithic);
+    run_test("maxabs_partial_fit_feature_mismatch_throws",   test_maxabs_partial_fit_feature_mismatch_throws);
 
     std::cout << "\n" << g_passed << " passed, " << g_failed << " failed.\n";
     return g_failed > 0 ? 1 : 0;

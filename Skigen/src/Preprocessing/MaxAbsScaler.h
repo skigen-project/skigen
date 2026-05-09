@@ -111,6 +111,37 @@ public:
         return *this;
     }
 
+    /// @brief Online update of `max_abs_` by extending the running per-feature
+    ///   maximum-absolute-value with a new batch.
+    ///
+    /// Matches sklearn's `MaxAbsScaler.partial_fit` contract.
+    ///
+    /// @param X Batch of training data, shape (n_samples_batch, n_features).
+    /// @return Reference to the fitted transformer (`*this`).
+    /// @throws std::invalid_argument on feature-count mismatch or empty X.
+    MaxAbsScaler& partial_fit(const Eigen::Ref<const MatrixType>& X) {
+        internal::check_non_empty(X);
+
+        if (!this->fitted_) {
+            return fit_impl(X);
+        }
+
+        if (X.cols() != this->n_features_in_) {
+            throw std::invalid_argument(
+                "X has " + std::to_string(X.cols()) + " features, but "
+                "partial_fit was previously called with " +
+                std::to_string(this->n_features_in_) + " features.");
+        }
+
+        const RowVectorType batch_max_abs = X.cwiseAbs().colwise().maxCoeff();
+        max_abs_ = max_abs_.cwiseMax(batch_max_abs);
+        scale_ = max_abs_;
+        internal::handle_zeros_in_scale(scale_);
+
+        n_samples_seen_ += X.rows();
+        return *this;
+    }
+
     /// @brief Scale features of X by max absolute value.
     ///
     /// @param X Data matrix of shape (n_samples, n_features).

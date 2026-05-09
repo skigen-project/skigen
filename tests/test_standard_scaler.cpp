@@ -317,6 +317,90 @@ void test_inverse_transform_inplace() {
 }
 
 // ---------------------------------------------------------------------------
+// partial_fit (Chan / Welford online update)
+// ---------------------------------------------------------------------------
+
+void test_partial_fit_first_call_equals_fit() {
+    Eigen::MatrixXd X(6, 3);
+    X << 1, 2, 3,
+         4, 5, 6,
+         7, 8, 9,
+        10,11,12,
+        13,14,15,
+        16,17,18;
+
+    Skigen::StandardScaler<double> a, b;
+    a.fit(X);
+    b.partial_fit(X);
+
+    ASSERT_MATRIX_NEAR(a.mean(), b.mean(), 1e-12);
+    ASSERT_MATRIX_NEAR(a.var(),  b.var(),  1e-12);
+    ASSERT_MATRIX_NEAR(a.scale(), b.scale(), 1e-12);
+    ASSERT_TRUE(a.n_samples_seen() == b.n_samples_seen());
+}
+
+void test_partial_fit_batched_equals_monolithic() {
+    Eigen::MatrixXd X(9, 2);
+    X << 1, 10,
+         2, 20,
+         3, 30,
+         4, 40,
+         5, 50,
+         6, 60,
+         7, 70,
+         8, 80,
+         9, 90;
+
+    // Single fit on the full data
+    Skigen::StandardScaler<double> mono;
+    mono.fit(X);
+
+    // Streaming partial_fit on three batches
+    Skigen::StandardScaler<double> stream;
+    stream.partial_fit(X.topRows(3));
+    stream.partial_fit(X.middleRows(3, 4));
+    stream.partial_fit(X.bottomRows(2));
+
+    ASSERT_MATRIX_NEAR(mono.mean(),  stream.mean(),  1e-12);
+    ASSERT_MATRIX_NEAR(mono.var(),   stream.var(),   1e-12);
+    ASSERT_MATRIX_NEAR(mono.scale(), stream.scale(), 1e-12);
+    ASSERT_TRUE(mono.n_samples_seen() == stream.n_samples_seen());
+
+    // Verify transform also matches.
+    ASSERT_MATRIX_NEAR(mono.transform(X), stream.transform(X), 1e-12);
+}
+
+void test_partial_fit_feature_mismatch_throws() {
+    Eigen::MatrixXd X1(4, 3);
+    X1 << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12;
+    Eigen::MatrixXd X2(2, 4);
+    X2.setOnes();
+
+    Skigen::StandardScaler<double> sc;
+    sc.partial_fit(X1);
+    bool threw = false;
+    try { sc.partial_fit(X2); }
+    catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
+void test_partial_fit_without_std() {
+    Eigen::MatrixXd X(6, 2);
+    X << 1, 10, 2, 20, 3, 30, 4, 40, 5, 50, 6, 60;
+
+    Skigen::StandardScaler<double> sc(/*with_mean=*/true, /*with_std=*/false);
+    sc.partial_fit(X.topRows(3));
+    sc.partial_fit(X.bottomRows(3));
+
+    Skigen::StandardScaler<double> ref(true, false);
+    ref.fit(X);
+    ASSERT_MATRIX_NEAR(sc.mean(), ref.mean(), 1e-12);
+    // var/scale stay at the with_std=false defaults (ones).
+    ASSERT_MATRIX_NEAR(sc.var(),   Eigen::RowVectorXd::Ones(2), 1e-12);
+    ASSERT_MATRIX_NEAR(sc.scale(), Eigen::RowVectorXd::Ones(2), 1e-12);
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -338,6 +422,10 @@ int main() {
     run_test("float_scalar",               test_float_scalar);
     run_test("concept_satisfaction",        test_concept_satisfaction);
     run_test("inverse_transform_inplace",  test_inverse_transform_inplace);
+    run_test("partial_fit_first_call_equals_fit",       test_partial_fit_first_call_equals_fit);
+    run_test("partial_fit_batched_equals_monolithic",   test_partial_fit_batched_equals_monolithic);
+    run_test("partial_fit_feature_mismatch_throws",     test_partial_fit_feature_mismatch_throws);
+    run_test("partial_fit_without_std",                 test_partial_fit_without_std);
 
     std::cout << "\n" << g_passed << " passed, " << g_failed << " failed.\n";
     return g_failed > 0 ? 1 : 0;
