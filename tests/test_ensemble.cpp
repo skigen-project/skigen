@@ -3,9 +3,11 @@
 
 #include <Skigen/Dense>
 
+#include <algorithm>
 #include <cmath>
 #include <functional>
 #include <iostream>
+#include <numeric>
 #include <random>
 #include <sstream>
 #include <string>
@@ -401,6 +403,124 @@ void test_rfr_unsupported_criterion_throws() {
 }
 
 // ---------------------------------------------------------------------------
+// GradientBoostingRegressor
+// ---------------------------------------------------------------------------
+
+void test_gbr_recovers_linear_signal() {
+    constexpr int n = 200;
+    Eigen::MatrixXd X(n, 1);
+    Eigen::VectorXd y(n);
+    for (int i = 0; i < n; ++i) {
+        const double x = -1.0 + 2.0 * static_cast<double>(i) / (n - 1);
+        X(i, 0) = x;
+        y(i)    = 3.0 * x + 1.0;            // exact linear, no noise
+    }
+
+    using GBR = Skigen::GradientBoostingRegressor<double>;
+    GBR gb(GBR::Loss::SquaredError, /*lr=*/0.1, /*n_estimators=*/200,
+           /*subsample=*/1.0, GBR::CriterionGB::FriedmanMSE,
+           2, 1, 0.0, /*max_depth=*/3);
+    gb.fit(X, y);
+    ASSERT_TRUE(gb.score(X, y) > 0.99);
+}
+
+void test_gbr_init_equals_mean_of_y() {
+    Eigen::MatrixXd X(5, 1); X << 0, 1, 2, 3, 4;
+    Eigen::VectorXd y(5);    y << 10, 12, 11, 13, 14;
+    Skigen::GradientBoostingRegressor<double> gb;
+    gb.fit(X, y);
+    ASSERT_NEAR(gb.init(), y.mean(), 1e-12);
+}
+
+void test_gbr_n_estimators_honoured() {
+    Eigen::MatrixXd X(20, 2);
+    Eigen::VectorXd y(20);
+    for (int i = 0; i < 20; ++i) {
+        X(i, 0) = i; X(i, 1) = 20 - i;
+        y(i)    = 0.5 * X(i, 0) - 0.3 * X(i, 1);
+    }
+    Skigen::GradientBoostingRegressor<double> gb(
+        Skigen::GradientBoostingRegressor<double>::Loss::SquaredError,
+        0.1, /*n_estimators=*/30);
+    gb.fit(X, y);
+    ASSERT_TRUE(gb.estimators().size() == 30);
+    ASSERT_TRUE(gb.n_estimators_fitted() == 30);
+}
+
+void test_gbr_train_score_decreases() {
+    Eigen::MatrixXd X(50, 1);
+    Eigen::VectorXd y(50);
+    for (int i = 0; i < 50; ++i) { X(i, 0) = i; y(i) = std::sin(0.2 * i); }
+    Skigen::GradientBoostingRegressor<double> gb(
+        Skigen::GradientBoostingRegressor<double>::Loss::SquaredError,
+        0.1, /*n_estimators=*/50);
+    gb.fit(X, y);
+    const Eigen::VectorXd s = gb.train_score();
+    ASSERT_TRUE(s.size() == 50);
+    ASSERT_TRUE(s(0) > s(s.size() - 1));   // last stage MSE < first stage MSE
+}
+
+void test_gbr_feature_importances_shape_and_normalised() {
+    // Independent features: only feature 0 carries signal; feature 1 is a
+    // shuffled copy of [0..n) (so it is not collinear with feature 0);
+    // feature 2 is constant zero (no information).
+    constexpr int n = 60;
+    Eigen::MatrixXd X(n, 3);
+    Eigen::VectorXd y(n);
+    std::mt19937 rng(123);
+    std::vector<int> shuffled(n);
+    std::iota(shuffled.begin(), shuffled.end(), 0);
+    std::shuffle(shuffled.begin(), shuffled.end(), rng);
+    for (int i = 0; i < n; ++i) {
+        X(i, 0) = i;
+        X(i, 1) = shuffled[i];
+        X(i, 2) = 0.0;
+        y(i)    = 2.0 * X(i, 0);          // signal lives only in feature 0
+    }
+    Skigen::GradientBoostingRegressor<double> gb(
+        Skigen::GradientBoostingRegressor<double>::Loss::SquaredError,
+        0.1, 50, 1.0,
+        Skigen::GradientBoostingRegressor<double>::CriterionGB::FriedmanMSE,
+        2, 1, 0.0, 3, 0.0, std::optional<uint64_t>(7));
+    gb.fit(X, y);
+    ASSERT_TRUE(gb.feature_importances().size() == 3);
+    double sum = gb.feature_importances().sum();
+    ASSERT_NEAR(sum, 1.0, 1e-9);
+    // Feature 0 should dominate (no other feature has any predictive power).
+    ASSERT_TRUE(gb.feature_importances()(0) > 0.5);
+}
+
+void test_gbr_unsupported_loss_throws() {
+    bool threw = false;
+    try {
+        Skigen::GradientBoostingRegressor<double> gb(
+            Skigen::GradientBoostingRegressor<double>::Loss::Huber);
+        (void)gb;
+    } catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
+void test_gbr_subsample_below_one_throws() {
+    bool threw = false;
+    try {
+        Skigen::GradientBoostingRegressor<double> gb(
+            Skigen::GradientBoostingRegressor<double>::Loss::SquaredError,
+            0.1, 100, /*subsample=*/0.5);
+        (void)gb;
+    } catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
+void test_gbr_not_fitted_throws() {
+    Skigen::GradientBoostingRegressor<double> gb;
+    Eigen::MatrixXd X(2, 1); X << 0.0, 1.0;
+    bool threw = false;
+    try { (void)gb.predict(X); }
+    catch (const std::runtime_error&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
+// ---------------------------------------------------------------------------
 
 int main() {
     std::cout << "=== RandomForestClassifier Tests ===\n";
@@ -422,6 +542,17 @@ int main() {
     run_test("rfr_noisy_linear",                test_rfr_noisy_linear);
     run_test("rfr_predict_matches_mean_of_two_trees", test_rfr_predict_matches_mean_of_two_trees);
     run_test("rfr_unsupported_criterion_throws", test_rfr_unsupported_criterion_throws);
+
+    std::cout << "\n=== GradientBoostingRegressor Tests ===\n";
+    run_test("gbr_recovers_linear_signal",          test_gbr_recovers_linear_signal);
+    run_test("gbr_init_equals_mean_of_y",           test_gbr_init_equals_mean_of_y);
+    run_test("gbr_n_estimators_honoured",           test_gbr_n_estimators_honoured);
+    run_test("gbr_train_score_decreases",           test_gbr_train_score_decreases);
+    run_test("gbr_feature_importances_shape_and_normalised",
+             test_gbr_feature_importances_shape_and_normalised);
+    run_test("gbr_unsupported_loss_throws",         test_gbr_unsupported_loss_throws);
+    run_test("gbr_subsample_below_one_throws",      test_gbr_subsample_below_one_throws);
+    run_test("gbr_not_fitted_throws",               test_gbr_not_fitted_throws);
 
     std::cout << "\n" << g_passed << " passed, " << g_failed << " failed.\n";
     return g_failed > 0 ? 1 : 0;

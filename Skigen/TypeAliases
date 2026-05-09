@@ -120,6 +120,8 @@ using RandomForestClassifierD = RandomForestClassifier<double>;
 using RandomForestClassifierF = RandomForestClassifier<float>;
 using RandomForestRegressorD  = RandomForestRegressor<double>;
 using RandomForestRegressorF  = RandomForestRegressor<float>;
+using GradientBoostingRegressorD = GradientBoostingRegressor<double>;
+using GradientBoostingRegressorF = GradientBoostingRegressor<float>;
 
 // ---------------------------------------------------------------------------
 // Naive Bayes
