@@ -8,6 +8,7 @@
 #include "../Core/Validation.h"
 
 #include <Eigen/Core>
+#include <Eigen/SparseCore>
 #include <cmath>
 #include <stdexcept>
 #include <string>
@@ -59,6 +60,12 @@ public:
     using typename Base::MatrixType;
     using typename Base::VectorType;
     using typename Base::IndexType;
+
+    // Make the dense base-class fit/transform overloads visible alongside
+    // the sparse overloads added below.
+    using Base::fit;
+    using Base::transform;
+    using Base::fit_transform;
 
     /// @brief Construct a Normalizer.
     ///
@@ -114,6 +121,69 @@ public:
         this->check_is_fitted();
         this->validate_feature_count(X);
         normalize_rows(X);
+    }
+
+    // -- Sparse-aware overloads (v1.1.0 §3.2) --------------------------------
+
+    /// @brief Fit on a sparse matrix (stateless — only records `n_features_in_`).
+    template <int Options, typename StorageIndex>
+    Normalizer& fit(
+        const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X) {
+        if (X.rows() == 0 || X.cols() == 0) {
+            throw std::invalid_argument(
+                "Normalizer.fit: empty sparse matrix.");
+        }
+        this->n_features_in_ = X.cols();
+        this->fitted_ = true;
+        return *this;
+    }
+
+    /// @brief Normalize each row of a sparse matrix to unit norm without
+    ///   densifying.
+    ///
+    /// Computes the row norm by iterating over the explicit nonzeros of each
+    /// row (RowMajor) or column (ColMajor → converted), then divides each
+    /// stored value by that norm. Implicit zeros remain implicit.
+    template <int Options, typename StorageIndex>
+    [[nodiscard]] Eigen::SparseMatrix<Scalar, Options, StorageIndex>
+    transform(
+        const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X) const {
+        this->check_is_fitted();
+        if (X.cols() != this->n_features_in_) {
+            throw std::invalid_argument(
+                "X has " + std::to_string(X.cols()) +
+                " features, but Normalizer was fitted with " +
+                std::to_string(this->n_features_in_) + " features.");
+        }
+        // Operate on a row-major copy so we can iterate by row.
+        using RowSparse =
+            Eigen::SparseMatrix<Scalar, Eigen::RowMajor, StorageIndex>;
+        RowSparse Xr = X;
+
+        for (Eigen::Index i = 0; i < Xr.rows(); ++i) {
+            Scalar nrm{0};
+            switch (norm_) {
+                case Norm::L1:
+                    for (typename RowSparse::InnerIterator it(Xr, i); it; ++it)
+                        nrm += std::abs(it.value());
+                    break;
+                case Norm::L2:
+                    for (typename RowSparse::InnerIterator it(Xr, i); it; ++it)
+                        nrm += it.value() * it.value();
+                    nrm = std::sqrt(nrm);
+                    break;
+                case Norm::Max:
+                    for (typename RowSparse::InnerIterator it(Xr, i); it; ++it)
+                        nrm = std::max(nrm, std::abs(it.value()));
+                    break;
+            }
+            if (nrm > Scalar{0}) {
+                for (typename RowSparse::InnerIterator it(Xr, i); it; ++it) {
+                    it.valueRef() = it.value() / nrm;
+                }
+            }
+        }
+        return Eigen::SparseMatrix<Scalar, Options, StorageIndex>(Xr);
     }
 
 private:

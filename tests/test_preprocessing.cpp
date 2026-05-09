@@ -331,6 +331,74 @@ void test_normalizer_inverse_throws() {
     ASSERT_THROW(scaler.inverse_transform(X), std::runtime_error);
 }
 
+void test_normalizer_sparse_matches_dense_l2() {
+    Eigen::MatrixXd Xd(4, 3);
+    Xd << 3, 4, 0,
+          0, 1, 0,
+          0, 0, 5,
+          1, 2, 2;
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+
+    Skigen::Normalizer<double> nz_d(Skigen::Norm::L2);
+    Skigen::Normalizer<double> nz_s(Skigen::Norm::L2);
+    nz_d.fit(Xd);
+    nz_s.fit(Xs);
+
+    Eigen::MatrixXd Yd = nz_d.transform(Xd);
+    Eigen::SparseMatrix<double> Ys = nz_s.transform(Xs);
+    Eigen::MatrixXd Ys_dense = Eigen::MatrixXd(Ys);
+
+    ASSERT_TRUE(Yd.rows() == Ys_dense.rows());
+    ASSERT_TRUE(Yd.cols() == Ys_dense.cols());
+    for (int i = 0; i < Yd.rows(); ++i)
+        for (int j = 0; j < Yd.cols(); ++j)
+            ASSERT_NEAR(Yd(i, j), Ys_dense(i, j), 1e-12);
+}
+
+void test_normalizer_sparse_l1_and_max() {
+    Eigen::MatrixXd Xd(2, 4);
+    Xd << 1, -2, 3, 0,
+          0,  4, 0, -1;
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+
+    // L1
+    Skigen::Normalizer<double> nz_d_l1(Skigen::Norm::L1);
+    Skigen::Normalizer<double> nz_s_l1(Skigen::Norm::L1);
+    nz_d_l1.fit(Xd); nz_s_l1.fit(Xs);
+    Eigen::MatrixXd Yd_l1 = nz_d_l1.transform(Xd);
+    Eigen::MatrixXd Ys_l1 = Eigen::MatrixXd(nz_s_l1.transform(Xs));
+    for (int i = 0; i < Yd_l1.rows(); ++i)
+        for (int j = 0; j < Yd_l1.cols(); ++j)
+            ASSERT_NEAR(Yd_l1(i, j), Ys_l1(i, j), 1e-12);
+
+    // Max
+    Skigen::Normalizer<double> nz_d_m(Skigen::Norm::Max);
+    Skigen::Normalizer<double> nz_s_m(Skigen::Norm::Max);
+    nz_d_m.fit(Xd); nz_s_m.fit(Xs);
+    Eigen::MatrixXd Yd_m = nz_d_m.transform(Xd);
+    Eigen::MatrixXd Ys_m = Eigen::MatrixXd(nz_s_m.transform(Xs));
+    for (int i = 0; i < Yd_m.rows(); ++i)
+        for (int j = 0; j < Yd_m.cols(); ++j)
+            ASSERT_NEAR(Yd_m(i, j), Ys_m(i, j), 1e-12);
+}
+
+void test_normalizer_sparse_zero_row_left_alone() {
+    Eigen::MatrixXd Xd(2, 3);
+    Xd << 0, 0, 0,
+          3, 4, 0;
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+
+    Skigen::Normalizer<double> nz(Skigen::Norm::L2);
+    nz.fit(Xs);
+    Eigen::SparseMatrix<double> Ys = nz.transform(Xs);
+    Eigen::MatrixXd Yd = Eigen::MatrixXd(Ys);
+    // Row 0 stays all zeros; row 1 becomes (0.6, 0.8, 0).
+    ASSERT_NEAR(Yd(0, 0), 0.0, 1e-12);
+    ASSERT_NEAR(Yd(0, 1), 0.0, 1e-12);
+    ASSERT_NEAR(Yd(1, 0), 0.6, 1e-12);
+    ASSERT_NEAR(Yd(1, 1), 0.8, 1e-12);
+}
+
 // ===================================================================
 // LabelEncoder Tests
 // ===================================================================
@@ -505,6 +573,9 @@ int main() {
     run_test("normalizer_max",           test_normalizer_max);
     run_test("normalizer_zero_row",      test_normalizer_zero_row);
     run_test("normalizer_inverse_throws", test_normalizer_inverse_throws);
+    run_test("normalizer_sparse_matches_dense_l2",   test_normalizer_sparse_matches_dense_l2);
+    run_test("normalizer_sparse_l1_and_max",         test_normalizer_sparse_l1_and_max);
+    run_test("normalizer_sparse_zero_row_left_alone", test_normalizer_sparse_zero_row_left_alone);
 
     std::cout << "\n=== LabelEncoder Tests ===\n";
     run_test("label_encoder_basic",        test_label_encoder_basic);
