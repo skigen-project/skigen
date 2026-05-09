@@ -9,6 +9,7 @@
 #include "../Core/Validation.h"
 
 #include <Eigen/Core>
+#include <Eigen/SparseCore>
 #include <stdexcept>
 #include <vector>
 
@@ -62,6 +63,14 @@ public:
     using typename Base::IndexType;
     using typename Base::ScalarType;
     using BoolMaskType = Eigen::Array<bool, Eigen::Dynamic, 1>;
+
+    // Make the dense base-class fit/transform overloads visible alongside
+    // the sparse overloads added below — without these, the derived
+    // sparse signatures would hide the base ones.
+    using Base::fit;
+    using Base::transform;
+    using Base::fit_transform;
+    using Base::inverse_transform;
 
     /// @brief Construct a VarianceThreshold selector.
     ///
@@ -162,6 +171,112 @@ public:
             }
         }
         return out;
+    }
+
+    // -- Sparse-aware overloads (v1.1.0 §3.2) --------------------------------
+
+    /// @brief Fit on a sparse matrix without densifying.
+    ///
+    /// Computes the per-column variance directly from the CSC/CSR
+    /// representation. For column-major storage this is O(nnz), where nnz
+    /// is the number of explicit nonzeros — implicit zeros contribute to
+    /// the mean and variance but are never materialised.
+    ///
+    /// Variance formula (biased, ddof=0):
+    ///
+    /// @f[
+    ///   \mu_j = \frac{1}{n} \sum_{i \in \text{nz}_j} X_{ij},\qquad
+    ///   \sigma_j^2 = \frac{1}{n} \sum_{i \in \text{nz}_j} X_{ij}^2 - \mu_j^2.
+    /// @f]
+    ///
+    /// Matches sklearn's `VarianceThreshold.fit` behaviour on sparse input.
+    template <int Options, typename StorageIndex>
+    VarianceThreshold& fit(
+        const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X) {
+        if (X.rows() == 0 || X.cols() == 0) {
+            throw std::invalid_argument(
+                "VarianceThreshold.fit: empty sparse matrix.");
+        }
+        // Convert to column-major view so we iterate by column cheaply.
+        using ColSparse =
+            Eigen::SparseMatrix<Scalar, Eigen::ColMajor, StorageIndex>;
+        const ColSparse Xc = X;
+
+        const Eigen::Index n = Xc.rows();
+        const Eigen::Index p = Xc.cols();
+        this->n_features_in_ = p;
+
+        variances_ = RowVectorType(p);
+        for (Eigen::Index j = 0; j < p; ++j) {
+            Scalar sum{0};
+            Scalar sum_sq{0};
+            for (typename ColSparse::InnerIterator it(Xc, j); it; ++it) {
+                const Scalar v = it.value();
+                sum    += v;
+                sum_sq += v * v;
+            }
+            const Scalar mean = sum / static_cast<Scalar>(n);
+            variances_(j) = sum_sq / static_cast<Scalar>(n) - mean * mean;
+            if (variances_(j) < Scalar{0}) variances_(j) = Scalar{0};
+        }
+
+        support_mask_ = BoolMaskType(p);
+        for (Eigen::Index j = 0; j < p; ++j) {
+            support_mask_(j) = variances_(j) > threshold_;
+        }
+        if (!support_mask_.any()) {
+            throw std::runtime_error(
+                "No feature in X meets the variance threshold "
+                + std::to_string(static_cast<double>(threshold_)));
+        }
+
+        this->fitted_ = true;
+        return *this;
+    }
+
+    /// @brief Reduce a sparse X to selected features without densifying.
+    ///
+    /// Returns a sparse matrix with the same number of rows and only the
+    /// columns where `support_mask_(j)` is `true`.
+    template <int Options, typename StorageIndex>
+    [[nodiscard]] Eigen::SparseMatrix<Scalar, Options, StorageIndex>
+    transform(
+        const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X) const {
+        this->check_is_fitted();
+        if (X.cols() != this->n_features_in_) {
+            throw std::invalid_argument(
+                "X has " + std::to_string(X.cols()) +
+                " features, but selector was fitted with " +
+                std::to_string(this->n_features_in_) + " features.");
+        }
+        // Build the kept-column index map.
+        std::vector<Eigen::Index> kept;
+        kept.reserve(static_cast<std::size_t>(support_mask_.size()));
+        for (Eigen::Index j = 0; j < support_mask_.size(); ++j) {
+            if (support_mask_(j)) kept.push_back(j);
+        }
+
+        using ColSparse =
+            Eigen::SparseMatrix<Scalar, Eigen::ColMajor, StorageIndex>;
+        const ColSparse Xc = X;
+
+        ColSparse out_col(X.rows(), static_cast<Eigen::Index>(kept.size()));
+        // Reserve roughly the right amount.
+        std::vector<Eigen::Index> col_nnz(kept.size(), 0);
+        for (std::size_t i = 0; i < kept.size(); ++i) {
+            col_nnz[i] =
+                Xc.outerIndexPtr()[kept[i] + 1] - Xc.outerIndexPtr()[kept[i]];
+        }
+        out_col.reserve(col_nnz);
+        for (std::size_t i = 0; i < kept.size(); ++i) {
+            const Eigen::Index j = kept[i];
+            for (typename ColSparse::InnerIterator it(Xc, j); it; ++it) {
+                out_col.insert(it.row(), static_cast<Eigen::Index>(i)) =
+                    it.value();
+            }
+        }
+        out_col.makeCompressed();
+        return Eigen::SparseMatrix<Scalar, Options, StorageIndex>(out_col);
     }
 
     /// @brief Reverse the transformation by zero-padding removed features.

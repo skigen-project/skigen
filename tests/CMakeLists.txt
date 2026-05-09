@@ -85,6 +85,18 @@ target_compile_options(skigen_test_tree PRIVATE ${SKIGEN_WARNING_FLAGS})
 add_test(NAME skigen_test_tree COMMAND skigen_test_tree)
 
 # ---------------------------------------------------------------------------
+# Ensemble tests (RandomForestClassifier, RandomForestRegressor)
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_ensemble
+    test_ensemble.cpp
+)
+
+target_link_libraries(skigen_test_ensemble PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_ensemble PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_test(NAME skigen_test_ensemble COMMAND skigen_test_ensemble)
+
+# ---------------------------------------------------------------------------
 # Model selection tests (TrainTestSplit)
 # ---------------------------------------------------------------------------
 add_executable(skigen_test_model_selection

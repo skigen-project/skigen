@@ -16,6 +16,7 @@
 #include "Cluster"
 #include "Neighbors"
 #include "Tree"
+#include "Ensemble"
 #include "NaiveBayes"
 #include "Covariance"
 #include "FeatureSelection"

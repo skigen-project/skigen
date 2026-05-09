@@ -139,6 +139,76 @@ void test_variance_threshold_not_fitted_throws() {
     ASSERT_THROW(vt.variances(), std::runtime_error);
 }
 
+void test_variance_threshold_sparse_matches_dense() {
+    Eigen::MatrixXd Xd(5, 4);
+    Xd << 0, 1, 0, 0,
+          0, 1, 2, 0,
+          0, 1, 0, 3,
+          0, 1, 0, 0,
+          0, 1, 5, 0;     // col 0 all zero, col 1 constant, cols 2 and 3 vary
+
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+
+    Skigen::VarianceThreshold<double> vt_dense(0.0);
+    vt_dense.fit(Xd);
+
+    Skigen::VarianceThreshold<double> vt_sparse(0.0);
+    vt_sparse.fit(Xs);
+
+    // Same variances, same support mask, same kept-column count.
+    ASSERT_TRUE(vt_dense.variances().size() == vt_sparse.variances().size());
+    for (Eigen::Index j = 0; j < vt_dense.variances().size(); ++j) {
+        ASSERT_NEAR(vt_dense.variances()(j),
+                    vt_sparse.variances()(j), 1e-12);
+        ASSERT_TRUE(vt_dense.get_support_mask()(j) ==
+                    vt_sparse.get_support_mask()(j));
+    }
+}
+
+void test_variance_threshold_sparse_transform_returns_sparse() {
+    Eigen::MatrixXd Xd(4, 5);
+    Xd << 0, 1, 2, 0, 0,
+          0, 1, 3, 4, 0,
+          0, 1, 0, 5, 0,
+          0, 1, 7, 0, 0;     // cols 0, 1, 4 are constant — should be removed
+
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+    Skigen::VarianceThreshold<double> vt(0.0);
+    vt.fit(Xs);
+
+    Eigen::SparseMatrix<double> Ys = vt.transform(Xs);
+    ASSERT_TRUE(Ys.rows() == 4);
+    ASSERT_TRUE(Ys.cols() == 2);  // only the two varying columns kept
+
+    // Reconstruct dense to verify values match the dense path.
+    Eigen::MatrixXd Yd_dense = vt.transform(Xd);
+    Eigen::MatrixXd Ys_dense = Eigen::MatrixXd(Ys);
+    ASSERT_TRUE(Yd_dense.rows() == Ys_dense.rows());
+    ASSERT_TRUE(Yd_dense.cols() == Ys_dense.cols());
+    for (Eigen::Index i = 0; i < Yd_dense.rows(); ++i) {
+        for (Eigen::Index j = 0; j < Yd_dense.cols(); ++j) {
+            ASSERT_NEAR(Yd_dense(i, j), Ys_dense(i, j), 1e-12);
+        }
+    }
+}
+
+void test_variance_threshold_sparse_feature_count_check() {
+    Eigen::SparseMatrix<double> Xs(3, 3);
+    Xs.insert(0, 0) = 1.0;
+    Xs.insert(1, 1) = 2.0;
+    Xs.insert(2, 2) = 3.0;
+    Xs.makeCompressed();
+
+    Skigen::VarianceThreshold<double> vt(0.0);
+    vt.fit(Xs);
+
+    Eigen::SparseMatrix<double> X_bad(3, 4);
+    X_bad.insert(0, 0) = 1.0;
+    X_bad.makeCompressed();
+
+    ASSERT_THROW(vt.transform(X_bad), std::invalid_argument);
+}
+
 // ---------------------------------------------------------------------------
 // SelectKBest tests
 // ---------------------------------------------------------------------------
@@ -468,6 +538,9 @@ int main() {
     run_test("variance_threshold_inverse_transform_shape",
              test_variance_threshold_inverse_transform_shape);
     run_test("variance_threshold_not_fitted_throws", test_variance_threshold_not_fitted_throws);
+    run_test("variance_threshold_sparse_matches_dense",         test_variance_threshold_sparse_matches_dense);
+    run_test("variance_threshold_sparse_transform_returns_sparse", test_variance_threshold_sparse_transform_returns_sparse);
+    run_test("variance_threshold_sparse_feature_count_check",   test_variance_threshold_sparse_feature_count_check);
     run_test("select_k_best_classification",        test_select_k_best_classification);
     run_test("select_k_best_regression",            test_select_k_best_regression);
     run_test("select_k_best_chi2_works",            test_select_k_best_chi2_works);

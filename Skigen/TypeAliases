@@ -21,6 +21,7 @@
 #include "Cluster"
 #include "Neighbors"
 #include "Tree"
+#include "Ensemble"
 #include "NaiveBayes"
 #include "Covariance"
 #include "FeatureSelection"
@@ -111,6 +112,14 @@ using DecisionTreeClassifierD = DecisionTreeClassifier<double>;
 using DecisionTreeClassifierF = DecisionTreeClassifier<float>;
 using DecisionTreeRegressorD  = DecisionTreeRegressor<double>;
 using DecisionTreeRegressorF  = DecisionTreeRegressor<float>;
+
+// ---------------------------------------------------------------------------
+// Ensemble
+// ---------------------------------------------------------------------------
+using RandomForestClassifierD = RandomForestClassifier<double>;
+using RandomForestClassifierF = RandomForestClassifier<float>;
+using RandomForestRegressorD  = RandomForestRegressor<double>;
+using RandomForestRegressorF  = RandomForestRegressor<float>;
 
 // ---------------------------------------------------------------------------
 // Naive Bayes

@@ -81,6 +81,12 @@ skigen_add_example(ex_rfe                 feature_selection/rfe.cpp)
 skigen_add_example(ex_isotonic_regression isotonic/isotonic_regression.cpp)
 
 # ---------------------------------------------------------------------------
+# Ensemble examples
+# ---------------------------------------------------------------------------
+skigen_add_example(ex_random_forest_classifier ensemble/random_forest_classifier.cpp)
+skigen_add_example(ex_random_forest_regressor  ensemble/random_forest_regressor.cpp)
+
+# ---------------------------------------------------------------------------
 # Metrics examples
 # ---------------------------------------------------------------------------
 skigen_add_example(ex_metrics             metrics/metrics.cpp)
