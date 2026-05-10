@@ -527,6 +527,68 @@ void test_ridge_sparse_empty_throws() {
     ASSERT_TRUE(threw);
 }
 
+void test_ridge_multi_target_recovers_two_outputs() {
+    // y1 = 2x + 3z, y2 = x − z   (small alpha so coefs come close to OLS)
+    constexpr int n = 60;
+    Eigen::MatrixXd X(n, 2);
+    Eigen::MatrixXd Y(n, 2);
+    for (int i = 0; i < n; ++i) {
+        X(i, 0) = static_cast<double>(i) / 10.0;
+        X(i, 1) = static_cast<double>(n - i) / 10.0;
+        Y(i, 0) = 2.0 * X(i, 0) + 3.0 * X(i, 1);
+        Y(i, 1) =       X(i, 0) -       X(i, 1);
+    }
+
+    Skigen::Ridge<double> r(/*alpha=*/1e-6, /*fit_intercept=*/false);
+    r.fit_multi(X, Y);
+
+    ASSERT_TRUE(r.n_targets() == 2);
+    ASSERT_TRUE(r.coef_matrix().rows() == 2);
+    ASSERT_TRUE(r.coef_matrix().cols() == 2);
+    ASSERT_NEAR(r.coef_matrix()(0, 0),  2.0, 1e-4);
+    ASSERT_NEAR(r.coef_matrix()(0, 1),  3.0, 1e-4);
+    ASSERT_NEAR(r.coef_matrix()(1, 0),  1.0, 1e-4);
+    ASSERT_NEAR(r.coef_matrix()(1, 1), -1.0, 1e-4);
+
+    Eigen::MatrixXd Y_pred = r.predict_multi(X);
+    for (int i = 0; i < n; ++i) {
+        ASSERT_NEAR(Y_pred(i, 0), Y(i, 0), 1e-3);
+        ASSERT_NEAR(Y_pred(i, 1), Y(i, 1), 1e-3);
+    }
+}
+
+void test_ridge_multi_target_with_intercept() {
+    // y1 = 2x + 1, y2 = -3x + 5
+    constexpr int n = 40;
+    Eigen::MatrixXd X(n, 1);
+    Eigen::MatrixXd Y(n, 2);
+    for (int i = 0; i < n; ++i) {
+        X(i, 0) = static_cast<double>(i) / 5.0;
+        Y(i, 0) =  2.0 * X(i, 0) + 1.0;
+        Y(i, 1) = -3.0 * X(i, 0) + 5.0;
+    }
+
+    Skigen::Ridge<double> r(1e-6, true);
+    r.fit_multi(X, Y);
+
+    ASSERT_NEAR(r.coef_matrix()(0, 0),  2.0, 1e-3);
+    ASSERT_NEAR(r.coef_matrix()(1, 0), -3.0, 1e-3);
+    ASSERT_NEAR(r.intercept_vector()(0),  1.0, 1e-3);
+    ASSERT_NEAR(r.intercept_vector()(1),  5.0, 1e-3);
+}
+
+void test_ridge_single_target_then_coef_matrix_synthesised() {
+    Eigen::MatrixXd X(4, 2); X << 1, 2, 3, 4, 5, 6, 7, 8;
+    Eigen::VectorXd y(4); y << 1, 2, 3, 4;
+    Skigen::Ridge<double> r(1e-3, true);
+    r.fit(X, y);
+    ASSERT_TRUE(r.coef_matrix().rows() == 1);
+    ASSERT_TRUE(r.coef_matrix().cols() == 2);
+    ASSERT_NEAR(r.coef_matrix()(0, 0), r.coef()(0), 1e-12);
+    ASSERT_NEAR(r.coef_matrix()(0, 1), r.coef()(1), 1e-12);
+    ASSERT_NEAR(r.intercept_vector()(0), r.intercept(), 1e-12);
+}
+
 // ===================================================================
 // Main
 // ===================================================================
@@ -566,6 +628,12 @@ int main() {
     run_test("ridge_sparse_matches_dense", test_ridge_sparse_matches_dense);
     run_test("ridge_sparse_no_intercept",  test_ridge_sparse_no_intercept);
     run_test("ridge_sparse_empty_throws",  test_ridge_sparse_empty_throws);
+    run_test("ridge_multi_target_recovers_two_outputs",
+             test_ridge_multi_target_recovers_two_outputs);
+    run_test("ridge_multi_target_with_intercept",
+             test_ridge_multi_target_with_intercept);
+    run_test("ridge_single_target_then_coef_matrix_synthesised",
+             test_ridge_single_target_then_coef_matrix_synthesised);
 
     std::cout << "\n" << g_passed << " passed, " << g_failed << " failed.\n";
     return g_failed > 0 ? 1 : 0;
