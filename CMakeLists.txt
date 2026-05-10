@@ -44,6 +44,17 @@ add_library(Skigen::Skigen ALIAS Skigen)
 target_link_libraries(Skigen INTERFACE Eigen3::Eigen)
 target_compile_features(Skigen INTERFACE cxx_std_23)
 
+# The SKIGEN_PARAMS reflection macro feeds parenthesised tuples to a
+# variadic FOR_EACH expansion. MSVC's traditional preprocessor splits
+# the inner commas as if they were macro arg separators, breaking the
+# expansion; the conformant preprocessor (enabled by /Zc:preprocessor,
+# available since VS 2017 16.5) handles it correctly. The flag also
+# brings MSVC into line with __VA_OPT__ / __VA_ARGS__ behaviour the
+# rest of the toolchain assumes.
+if(MSVC)
+    target_compile_options(Skigen INTERFACE /Zc:preprocessor)
+endif()
+
 # ---------------------------------------------------------------------------
 # Options
 # ---------------------------------------------------------------------------
