@@ -9,6 +9,7 @@
 
 #include <Eigen/Core>
 #include <Eigen/Cholesky>
+#include <Eigen/SparseCore>
 
 namespace Skigen {
 
@@ -84,6 +85,10 @@ public:
     using typename Base::RowVectorType;
     using typename Base::IndexType;
     using typename Base::ScalarType;
+
+    // Make the dense base-class fit overload visible alongside the
+    // sparse fit overload added below.
+    using Base::fit;
 
     /// @brief Construct a Ridge estimator.
     ///
@@ -168,6 +173,88 @@ public:
 
         if (fit_intercept_) {
             intercept_ = y_offset - x_offset_.dot(w);
+        } else {
+            intercept_ = Scalar{0};
+        }
+
+        this->fitted_ = true;
+        return *this;
+    }
+
+    // -- Sparse-aware overload (v1.1.0 §3.2) --------------------------------
+
+    /// @brief Fit Ridge on a sparse design matrix without densifying X.
+    ///
+    /// Solves the regularised normal equation
+    /// @f$ (X_c^\top X_c + \alpha I) w = X_c^\top y_c @f$ where the
+    /// centring is applied implicitly via the identities
+    ///
+    /// @f[
+    ///   X_c^\top X_c = X^\top X - n\, \bar{x}^\top \bar{x},\qquad
+    ///   X_c^\top y_c = X^\top y - n\, \bar{y}\, \bar{x}^\top
+    /// @f]
+    ///
+    /// so that `X` itself is never centered (which would densify it).
+    /// `X^\top X` (`p \times p`) and `X^\top y` are computed directly on
+    /// the sparse representation; only the small Gram matrix is
+    /// materialised dense, then factored with Cholesky.
+    ///
+    /// Mirrors sklearn's `Ridge` behaviour on sparse input. `sample_weight`,
+    /// `solver`, `tol`, `max_iter`, `positive` are documented parity gaps.
+    template <int Options, typename StorageIndex>
+    Ridge& fit(const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X,
+               const Eigen::Ref<const VectorType>& y) {
+        if (X.rows() == 0 || X.cols() == 0) {
+            throw std::invalid_argument("Ridge.fit: empty sparse matrix.");
+        }
+        if (X.rows() != y.size()) {
+            throw std::invalid_argument(
+                "Ridge.fit: X has " + std::to_string(X.rows()) +
+                " rows but y has " + std::to_string(y.size()) + ".");
+        }
+        this->n_features_in_ = X.cols();
+
+        using ColSparse =
+            Eigen::SparseMatrix<Scalar, Eigen::ColMajor, StorageIndex>;
+        const ColSparse Xc = X;
+        const Eigen::Index n = Xc.rows();
+        const Eigen::Index p = Xc.cols();
+
+        // Per-column means computed directly from the CSC nonzeros.
+        RowVectorType x_mean = RowVectorType::Zero(p);
+        if (fit_intercept_) {
+            for (Eigen::Index j = 0; j < p; ++j) {
+                Scalar s{0};
+                for (typename ColSparse::InnerIterator it(Xc, j); it; ++it) {
+                    s += it.value();
+                }
+                x_mean(j) = s / static_cast<Scalar>(n);
+            }
+        }
+        const Scalar y_mean = fit_intercept_ ? y.mean() : Scalar{0};
+
+        // X^T X (sparse * sparse densified into a small p×p dense matrix).
+        MatrixType XtX = MatrixType(Xc.transpose() * Xc);
+        VectorType Xty = Xc.transpose() * y;
+
+        if (fit_intercept_) {
+            // Implicit centring: X_c^T X_c = X^T X - n * x_mean^T x_mean.
+            XtX.noalias() -= static_cast<Scalar>(n) *
+                             (x_mean.transpose() * x_mean);
+            // X_c^T y_c = X^T y - n * y_mean * x_mean^T.
+            Xty.noalias() -= static_cast<Scalar>(n) * y_mean *
+                             x_mean.transpose();
+        }
+
+        XtX.diagonal().array() += alpha_;
+
+        Eigen::LLT<MatrixType> llt(XtX);
+        VectorType w = llt.solve(Xty);
+
+        coef_ = w.transpose();
+        if (fit_intercept_) {
+            intercept_ = y_mean - x_mean.dot(w);
+            x_offset_ = x_mean;
         } else {
             intercept_ = Scalar{0};
         }

@@ -274,6 +274,83 @@ void test_ridge_concept() {
     ASSERT_TRUE(true);
 }
 
+void test_ridge_sparse_matches_dense() {
+    Eigen::MatrixXd Xd(15, 4);
+    Xd <<  1, 2, 0, 0,
+           0, 3, 1, 0,
+           4, 0, 0, 5,
+           0, 6, 7, 0,
+           1, 0, 0, 8,
+           0, 9, 0, 0,
+           0, 0, 1, 1,
+           5, 0, 0, 4,
+           0, 7, 6, 0,
+           2, 0, 0, 9,
+           0, 1, 0, 0,
+           3, 0, 0, 0,
+           0, 0, 4, 5,
+           0, 8, 0, 0,
+           0, 0, 2, 1;
+    Eigen::VectorXd y(15);
+    y <<  3.0, 7.0, 18.0, 16.0, 17.0, 18.0, 4.0, 18.0, 19.0,
+         20.0, 2.0, 6.0, 18.0, 16.0, 5.0;
+
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+
+    Skigen::Ridge<double> rd(0.5, /*fit_intercept=*/true);
+    Skigen::Ridge<double> rs(0.5, /*fit_intercept=*/true);
+    rd.fit(Xd, y);
+    rs.fit(Xs, y);
+
+    for (int j = 0; j < Xd.cols(); ++j) {
+        ASSERT_NEAR(rd.coef()(j), rs.coef()(j), 1e-10);
+    }
+    ASSERT_NEAR(rd.intercept(), rs.intercept(), 1e-10);
+
+    // Prediction should agree (using dense X for both).
+    Eigen::VectorXd pd = rd.predict(Xd);
+    Eigen::VectorXd ps = rs.predict(Xd);
+    for (int i = 0; i < Xd.rows(); ++i) {
+        ASSERT_NEAR(pd(i), ps(i), 1e-10);
+    }
+}
+
+void test_ridge_sparse_no_intercept() {
+    // No-intercept path should also agree with dense.
+    Eigen::MatrixXd Xd(8, 3);
+    Xd << 1, 0, 2,
+          0, 3, 0,
+          0, 0, 1,
+          4, 0, 0,
+          0, 5, 0,
+          1, 1, 1,
+          0, 2, 0,
+          3, 0, 4;
+    Eigen::VectorXd y(8);
+    y << 5, 9, 1, 8, 15, 6, 6, 14;
+
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+    Skigen::Ridge<double> rd(1.0, false);
+    Skigen::Ridge<double> rs(1.0, false);
+    rd.fit(Xd, y);
+    rs.fit(Xs, y);
+
+    for (int j = 0; j < Xd.cols(); ++j) {
+        ASSERT_NEAR(rd.coef()(j), rs.coef()(j), 1e-10);
+    }
+    ASSERT_NEAR(rs.intercept(), 0.0, 1e-12);
+}
+
+void test_ridge_sparse_empty_throws() {
+    Eigen::SparseMatrix<double> X(0, 0);
+    Eigen::VectorXd y(0);
+    Skigen::Ridge<double> r;
+    bool threw = false;
+    try { r.fit(X, y); }
+    catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
 // ===================================================================
 // Main
 // ===================================================================
@@ -296,6 +373,9 @@ int main() {
     run_test("ridge_score",              test_ridge_score);
     run_test("ridge_no_intercept",       test_ridge_no_intercept);
     run_test("ridge_concept",            test_ridge_concept);
+    run_test("ridge_sparse_matches_dense", test_ridge_sparse_matches_dense);
+    run_test("ridge_sparse_no_intercept",  test_ridge_sparse_no_intercept);
+    run_test("ridge_sparse_empty_throws",  test_ridge_sparse_empty_throws);
 
     std::cout << "\n" << g_passed << " passed, " << g_failed << " failed.\n";
     return g_failed > 0 ? 1 : 0;
