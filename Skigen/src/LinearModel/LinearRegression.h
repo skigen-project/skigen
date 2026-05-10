@@ -141,6 +141,11 @@ public:
         internal::check_consistent_length(X, y);
 
         this->n_features_in_ = X.cols();
+        // Reset multi-target view so the next coef_matrix() / predict_multi()
+        // call re-synthesises a fresh 1-target view from coef_/intercept_.
+        coef_matrix_.resize(0, 0);
+        intercept_vector_.resize(0);
+        n_targets_ = 1;
 
         if (fit_intercept_) {
             x_offset_ = X.colwise().mean();
@@ -249,6 +254,124 @@ public:
         return *this;
     }
 
+    // -- Multi-target regression (v1.1.0 §3.3) ------------------------------
+
+    /// @brief Fit OLS with a multi-target response matrix.
+    ///
+    /// `Y` has shape (n_samples, n_targets). For each target column the OLS
+    /// solution is computed via the same QR factorisation, exploiting the
+    /// shared design matrix. The resulting coefficient matrix has shape
+    /// (n_targets, n_features); the intercept is a vector of length
+    /// `n_targets`.
+    ///
+    /// This overload is **additive** to the single-target API: the
+    /// `coef()` / `intercept()` accessors continue to return the
+    /// single-target row vector / scalar (extracted from the first column
+    /// of `Y` when this overload was used). Multi-target callers use the
+    /// new accessors `coef_matrix()` / `intercept_vector()` and the
+    /// `predict_multi()` method.
+    ///
+    /// Mirrors sklearn's `LinearRegression.fit(X, Y)` behaviour for
+    /// multi-output regression. `sample_weight`, `positive`, `n_jobs` are
+    /// documented parity gaps.
+    LinearRegression& fit_multi(const Eigen::Ref<const MatrixType>& X,
+                                const Eigen::Ref<const MatrixType>& Y) {
+        internal::check_non_empty(X);
+        if (X.rows() != Y.rows()) {
+            throw std::invalid_argument(
+                "fit_multi: X has " + std::to_string(X.rows()) +
+                " rows but Y has " + std::to_string(Y.rows()) + ".");
+        }
+        if (Y.cols() < 1) {
+            throw std::invalid_argument(
+                "fit_multi: Y must have at least 1 target column.");
+        }
+        this->n_features_in_ = X.cols();
+
+        if (fit_intercept_) {
+            x_offset_ = X.colwise().mean();
+            RowVectorType y_offset = Y.colwise().mean();
+
+            MatrixType X_c = X.rowwise() - x_offset_;
+            MatrixType Y_c = Y.rowwise() - y_offset;
+
+            auto qr = X_c.colPivHouseholderQr();
+            // qr.solve on a matrix RHS solves each column simultaneously.
+            MatrixType W = qr.solve(Y_c);            // (n_features, n_targets)
+            rank_ = qr.rank();
+
+            // Coefficient matrix is (n_targets, n_features).
+            coef_matrix_ = W.transpose();
+            intercept_vector_ = y_offset.transpose() -
+                                coef_matrix_ * x_offset_.transpose();
+        } else {
+            auto qr = X.colPivHouseholderQr();
+            MatrixType W = qr.solve(Y);
+            rank_ = qr.rank();
+            coef_matrix_ = W.transpose();
+            intercept_vector_ = VectorType::Zero(Y.cols());
+        }
+
+        // Mirror the first target into the single-target accessors so that
+        // existing callers see consistent state when multi-target is used.
+        coef_      = coef_matrix_.row(0);
+        intercept_ = intercept_vector_(0);
+        n_targets_ = static_cast<int>(Y.cols());
+
+        this->fitted_ = true;
+        return *this;
+    }
+
+    /// @brief Coefficient matrix of shape (n_targets, n_features).
+    ///
+    /// Populated by either `fit` (set to a 1-row matrix) or `fit_multi`.
+    /// @throws std::runtime_error if the model has not been fitted.
+    [[nodiscard]] const MatrixType& coef_matrix() const {
+        this->check_is_fitted();
+        if (coef_matrix_.size() == 0) {
+            // Lazily synthesise the matrix view from the single-target state.
+            coef_matrix_.resize(1, coef_.size());
+            coef_matrix_.row(0) = coef_;
+            intercept_vector_.resize(1);
+            intercept_vector_(0) = intercept_;
+            n_targets_ = 1;
+        }
+        return coef_matrix_;
+    }
+
+    /// @brief Intercept vector of length n_targets.
+    /// @throws std::runtime_error if the model has not been fitted.
+    [[nodiscard]] const VectorType& intercept_vector() const {
+        this->check_is_fitted();
+        if (intercept_vector_.size() == 0) {
+            intercept_vector_.resize(1);
+            intercept_vector_(0) = intercept_;
+            coef_matrix_.resize(1, coef_.size());
+            coef_matrix_.row(0) = coef_;
+            n_targets_ = 1;
+        }
+        return intercept_vector_;
+    }
+
+    /// @brief Number of targets seen during the most recent `fit` /
+    ///   `fit_multi` call (1 for the single-target overload).
+    [[nodiscard]] int n_targets() const {
+        this->check_is_fitted(); return n_targets_;
+    }
+
+    /// @brief Predict multi-target outputs of shape (n_samples, n_targets).
+    [[nodiscard]] MatrixType predict_multi(
+        const Eigen::Ref<const MatrixType>& X) const {
+        this->check_is_fitted();
+        this->validate_feature_count(X);
+        const MatrixType& W = coef_matrix();
+        const VectorType& b = intercept_vector();
+        // Y_pred = X * W^T + 1 * b^T
+        MatrixType Y_pred = X * W.transpose();
+        Y_pred.rowwise() += b.transpose();
+        return Y_pred;
+    }
+
     /// @brief Predict using the linear model.
     ///
     /// Computes @f$ \hat{y} = X w + b @f$ where @f$w@f$ and @f$b@f$ are
@@ -293,6 +416,13 @@ private:
     Scalar intercept_ = Scalar{0};
     RowVectorType x_offset_;
     IndexType rank_ = 0;
+
+    // Multi-target state (populated by fit_multi; mutable so that
+    // coef_matrix() / intercept_vector() can lazily synthesise the
+    // 1-target matrix views from the single-target state).
+    mutable MatrixType  coef_matrix_;        // (n_targets, n_features)
+    mutable VectorType  intercept_vector_;   // (n_targets,)
+    mutable int         n_targets_ = 0;
 };
 
 /// @}

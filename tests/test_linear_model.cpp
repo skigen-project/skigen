@@ -260,6 +260,105 @@ void test_lr_sparse_empty_throws() {
     ASSERT_TRUE(threw);
 }
 
+// -- Multi-target regression --------------------------------------------
+
+void test_lr_multi_target_recovers_two_outputs() {
+    // y1 = 2*x + 1, y2 = -3*x + 5  (single feature, two targets)
+    constexpr int n = 50;
+    Eigen::MatrixXd X(n, 1);
+    Eigen::MatrixXd Y(n, 2);
+    for (int i = 0; i < n; ++i) {
+        X(i, 0) = static_cast<double>(i);
+        Y(i, 0) =  2.0 * X(i, 0) + 1.0;
+        Y(i, 1) = -3.0 * X(i, 0) + 5.0;
+    }
+
+    Skigen::LinearRegression<double> lr;
+    lr.fit_multi(X, Y);
+
+    ASSERT_TRUE(lr.n_targets() == 2);
+    ASSERT_TRUE(lr.coef_matrix().rows() == 2);
+    ASSERT_TRUE(lr.coef_matrix().cols() == 1);
+    ASSERT_NEAR(lr.coef_matrix()(0, 0),  2.0, 1e-9);
+    ASSERT_NEAR(lr.coef_matrix()(1, 0), -3.0, 1e-9);
+    ASSERT_NEAR(lr.intercept_vector()(0),  1.0, 1e-9);
+    ASSERT_NEAR(lr.intercept_vector()(1),  5.0, 1e-9);
+
+    Eigen::MatrixXd Y_pred = lr.predict_multi(X);
+    ASSERT_TRUE(Y_pred.rows() == n);
+    ASSERT_TRUE(Y_pred.cols() == 2);
+    for (int i = 0; i < n; ++i) {
+        ASSERT_NEAR(Y_pred(i, 0), Y(i, 0), 1e-9);
+        ASSERT_NEAR(Y_pred(i, 1), Y(i, 1), 1e-9);
+    }
+}
+
+void test_lr_multi_target_no_intercept() {
+    // y1 = 2x + 3z, y2 = x − z   (two features, two targets, no intercept)
+    constexpr int n = 30;
+    Eigen::MatrixXd X(n, 2);
+    Eigen::MatrixXd Y(n, 2);
+    for (int i = 0; i < n; ++i) {
+        X(i, 0) = static_cast<double>(i);
+        X(i, 1) = 0.5 * static_cast<double>(i) - 1.0;
+        Y(i, 0) = 2.0 * X(i, 0) + 3.0 * X(i, 1);
+        Y(i, 1) =       X(i, 0) -       X(i, 1);
+    }
+
+    Skigen::LinearRegression<double> lr(false);
+    lr.fit_multi(X, Y);
+
+    ASSERT_NEAR(lr.coef_matrix()(0, 0),  2.0, 1e-9);
+    ASSERT_NEAR(lr.coef_matrix()(0, 1),  3.0, 1e-9);
+    ASSERT_NEAR(lr.coef_matrix()(1, 0),  1.0, 1e-9);
+    ASSERT_NEAR(lr.coef_matrix()(1, 1), -1.0, 1e-9);
+    ASSERT_NEAR(lr.intercept_vector()(0), 0.0, 1e-12);
+    ASSERT_NEAR(lr.intercept_vector()(1), 0.0, 1e-12);
+}
+
+void test_lr_multi_target_single_target_API_still_works() {
+    // After fit_multi(...) the single-target accessors mirror the first
+    // target column, so existing callers see consistent state.
+    Eigen::MatrixXd X(5, 1); X << 0, 1, 2, 3, 4;
+    Eigen::MatrixXd Y(5, 2);
+    Y.col(0) << 0.0, 2.0, 4.0, 6.0, 8.0;     // target 0: y = 2x
+    Y.col(1) << 1.0, 0.0, -1.0, -2.0, -3.0;  // target 1: y = 1 − x
+
+    Skigen::LinearRegression<double> lr;
+    lr.fit_multi(X, Y);
+
+    // coef() / intercept() should reflect target 0.
+    ASSERT_NEAR(lr.coef()(0),     2.0, 1e-9);
+    ASSERT_NEAR(lr.intercept(),   0.0, 1e-9);
+}
+
+void test_lr_single_target_then_coef_matrix_synthesised() {
+    // After single-target fit, coef_matrix() / intercept_vector() must
+    // synthesise a 1-row view consistent with the single-target state.
+    Eigen::MatrixXd X(4, 2); X << 1, 2, 3, 4, 5, 6, 7, 8;
+    Eigen::VectorXd y(4); y << 1, 2, 3, 4;
+
+    Skigen::LinearRegression<double> lr;
+    lr.fit(X, y);
+
+    ASSERT_TRUE(lr.coef_matrix().rows() == 1);
+    ASSERT_TRUE(lr.coef_matrix().cols() == 2);
+    ASSERT_NEAR(lr.coef_matrix()(0, 0), lr.coef()(0), 1e-12);
+    ASSERT_NEAR(lr.coef_matrix()(0, 1), lr.coef()(1), 1e-12);
+    ASSERT_NEAR(lr.intercept_vector()(0), lr.intercept(), 1e-12);
+    ASSERT_TRUE(lr.n_targets() == 1);
+}
+
+void test_lr_multi_target_dim_mismatch_throws() {
+    Eigen::MatrixXd X(4, 2); X.setOnes();
+    Eigen::MatrixXd Y(5, 2); Y.setOnes();      // n rows mismatch
+    Skigen::LinearRegression<double> lr;
+    bool threw = false;
+    try { lr.fit_multi(X, Y); }
+    catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
 // ===================================================================
 // Ridge Tests
 // ===================================================================
@@ -446,6 +545,16 @@ int main() {
              test_lr_sparse_matches_dense_with_intercept);
     run_test("lr_sparse_no_intercept",  test_lr_sparse_no_intercept);
     run_test("lr_sparse_empty_throws",  test_lr_sparse_empty_throws);
+    run_test("lr_multi_target_recovers_two_outputs",
+             test_lr_multi_target_recovers_two_outputs);
+    run_test("lr_multi_target_no_intercept",
+             test_lr_multi_target_no_intercept);
+    run_test("lr_multi_target_single_target_API_still_works",
+             test_lr_multi_target_single_target_API_still_works);
+    run_test("lr_single_target_then_coef_matrix_synthesised",
+             test_lr_single_target_then_coef_matrix_synthesised);
+    run_test("lr_multi_target_dim_mismatch_throws",
+             test_lr_multi_target_dim_mismatch_throws);
 
     std::cout << "\n=== Ridge Tests ===\n";
     run_test("ridge_basic",              test_ridge_basic);
