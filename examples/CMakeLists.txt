@@ -81,6 +81,11 @@ skigen_add_example(ex_rfe                 feature_selection/rfe.cpp)
 skigen_add_example(ex_isotonic_regression isotonic/isotonic_regression.cpp)
 
 # ---------------------------------------------------------------------------
+# Calibration examples
+# ---------------------------------------------------------------------------
+skigen_add_example(ex_calibrated_classifier_cv calibration/calibrated_classifier_cv.cpp)
+
+# ---------------------------------------------------------------------------
 # Ensemble examples
 # ---------------------------------------------------------------------------
 skigen_add_example(ex_random_forest_classifier    ensemble/random_forest_classifier.cpp)

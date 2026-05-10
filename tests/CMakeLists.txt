@@ -180,3 +180,15 @@ target_link_libraries(skigen_test_isotonic PRIVATE Skigen::Skigen)
 target_compile_options(skigen_test_isotonic PRIVATE ${SKIGEN_WARNING_FLAGS})
 
 add_test(NAME skigen_test_isotonic COMMAND skigen_test_isotonic)
+
+# ---------------------------------------------------------------------------
+# Calibration tests (CalibratedClassifierCV: sigmoid + isotonic)
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_calibration
+    test_calibration.cpp
+)
+
+target_link_libraries(skigen_test_calibration PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_calibration PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_test(NAME skigen_test_calibration COMMAND skigen_test_calibration)

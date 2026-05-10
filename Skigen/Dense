@@ -21,6 +21,7 @@
 #include "Covariance"
 #include "FeatureSelection"
 #include "Isotonic"
+#include "Calibration"
 #include "ModelSelection"
 #include "Pipeline"
 #include "Metrics"
