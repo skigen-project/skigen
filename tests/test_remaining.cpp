@@ -606,6 +606,105 @@ void test_sgd_regressor_predict() {
     ASSERT_NEAR(pred(0), 10.0, 1.5);
 }
 
+// -- SGD partial_fit ---------------------------------------------------
+
+void test_sgd_classifier_partial_fit_converges() {
+    // Two well-separated 2-D Gaussians; many partial_fit calls should
+    // approach the cold-start fit's accuracy.
+    constexpr int n = 200;
+    std::mt19937 rng(7);
+    std::normal_distribution<double> ns(0.0, 0.5);
+    Eigen::MatrixXd X(n, 2);
+    Eigen::VectorXi y(n);
+    for (int i = 0; i < n; ++i) {
+        const double cls = (i < n / 2) ? -1.5 : 1.5;
+        X(i, 0) = cls + ns(rng);
+        X(i, 1) = cls + ns(rng);
+        y(i)    = (cls > 0) ? 1 : 0;
+    }
+    Eigen::VectorXi classes(2); classes << 0, 1;
+
+    Skigen::SGDClassifier<double> sgd(
+        Skigen::SGDClassifier<double>::Loss::Hinge,
+        1e-4, 100, 1e-3, 0.01, 7);
+
+    // Stream the data in 5 mini-batches.
+    const int batch_size = n / 5;
+    for (int b = 0; b < 5; ++b) {
+        const int s = b * batch_size;
+        Eigen::MatrixXd Xb = X.middleRows(s, batch_size);
+        Eigen::VectorXi yb = y.segment(s, batch_size);
+        sgd.partial_fit(Xb, yb,
+            (b == 0) ? classes : Eigen::VectorXi());
+    }
+    auto preds = sgd.predict(X);
+    int correct = 0;
+    for (int i = 0; i < n; ++i) if (preds(i) == y(i)) ++correct;
+    const double acc = static_cast<double>(correct) / n;
+    ASSERT_TRUE(acc > 0.85);
+}
+
+void test_sgd_classifier_partial_fit_first_call_requires_classes() {
+    Skigen::SGDClassifier<double> sgd;
+    Eigen::MatrixXd X(3, 1); X << 0.0, 1.0, 2.0;
+    Eigen::VectorXi y(3);    y << 0, 1, 0;
+    Eigen::VectorXi empty(0);
+    bool threw = false;
+    try { sgd.partial_fit(X, y, empty); }
+    catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
+void test_sgd_classifier_partial_fit_feature_mismatch_throws() {
+    Skigen::SGDClassifier<double> sgd;
+    Eigen::MatrixXd X1(4, 2); X1 << 0,0, 0,1, 1,0, 1,1;
+    Eigen::VectorXi y1(4);   y1 << 0, 0, 1, 1;
+    Eigen::VectorXi classes(2); classes << 0, 1;
+    sgd.partial_fit(X1, y1, classes);
+
+    Eigen::MatrixXd X2(2, 3); X2.setOnes();
+    Eigen::VectorXi y2(2);   y2 << 0, 1;
+    bool threw = false;
+    try { sgd.partial_fit(X2, y2, Eigen::VectorXi()); }
+    catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
+void test_sgd_regressor_partial_fit_converges() {
+    constexpr int n = 200;
+    Eigen::MatrixXd X(n, 1);
+    Eigen::VectorXd y(n);
+    for (int i = 0; i < n; ++i) {
+        X(i, 0) = static_cast<double>(i) / 50.0;
+        y(i)    = 2.5 * X(i, 0) + 1.0;
+    }
+    Skigen::SGDRegressor<double> sgd(1e-5, 100, 1e-6, 0.01, 7);
+
+    // 4 batches of 50 samples each.
+    for (int b = 0; b < 4; ++b) {
+        const int s = b * 50;
+        sgd.partial_fit(X.middleRows(s, 50), y.segment(s, 50));
+    }
+    Eigen::MatrixXd Xt(2, 1); Xt << 5.0, 1.0;
+    Eigen::VectorXd yt = sgd.predict(Xt);
+    // 2.5*5 + 1 = 13.5; 2.5*1 + 1 = 3.5 — accept some SGD slop.
+    ASSERT_TRUE(std::abs(yt(0) - 13.5) < 2.0);
+    ASSERT_TRUE(std::abs(yt(1) - 3.5)  < 2.0);
+}
+
+void test_sgd_regressor_partial_fit_feature_mismatch_throws() {
+    Skigen::SGDRegressor<double> sgd;
+    Eigen::MatrixXd X1(4, 2); X1 << 1,2, 3,4, 5,6, 7,8;
+    Eigen::VectorXd y1(4); y1 << 1, 2, 3, 4;
+    sgd.partial_fit(X1, y1);
+    Eigen::MatrixXd X2(2, 3); X2.setOnes();
+    Eigen::VectorXd y2(2); y2 << 1, 2;
+    bool threw = false;
+    try { sgd.partial_fit(X2, y2); }
+    catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
 // ===================================================================
 // TruncatedSVD Tests
 // ===================================================================
@@ -1132,6 +1231,16 @@ int main() {
     std::cout << "\n=== SGDRegressor Tests ===\n";
     run_test("sgd_regressor_basic", test_sgd_regressor_basic);
     run_test("sgd_regressor_predict", test_sgd_regressor_predict);
+    run_test("sgd_classifier_partial_fit_converges",
+             test_sgd_classifier_partial_fit_converges);
+    run_test("sgd_classifier_partial_fit_first_call_requires_classes",
+             test_sgd_classifier_partial_fit_first_call_requires_classes);
+    run_test("sgd_classifier_partial_fit_feature_mismatch_throws",
+             test_sgd_classifier_partial_fit_feature_mismatch_throws);
+    run_test("sgd_regressor_partial_fit_converges",
+             test_sgd_regressor_partial_fit_converges);
+    run_test("sgd_regressor_partial_fit_feature_mismatch_throws",
+             test_sgd_regressor_partial_fit_feature_mismatch_throws);
 
     std::cout << "\n=== TruncatedSVD Tests ===\n";
     run_test("truncated_svd_basic", test_truncated_svd_basic);

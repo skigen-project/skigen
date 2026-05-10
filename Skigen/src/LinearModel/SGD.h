@@ -226,24 +226,43 @@ private:
     void fit_binary(const Eigen::Ref<const MatrixType>& X,
                     const VectorType& y,
                     RowVectorType& w_out, Scalar& b_out) const {
-        const Eigen::Index n = X.rows();
+        // Cold-start full fit: initialise from zero and run up to max_iter
+        // epochs with the early-stop tolerance.
         const Eigen::Index p = X.cols();
-
         RowVectorType w = RowVectorType::Zero(p);
         Scalar b{0};
-        std::mt19937 rng(random_state_);
+        run_sgd_epochs(X, y, w, b, /*n_epochs=*/max_iter_,
+                       /*epoch0=*/0, /*use_tol=*/true);
+        w_out = w;
+        b_out = b;
+    }
 
+    // Run `n_epochs` of SGD on (X, y) starting from current (w, b).
+    // `epoch0` parameterises the inverse-scaling learning rate so resumed
+    // calls in partial_fit() decay consistently with the cold-start path.
+    // When `use_tol` is true, the loop early-stops on the average-update
+    // criterion (used by `fit`); for partial_fit we set it to false so a
+    // single mini-epoch always runs to completion.
+    void run_sgd_epochs(const Eigen::Ref<const MatrixType>& X,
+                        const VectorType& y,
+                        RowVectorType& w, Scalar& b,
+                        int n_epochs, int epoch0, bool use_tol) const {
+        const Eigen::Index n = X.rows();
+        std::mt19937 rng(random_state_ +
+                         static_cast<unsigned>(epoch0));
         std::vector<Eigen::Index> indices(static_cast<std::size_t>(n));
         std::iota(indices.begin(), indices.end(), Eigen::Index{0});
 
-        for (int epoch = 0; epoch < max_iter_; ++epoch) {
+        for (int e = 0; e < n_epochs; ++e) {
+            const int epoch = epoch0 + e;
             std::shuffle(indices.begin(), indices.end(), rng);
-            Scalar eta = eta0_ / (Scalar{1} + eta0_ * alpha_ * static_cast<Scalar>(epoch));
+            const Scalar eta = eta0_ /
+                (Scalar{1} + eta0_ * alpha_ * static_cast<Scalar>(epoch));
             Scalar total_update{0};
 
             for (auto idx : indices) {
-                Scalar margin = (X.row(idx) * w.transpose())(0) + b;
-                Scalar yi = y(idx);
+                const Scalar margin = (X.row(idx) * w.transpose())(0) + b;
+                const Scalar yi = y(idx);
 
                 if (loss_ == Loss::Hinge) {
                     if (yi * margin < Scalar{1}) {
@@ -254,20 +273,128 @@ private:
                         w *= (Scalar{1} - eta * alpha_);
                     }
                 } else { // Log loss
-                    Scalar p_val = sigmoid(yi * margin);
-                    Scalar coeff = (Scalar{1} - p_val) * yi;
+                    const Scalar p_val = sigmoid(yi * margin);
+                    const Scalar coeff = (Scalar{1} - p_val) * yi;
                     w += eta * (coeff * X.row(idx) - alpha_ * w);
                     b += eta * coeff;
                     total_update += std::abs(eta * coeff);
                 }
             }
+            if (use_tol &&
+                total_update / static_cast<Scalar>(n) < tol_) break;
+        }
+    }
 
-            if (total_update / static_cast<Scalar>(n) < tol_) break;
+public:
+    // -- partial_fit ---------------------------------------------------------
+
+    /// @brief Online SGD update.
+    ///
+    /// Runs **one epoch** of SGD on the supplied (X, y) batch starting from
+    /// the current `coef_` / `intercept_` (matching sklearn's
+    /// `SGDClassifier.partial_fit` contract).
+    ///
+    /// The first call requires `classes` (an Eigen::VectorXi of all
+    /// possible labels — a sklearn parity gap workaround for the
+    /// `classes` argument); subsequent calls accept an empty
+    /// `classes` vector and reuse the already-discovered class set.
+    ///
+    /// @throws std::invalid_argument when the feature count differs from
+    ///   the first batch, or when the first call omits `classes`.
+    SGDClassifier& partial_fit(
+        const Eigen::Ref<const MatrixType>& X,
+        const Eigen::Ref<const IndexVector>& y,
+        const Eigen::Ref<const IndexVector>& classes) {
+        internal::check_non_empty(X);
+        internal::check_consistent_length(X, y);
+
+        if (!this->fitted_) {
+            if (classes.size() < 2) {
+                throw std::invalid_argument(
+                    "partial_fit: the `classes` argument is required on "
+                    "the first call and must contain >= 2 classes.");
+            }
+            classes_.clear();
+            classes_.reserve(static_cast<std::size_t>(classes.size()));
+            for (Eigen::Index i = 0; i < classes.size(); ++i) {
+                classes_.push_back(classes(i));
+            }
+            std::sort(classes_.begin(), classes_.end());
+            classes_.erase(std::unique(classes_.begin(), classes_.end()),
+                           classes_.end());
+            this->n_features_in_ = X.cols();
+            const int K = static_cast<int>(classes_.size());
+            const Eigen::Index p = X.cols();
+            if (K == 2) {
+                coef_ = MatrixType::Zero(1, p);
+                intercept_ = VectorType::Zero(1);
+            } else {
+                coef_ = MatrixType::Zero(K, p);
+                intercept_ = VectorType::Zero(K);
+            }
+            n_iter_partial_ = 0;
+            this->fitted_ = true;
+        } else {
+            if (X.cols() != this->n_features_in_) {
+                throw std::invalid_argument(
+                    "X has " + std::to_string(X.cols()) + " features, but "
+                    "partial_fit was previously called with " +
+                    std::to_string(this->n_features_in_) + " features.");
+            }
         }
 
-        w_out = w;
-        b_out = b;
+        // Build label-to-index map from already-discovered classes_.
+        std::map<int, int> class_map;
+        for (std::size_t i = 0; i < classes_.size(); ++i) {
+            class_map[classes_[i]] = static_cast<int>(i);
+        }
+
+        const Eigen::Index n = X.rows();
+        const int K = static_cast<int>(classes_.size());
+
+        if (K == 2) {
+            VectorType binary_y(n);
+            for (Eigen::Index i = 0; i < n; ++i) {
+                auto it = class_map.find(y(i));
+                if (it == class_map.end()) {
+                    throw std::invalid_argument(
+                        "partial_fit: encountered a label not in classes_.");
+                }
+                binary_y(i) = (it->second == 1) ? Scalar{1} : Scalar{-1};
+            }
+            RowVectorType w = coef_.row(0);
+            Scalar b = intercept_(0);
+            run_sgd_epochs(X, binary_y, w, b, /*n_epochs=*/1,
+                           /*epoch0=*/n_iter_partial_,
+                           /*use_tol=*/false);
+            coef_.row(0) = w;
+            intercept_(0) = b;
+        } else {
+            for (int c = 0; c < K; ++c) {
+                VectorType binary_y(n);
+                for (Eigen::Index i = 0; i < n; ++i) {
+                    auto it = class_map.find(y(i));
+                    if (it == class_map.end()) {
+                        throw std::invalid_argument(
+                            "partial_fit: encountered a label not in classes_.");
+                    }
+                    binary_y(i) = (it->second == c) ? Scalar{1} : Scalar{-1};
+                }
+                RowVectorType w = coef_.row(c);
+                Scalar b = intercept_(c);
+                run_sgd_epochs(X, binary_y, w, b, /*n_epochs=*/1,
+                               /*epoch0=*/n_iter_partial_,
+                               /*use_tol=*/false);
+                coef_.row(c) = w;
+                intercept_(c) = b;
+            }
+        }
+        ++n_iter_partial_;
+        return *this;
     }
+
+private:
+    int n_iter_partial_ = 0;
 };
 
 /// @brief Linear regressor fitted by minimizing a regularized empirical loss with SGD.
@@ -359,36 +486,77 @@ public:
         internal::check_consistent_length(X, y);
 
         this->n_features_in_ = X.cols();
-        const Eigen::Index n = X.rows();
         const Eigen::Index p = X.cols();
 
         coef_ = RowVectorType::Zero(p);
         intercept_ = Scalar{0};
-        std::mt19937 rng(random_state_);
-
-        std::vector<Eigen::Index> indices(static_cast<std::size_t>(n));
-        std::iota(indices.begin(), indices.end(), Eigen::Index{0});
-
-        for (int epoch = 0; epoch < max_iter_; ++epoch) {
-            std::shuffle(indices.begin(), indices.end(), rng);
-            Scalar eta = eta0_ / (Scalar{1} + eta0_ * alpha_ * static_cast<Scalar>(epoch));
-            Scalar total_update{0};
-
-            for (auto idx : indices) {
-                Scalar pred = (X.row(idx) * coef_.transpose())(0) + intercept_;
-                Scalar error = pred - y(idx);
-
-                coef_ -= eta * (error * X.row(idx) + alpha_ * coef_);
-                intercept_ -= eta * error;
-                total_update += std::abs(eta * error);
-            }
-
-            if (total_update / static_cast<Scalar>(n) < tol_) break;
-        }
+        n_iter_partial_ = 0;
+        run_epochs(X, y, /*n_epochs=*/max_iter_,
+                   /*epoch0=*/0, /*use_tol=*/true);
 
         this->fitted_ = true;
         return *this;
     }
+
+    /// @brief Online SGD update — runs one epoch on (X, y) starting from
+    ///   the current `coef_` / `intercept_`, matching sklearn's
+    ///   `SGDRegressor.partial_fit` contract. The first call initialises
+    ///   the state to zero (no `classes` argument is needed for
+    ///   regression). Throws on feature-count mismatch with the first
+    ///   batch.
+    SGDRegressor& partial_fit(
+        const Eigen::Ref<const MatrixType>& X,
+        const Eigen::Ref<const VectorType>& y) {
+        internal::check_non_empty(X);
+        internal::check_consistent_length(X, y);
+        if (!this->fitted_) {
+            this->n_features_in_ = X.cols();
+            coef_ = RowVectorType::Zero(X.cols());
+            intercept_ = Scalar{0};
+            n_iter_partial_ = 0;
+            this->fitted_ = true;
+        } else if (X.cols() != this->n_features_in_) {
+            throw std::invalid_argument(
+                "X has " + std::to_string(X.cols()) + " features, but "
+                "partial_fit was previously called with " +
+                std::to_string(this->n_features_in_) + " features.");
+        }
+        run_epochs(X, y, /*n_epochs=*/1,
+                   /*epoch0=*/n_iter_partial_,
+                   /*use_tol=*/false);
+        ++n_iter_partial_;
+        return *this;
+    }
+
+private:
+    void run_epochs(const Eigen::Ref<const MatrixType>& X,
+                    const Eigen::Ref<const VectorType>& y,
+                    int n_epochs, int epoch0, bool use_tol) {
+        const Eigen::Index n = X.rows();
+        std::mt19937 rng(random_state_ +
+                         static_cast<unsigned>(epoch0));
+        std::vector<Eigen::Index> indices(static_cast<std::size_t>(n));
+        std::iota(indices.begin(), indices.end(), Eigen::Index{0});
+
+        for (int e = 0; e < n_epochs; ++e) {
+            const int epoch = epoch0 + e;
+            std::shuffle(indices.begin(), indices.end(), rng);
+            const Scalar eta = eta0_ /
+                (Scalar{1} + eta0_ * alpha_ * static_cast<Scalar>(epoch));
+            Scalar total_update{0};
+            for (auto idx : indices) {
+                const Scalar pred =
+                    (X.row(idx) * coef_.transpose())(0) + intercept_;
+                const Scalar error = pred - y(idx);
+                coef_      -= eta * (error * X.row(idx) + alpha_ * coef_);
+                intercept_ -= eta * error;
+                total_update += std::abs(eta * error);
+            }
+            if (use_tol &&
+                total_update / static_cast<Scalar>(n) < tol_) break;
+        }
+    }
+public:
 
     /// @brief Predict using the linear model.
     [[nodiscard]] VectorType predict_impl(
@@ -415,6 +583,7 @@ private:
 
     RowVectorType coef_;
     Scalar intercept_{0};
+    int n_iter_partial_ = 0;
 };
 
 /// @}
