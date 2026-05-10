@@ -295,6 +295,89 @@ void test_lasso_sparse_empty_throws() {
     ASSERT_TRUE(threw);
 }
 
+void test_lasso_multi_target_recovers_two_outputs() {
+    // y0 = 2x + z, y1 = x − 2z; small alpha so we approach OLS.
+    constexpr int n = 40;
+    Eigen::MatrixXd X(n, 2);
+    Eigen::MatrixXd Y(n, 2);
+    for (int i = 0; i < n; ++i) {
+        X(i, 0) = static_cast<double>(i) / 4.0;
+        X(i, 1) = static_cast<double>(n - i) / 4.0;
+        Y(i, 0) = 2.0 * X(i, 0) +       X(i, 1);
+        Y(i, 1) =       X(i, 0) - 2.0 * X(i, 1);
+    }
+    Skigen::Lasso<double> l(/*alpha=*/1e-4, /*fit_intercept=*/false,
+                             5000, 1e-9);
+    l.fit_multi(X, Y);
+
+    ASSERT_TRUE(l.n_targets() == 2);
+    ASSERT_NEAR(l.coef_matrix()(0, 0),  2.0, 1e-3);
+    ASSERT_NEAR(l.coef_matrix()(0, 1),  1.0, 1e-3);
+    ASSERT_NEAR(l.coef_matrix()(1, 0),  1.0, 1e-3);
+    ASSERT_NEAR(l.coef_matrix()(1, 1), -2.0, 1e-3);
+
+    Eigen::MatrixXd Yp = l.predict_multi(X);
+    for (int i = 0; i < n; ++i) {
+        ASSERT_NEAR(Yp(i, 0), Y(i, 0), 1e-2);
+        ASSERT_NEAR(Yp(i, 1), Y(i, 1), 1e-2);
+    }
+}
+
+void test_lasso_multi_target_single_target_API_consistent() {
+    Eigen::MatrixXd X(4, 1); X << 0, 1, 2, 3;
+    Eigen::MatrixXd Y(4, 2);
+    Y.col(0) << 0.0, 2.0, 4.0, 6.0;
+    Y.col(1) << 5.0, 4.0, 3.0, 2.0;
+    Skigen::Lasso<double> l(1e-4, true, 2000, 1e-9);
+    l.fit_multi(X, Y);
+    // After fit_multi, single-target accessors mirror first target.
+    ASSERT_NEAR(l.coef()(0), l.coef_matrix()(0, 0), 1e-12);
+    ASSERT_NEAR(l.intercept(), l.intercept_vector()(0), 1e-12);
+}
+
+void test_elastic_net_multi_target_recovers_two_outputs() {
+    constexpr int n = 40;
+    Eigen::MatrixXd X(n, 2);
+    Eigen::MatrixXd Y(n, 2);
+    for (int i = 0; i < n; ++i) {
+        X(i, 0) = static_cast<double>(i) / 4.0;
+        X(i, 1) = static_cast<double>(n - i) / 4.0;
+        Y(i, 0) = 1.5 * X(i, 0) + 2.0 * X(i, 1);
+        Y(i, 1) =       X(i, 0) -       X(i, 1);
+    }
+    Skigen::ElasticNet<double> e(1e-4, 0.5, /*fit_intercept=*/false,
+                                  5000, 1e-9);
+    e.fit_multi(X, Y);
+    ASSERT_TRUE(e.n_targets() == 2);
+    ASSERT_NEAR(e.coef_matrix()(0, 0),  1.5, 5e-3);
+    ASSERT_NEAR(e.coef_matrix()(0, 1),  2.0, 5e-3);
+    ASSERT_NEAR(e.coef_matrix()(1, 0),  1.0, 5e-3);
+    ASSERT_NEAR(e.coef_matrix()(1, 1), -1.0, 5e-3);
+}
+
+void test_elastic_net_multi_target_l1_only_matches_lasso_per_target() {
+    // l1_ratio=1 ⇒ multi-target ElasticNet should match per-target Lasso.
+    constexpr int n = 30;
+    Eigen::MatrixXd X(n, 2);
+    Eigen::MatrixXd Y(n, 2);
+    for (int i = 0; i < n; ++i) {
+        X(i, 0) = static_cast<double>(i);
+        X(i, 1) = static_cast<double>(i % 5);
+        Y(i, 0) =  X(i, 0);
+        Y(i, 1) = -X(i, 1);
+    }
+    Skigen::ElasticNet<double> e(1e-3, 1.0, false, 5000, 1e-9);
+    e.fit_multi(X, Y);
+    Skigen::Lasso<double> l0(1e-3, false, 5000, 1e-9);
+    Skigen::Lasso<double> l1(1e-3, false, 5000, 1e-9);
+    Eigen::VectorXd y0 = Y.col(0); l0.fit(X, y0);
+    Eigen::VectorXd y1 = Y.col(1); l1.fit(X, y1);
+    for (int j = 0; j < 2; ++j) {
+        ASSERT_NEAR(e.coef_matrix()(0, j), l0.coef()(j), 1e-6);
+        ASSERT_NEAR(e.coef_matrix()(1, j), l1.coef()(j), 1e-6);
+    }
+}
+
 // ===================================================================
 // ElasticNet Tests
 // ===================================================================
@@ -1021,6 +1104,14 @@ int main() {
              test_lasso_sparse_matches_dense_with_intercept);
     run_test("lasso_sparse_empty_throws",
              test_lasso_sparse_empty_throws);
+    run_test("lasso_multi_target_recovers_two_outputs",
+             test_lasso_multi_target_recovers_two_outputs);
+    run_test("lasso_multi_target_single_target_API_consistent",
+             test_lasso_multi_target_single_target_API_consistent);
+    run_test("elastic_net_multi_target_recovers_two_outputs",
+             test_elastic_net_multi_target_recovers_two_outputs);
+    run_test("elastic_net_multi_target_l1_only_matches_lasso_per_target",
+             test_elastic_net_multi_target_l1_only_matches_lasso_per_target);
 
     std::cout << "\n=== ElasticNet Tests ===\n";
     run_test("elastic_net_basic", test_elastic_net_basic);
