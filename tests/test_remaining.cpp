@@ -411,6 +411,87 @@ void test_truncated_svd_variance_ratio() {
     ASSERT_NEAR(ratio_sum, 1.0, 1e-10);
 }
 
+void test_truncated_svd_sparse_matches_dense() {
+    // Construct a low-rank-ish dense matrix and compare:
+    //  - dense .fit/.transform output (in absolute value)
+    //  - sparse .fit/.transform output (in absolute value)
+    // Random-SVD only guarantees the column space up to sign; we compare
+    // |U S| reconstructions and singular values.
+    Eigen::MatrixXd Xd(20, 8);
+    std::mt19937_64 rng(7);
+    std::normal_distribution<double> ns(0.0, 1.0);
+    for (int i = 0; i < 20; ++i) {
+        for (int j = 0; j < 8; ++j) {
+            // Rank-3 signal + small noise.
+            Xd(i, j) = ns(rng) * 0.05;
+        }
+    }
+    // Inject a rank-3 structure: rows = factor * basis.
+    Eigen::MatrixXd basis(3, 8);
+    for (int r = 0; r < 3; ++r)
+        for (int c = 0; c < 8; ++c) basis(r, c) = ns(rng);
+    for (int i = 0; i < 20; ++i) {
+        Eigen::Vector3d f;
+        f << ns(rng), ns(rng), ns(rng);
+        Xd.row(i).noalias() += (f.transpose() * basis);
+    }
+
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+
+    Skigen::TruncatedSVD<double> svd_dense(3);
+    svd_dense.fit(Xd);
+
+    Skigen::TruncatedSVD<double> svd_sparse(3);
+    svd_sparse.fit(Xs, std::optional<uint64_t>(123),
+                   /*n_oversamples=*/10, /*n_iter=*/7);
+
+    // Singular values should agree to within the randomised-SVD tolerance.
+    auto sd = svd_dense.singular_values();
+    auto ss = svd_sparse.singular_values();
+    ASSERT_TRUE(sd.size() == 3);
+    ASSERT_TRUE(ss.size() == 3);
+    for (int i = 0; i < 3; ++i) {
+        ASSERT_NEAR(sd(i), ss(i), 5e-2);
+    }
+}
+
+void test_truncated_svd_sparse_transform_shape() {
+    Eigen::SparseMatrix<double> X(10, 5);
+    X.insert(0, 0) = 1.0;
+    X.insert(1, 1) = 2.0;
+    X.insert(2, 2) = 3.0;
+    X.insert(3, 3) = 4.0;
+    X.insert(4, 4) = 5.0;
+    for (int i = 5; i < 10; ++i) {
+        X.insert(i, i % 5) = static_cast<double>(i);
+    }
+    X.makeCompressed();
+
+    Skigen::TruncatedSVD<double> svd(2);
+    svd.fit(X, std::optional<uint64_t>(0));
+    Eigen::MatrixXd Y = svd.transform(X);
+    ASSERT_TRUE(Y.rows() == 10);
+    ASSERT_TRUE(Y.cols() == 2);
+}
+
+void test_truncated_svd_sparse_feature_count_check() {
+    Eigen::SparseMatrix<double> X1(8, 4);
+    for (int i = 0; i < 4; ++i) X1.insert(i, i) = 1.0;
+    X1.makeCompressed();
+
+    Skigen::TruncatedSVD<double> svd(2);
+    svd.fit(X1, std::optional<uint64_t>(0));
+
+    Eigen::SparseMatrix<double> X_bad(8, 5);
+    X_bad.insert(0, 0) = 1.0;
+    X_bad.makeCompressed();
+
+    bool threw = false;
+    try { (void)svd.transform(X_bad); }
+    catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
 // ===================================================================
 // MiniBatchKMeans Tests
 // ===================================================================
@@ -770,6 +851,9 @@ int main() {
     run_test("truncated_svd_basic", test_truncated_svd_basic);
     run_test("truncated_svd_transform", test_truncated_svd_transform);
     run_test("truncated_svd_variance_ratio", test_truncated_svd_variance_ratio);
+    run_test("truncated_svd_sparse_matches_dense",        test_truncated_svd_sparse_matches_dense);
+    run_test("truncated_svd_sparse_transform_shape",      test_truncated_svd_sparse_transform_shape);
+    run_test("truncated_svd_sparse_feature_count_check",  test_truncated_svd_sparse_feature_count_check);
 
     std::cout << "\n=== MiniBatchKMeans Tests ===\n";
     run_test("mini_batch_kmeans_basic", test_mini_batch_kmeans_basic);
