@@ -438,6 +438,9 @@ public:
         internal::check_consistent_length(X, y);
 
         this->n_features_in_ = X.cols();
+        // Single-target fit clears any prior multi-target state.
+        per_target_trees_.clear();
+        n_targets_ = 1;
 
         std::vector<Eigen::Index> indices;
         if (sample_indices.empty()) {
@@ -490,6 +493,98 @@ public:
         this->check_is_fitted(); return feature_importances_;
     }
 
+    // -- Multi-target regression (v1.1.0 §3.3) ------------------------------
+
+    /// @brief Fit on a multi-target response matrix Y (n_samples × n_targets).
+    ///
+    /// Implementation: fits **one independent DecisionTreeRegressor per
+    /// target column**. This deviates from sklearn's
+    /// `DecisionTreeRegressor`, which fits a *single* tree whose split
+    /// criterion is the sum-of-squared-errors aggregated across all
+    /// targets. The independent-tree approach matches sklearn's output
+    /// only when the targets are uncorrelated; for correlated targets the
+    /// per-tree splits will diverge from sklearn's joint splits.
+    ///
+    /// Documented parity gap. The single-target API (`fit(X, y)` /
+    /// `predict(X)`) is unchanged; after `fit_multi` the first target
+    /// column's tree backs `predict()` for callers that expect a vector
+    /// output.
+    DecisionTreeRegressor& fit_multi(
+        const Eigen::Ref<const MatrixType>& X,
+        const Eigen::Ref<const MatrixType>& Y) {
+        internal::check_non_empty(X);
+        if (X.rows() != Y.rows()) {
+            throw std::invalid_argument(
+                "fit_multi: X has " + std::to_string(X.rows()) +
+                " rows but Y has " + std::to_string(Y.rows()) + ".");
+        }
+        if (Y.cols() < 1) {
+            throw std::invalid_argument(
+                "fit_multi: Y must have at least 1 target column.");
+        }
+        this->n_features_in_ = X.cols();
+        const Eigen::Index t = Y.cols();
+
+        per_target_trees_.clear();
+        per_target_trees_.reserve(static_cast<std::size_t>(t));
+        for (Eigen::Index k = 0; k < t; ++k) {
+            DecisionTreeRegressor<Scalar> tree(
+                max_depth_, min_samples_split_,
+                max_features_mode_, max_features_value_,
+                random_state_.has_value()
+                    ? std::optional<uint64_t>(
+                          *random_state_ ^ static_cast<uint64_t>(k))
+                    : std::nullopt);
+            VectorType yk = Y.col(k);
+            tree.fit(X, yk);
+            per_target_trees_.push_back(std::move(tree));
+        }
+        n_targets_ = static_cast<int>(t);
+
+        // Mirror first target into the single-target state by re-fitting
+        // the primary tree on Y.col(0). Avoids an extra fit by reusing the
+        // already-fitted per_target_trees_[0]'s root via swap.
+        root_ = std::move(per_target_trees_[0].root_);
+        feature_importances_ = per_target_trees_[0].feature_importances_;
+        total_weight_ = per_target_trees_[0].total_weight_;
+        // Re-fit the slot in per_target_trees_[0] so it has its own tree
+        // (we just stole its root).
+        VectorType y0 = Y.col(0);
+        per_target_trees_[0] = DecisionTreeRegressor<Scalar>(
+            max_depth_, min_samples_split_,
+            max_features_mode_, max_features_value_,
+            random_state_);
+        per_target_trees_[0].fit(X, y0);
+
+        this->fitted_ = true;
+        return *this;
+    }
+
+    /// @brief Multi-target predict (n_samples × n_targets).
+    [[nodiscard]] MatrixType predict_multi(
+        const Eigen::Ref<const MatrixType>& X) const {
+        this->check_is_fitted();
+        this->validate_feature_count(X);
+        if (per_target_trees_.empty()) {
+            // Single-target fit was used; produce a 1-column matrix.
+            VectorType y = predict_impl(X);
+            MatrixType out(y.size(), 1);
+            out.col(0) = y;
+            return out;
+        }
+        const Eigen::Index t = per_target_trees_.size();
+        MatrixType out(X.rows(), t);
+        for (Eigen::Index k = 0; k < t; ++k) {
+            out.col(k) = per_target_trees_[k].predict(X);
+        }
+        return out;
+    }
+
+    [[nodiscard]] int n_targets() const {
+        this->check_is_fitted();
+        return per_target_trees_.empty() ? 1 : n_targets_;
+    }
+
 private:
     int max_depth_;
     int min_samples_split_;
@@ -502,6 +597,15 @@ private:
     mutable std::mt19937_64 rng_;
 
     std::unique_ptr<internal::TreeNode<Scalar>> root_;
+
+    // Multi-target storage: one independent tree per target column. Empty
+    // when fit() (single-target) was used.
+    std::vector<DecisionTreeRegressor<Scalar>> per_target_trees_;
+    int n_targets_ = 1;
+
+    // Friendship so the multi-target re-fit can move from the first slot's
+    // root member.
+    template <typename> friend class DecisionTreeRegressor;
 
     using Node = internal::TreeNode<Scalar>;
 
