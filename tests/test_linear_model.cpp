@@ -183,6 +183,83 @@ void test_lr_float() {
     ASSERT_NEAR(reg.coef()(0), 2.0f, 1e-5f);
 }
 
+void test_lr_sparse_matches_dense_with_intercept() {
+    Eigen::MatrixXd Xd(20, 4);
+    Xd.setZero();
+    Xd(0, 0) = 1; Xd(0, 1) = 2;
+    Xd(1, 0) = 3; Xd(1, 2) = 1;
+    Xd(2, 1) = 4; Xd(2, 3) = 2;
+    Xd(3, 0) = 2; Xd(3, 3) = 3;
+    Xd(4, 2) = 5;
+    Xd(5, 1) = 1; Xd(5, 2) = 2;
+    Xd(6, 0) = 4; Xd(6, 1) = 1;
+    Xd(7, 3) = 6;
+    Xd(8, 0) = 1; Xd(8, 2) = 1;
+    Xd(9, 1) = 3; Xd(9, 3) = 1;
+    Xd(10, 0) = 5;
+    Xd(11, 2) = 4;
+    Xd(12, 1) = 2;
+    Xd(13, 0) = 1; Xd(13, 1) = 1; Xd(13, 3) = 2;
+    Xd(14, 2) = 3;
+    Xd(15, 0) = 2; Xd(15, 3) = 1;
+    Xd(16, 1) = 5;
+    Xd(17, 2) = 2; Xd(17, 3) = 4;
+    Xd(18, 0) = 3;
+    Xd(19, 1) = 1; Xd(19, 2) = 2; Xd(19, 3) = 1;
+
+    Eigen::VectorXd w_true(4);
+    w_true << 1.0, -1.5, 0.5, 0.8;
+    const double b_true = 2.5;
+    Eigen::VectorXd y = (Xd * w_true).array() + b_true;
+
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+
+    Skigen::LinearRegression<double> ld(true);
+    Skigen::LinearRegression<double> ls(true);
+    ld.fit(Xd, y);
+    ls.fit(Xs, y);
+
+    for (int j = 0; j < 4; ++j) {
+        ASSERT_NEAR(ld.coef()(j), ls.coef()(j), 1e-9);
+    }
+    ASSERT_NEAR(ld.intercept(), ls.intercept(), 1e-9);
+    ASSERT_NEAR(ld.intercept(), b_true, 1e-9);
+}
+
+void test_lr_sparse_no_intercept() {
+    Eigen::MatrixXd Xd(10, 3);
+    Xd.setZero();
+    Xd(0, 0) = 1; Xd(1, 1) = 2; Xd(2, 2) = 3;
+    Xd(3, 0) = 4; Xd(4, 1) = 1; Xd(5, 2) = 5;
+    Xd(6, 0) = 2; Xd(7, 1) = 4; Xd(8, 2) = 1;
+    Xd(9, 0) = 3; Xd(9, 1) = 2;
+
+    Eigen::VectorXd w_true(3);
+    w_true << 0.5, 1.0, -0.7;
+    Eigen::VectorXd y = Xd * w_true;
+
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+    Skigen::LinearRegression<double> ld(false);
+    Skigen::LinearRegression<double> ls(false);
+    ld.fit(Xd, y);
+    ls.fit(Xs, y);
+
+    for (int j = 0; j < 3; ++j) {
+        ASSERT_NEAR(ld.coef()(j), ls.coef()(j), 1e-9);
+    }
+    ASSERT_NEAR(ls.intercept(), 0.0, 1e-12);
+}
+
+void test_lr_sparse_empty_throws() {
+    Eigen::SparseMatrix<double> X(0, 0);
+    Eigen::VectorXd y(0);
+    Skigen::LinearRegression<double> r;
+    bool threw = false;
+    try { r.fit(X, y); }
+    catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
 // ===================================================================
 // Ridge Tests
 // ===================================================================
@@ -365,6 +442,10 @@ int main() {
     run_test("lr_feature_mismatch",  test_lr_feature_mismatch);
     run_test("lr_concept",           test_lr_concept);
     run_test("lr_float",             test_lr_float);
+    run_test("lr_sparse_matches_dense_with_intercept",
+             test_lr_sparse_matches_dense_with_intercept);
+    run_test("lr_sparse_no_intercept",  test_lr_sparse_no_intercept);
+    run_test("lr_sparse_empty_throws",  test_lr_sparse_empty_throws);
 
     std::cout << "\n=== Ridge Tests ===\n";
     run_test("ridge_basic",              test_ridge_basic);

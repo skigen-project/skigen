@@ -8,7 +8,9 @@
 #include "../Core/Validation.h"
 
 #include <Eigen/Core>
+#include <Eigen/Cholesky>
 #include <Eigen/QR>
+#include <Eigen/SparseCore>
 
 namespace Skigen {
 
@@ -82,6 +84,10 @@ public:
     using typename Base::IndexType;
     using typename Base::ScalarType;
 
+    // Make the dense base-class fit overload visible alongside the
+    // sparse fit overload added below.
+    using Base::fit;
+
     /// @brief Construct a LinearRegression estimator.
     ///
     /// @param fit_intercept Whether to calculate the intercept (`bool`, default `true`).
@@ -152,6 +158,90 @@ public:
             auto qr = X.colPivHouseholderQr();
             coef_ = qr.solve(y).transpose();
             rank_ = qr.rank();
+            intercept_ = Scalar{0};
+        }
+
+        this->fitted_ = true;
+        return *this;
+    }
+
+    // -- Sparse-aware overload (v1.1.0 §3.2) --------------------------------
+
+    /// @brief Fit OLS on a sparse design matrix without densifying X.
+    ///
+    /// Solves the (centred when `fit_intercept=true`) normal equation
+    /// @f$ (X_c^\top X_c) w = X_c^\top y_c @f$ via the implicit-centring
+    /// identities used by `Ridge::fit(SparseMatrix, ...)`. Uses an LDL^T
+    /// factorisation (positive-semi-definite Cholesky variant) so that
+    /// rank-deficient `X^T X` is handled gracefully — sklearn falls back
+    /// to LSQR for sparse OLS, which is also robust to rank deficiency.
+    ///
+    /// Mirrors sklearn's `LinearRegression.fit` behaviour on sparse input.
+    /// `sample_weight`, `positive`, `n_jobs` are documented parity gaps.
+    template <int Options, typename StorageIndex>
+    LinearRegression& fit(
+        const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X,
+        const Eigen::Ref<const VectorType>& y) {
+        if (X.rows() == 0 || X.cols() == 0) {
+            throw std::invalid_argument(
+                "LinearRegression.fit: empty sparse matrix.");
+        }
+        if (X.rows() != y.size()) {
+            throw std::invalid_argument(
+                "LinearRegression.fit: X has " + std::to_string(X.rows()) +
+                " rows but y has " + std::to_string(y.size()) + ".");
+        }
+        this->n_features_in_ = X.cols();
+
+        using ColSparse =
+            Eigen::SparseMatrix<Scalar, Eigen::ColMajor, StorageIndex>;
+        const ColSparse Xs = X;
+        const Eigen::Index n = Xs.rows();
+        const Eigen::Index p = Xs.cols();
+
+        RowVectorType x_mean = RowVectorType::Zero(p);
+        if (fit_intercept_) {
+            for (Eigen::Index j = 0; j < p; ++j) {
+                Scalar s{0};
+                for (typename ColSparse::InnerIterator it(Xs, j); it; ++it) {
+                    s += it.value();
+                }
+                x_mean(j) = s / static_cast<Scalar>(n);
+            }
+        }
+        const Scalar y_mean = fit_intercept_ ? y.mean() : Scalar{0};
+
+        MatrixType XtX = MatrixType(Xs.transpose() * Xs);
+        VectorType Xty = Xs.transpose() * y;
+        if (fit_intercept_) {
+            XtX.noalias() -= static_cast<Scalar>(n) *
+                             (x_mean.transpose() * x_mean);
+            Xty.noalias() -= static_cast<Scalar>(n) * y_mean *
+                             x_mean.transpose();
+        }
+
+        Eigen::LDLT<MatrixType> ldlt(XtX);
+        VectorType w = ldlt.solve(Xty);
+
+        coef_ = w.transpose();
+        // LDLT does not expose `.rank()`. We approximate the effective rank
+        // via the count of non-tiny diagonal entries of D — the same heuristic
+        // sklearn's sparse path applies in lieu of an explicit rank-revealing
+        // factorisation.
+        const auto vector_d = ldlt.vectorD();
+        const Scalar tol = std::numeric_limits<Scalar>::epsilon() *
+                           static_cast<Scalar>(vector_d.size()) *
+                           vector_d.cwiseAbs().maxCoeff();
+        Eigen::Index r = 0;
+        for (Eigen::Index i = 0; i < vector_d.size(); ++i) {
+            if (std::abs(vector_d(i)) > tol) ++r;
+        }
+        rank_ = r;
+
+        if (fit_intercept_) {
+            intercept_ = y_mean - x_mean.dot(w);
+            x_offset_ = x_mean;
+        } else {
             intercept_ = Scalar{0};
         }
 
