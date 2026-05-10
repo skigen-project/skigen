@@ -139,7 +139,7 @@ Scalar parse_threshold(
 /// - Skigen::RFE — Recursive feature elimination.
 /// - Skigen::SelectKBest — Top-k features by univariate score.
 ///
-/// @note **scikit-learn parity gaps:** `importance_getter` callable is
+/// ### Limitations relative to scikit-learn `importance_getter` callable is
 ///   not supported (importance is taken from `coef()`/`feature_importances()`
 ///   automatically). `norm_order` is not supported (we use absolute value).
 template <typename Estimator>

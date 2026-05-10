@@ -33,12 +33,16 @@ namespace Skigen {
 /// [sklearn.ensemble.HistGradientBoostingClassifier](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.HistGradientBoostingClassifier.html)
 /// for the binary log-loss case.
 ///
-/// @note **scikit-learn parity gaps:** Only binary classification +
-///   `loss=LogLoss` is honoured. Native histogram split-finding,
-///   leaf-wise growth, monotonic constraints, native categorical
-///   handling, early stopping, and `l2_regularization` are deferred
-///   parity gaps (accepted as constructor params, ignored at fit time).
-///   Multiclass is rejected explicitly.
+/// ### Limitations relative to scikit-learn
+///
+/// Binary classification only; multiclass is rejected at fit time.
+/// Once X is binned, the existing `DecisionTreeRegressor` is used for
+/// split selection rather than a native histogram-based split finder
+/// — predictions match when the binning is fine enough but the
+/// scaling-on-large-n advantage of histograms is not realised.
+/// Leaf-wise growth (`max_leaf_nodes`), monotonic constraints, native
+/// categoricals, early stopping, and `l2_regularization` are accepted
+/// as constructor parameters but are not honoured at fit time.
 template <typename Scalar = double>
 class HistGradientBoostingClassifier
     : public Classifier<HistGradientBoostingClassifier<Scalar>, Scalar> {
@@ -123,7 +127,7 @@ public:
         const Eigen::Index n = X.rows();
         const Eigen::Index p = X.cols();
 
-        // Discover & validate the class set (binary only in v1.1.0).
+        // Discover & validate the class set (binary only).
         std::vector<int> uniq;
         uniq.reserve(static_cast<std::size_t>(y.size()));
         for (Eigen::Index i = 0; i < y.size(); ++i) uniq.push_back(y(i));
@@ -131,7 +135,7 @@ public:
         uniq.erase(std::unique(uniq.begin(), uniq.end()), uniq.end());
         if (uniq.size() != 2) {
             throw std::invalid_argument(
-                "HistGradientBoostingClassifier (Skigen v1.1.0): only "
+                "HistGradientBoostingClassifier: only "
                 "binary classification (n_classes=2) is supported; got " +
                 std::to_string(uniq.size()) + " classes.");
         }

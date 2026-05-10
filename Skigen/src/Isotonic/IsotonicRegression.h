@@ -76,7 +76,7 @@ enum class IsotonicIncreasing {
 /// | `y_thresholds()` | `VectorType` | Fitted values at `X_thresholds_`. |
 /// | `increasing_()` | `bool` | Effective monotonicity direction (after `Auto` resolution). |
 ///
-/// @note **sklearn parity gaps:** `feature_names_in_` is not exposed.
+/// ### Limitations relative to scikit-learn `feature_names_in_` is not exposed.
 ///   Spearman-based `Auto` direction is computed here from the sign of the
 ///   ordinary Pearson correlation of (X, y) — matching sklearn 1.7's
 ///   internal `check_increasing` helper.

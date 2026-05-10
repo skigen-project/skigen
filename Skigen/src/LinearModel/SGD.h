@@ -58,13 +58,15 @@ namespace Skigen {
 ///
 /// The learning rate schedule is inverse scaling: @f$\eta_t = \eta_0 / (1 + \eta_0 \alpha t)@f$.
 ///
-/// @note **scikit-learn parity gaps:** The following sklearn constructor
-///   parameters are not yet supported: `penalty` (only L2), `l1_ratio`,
+/// ### Limitations relative to scikit-learn
+///
+/// The following scikit-learn constructor
+///   parameters are not honoured: `penalty` (only L2), `l1_ratio`,
 ///   `fit_intercept`, `shuffle` (always on), `epsilon`, `n_jobs`,
 ///   `learning_rate` (only inverse scaling), `power_t`, `early_stopping`,
 ///   `validation_fraction`, `n_iter_no_change`, `class_weight`,
 ///   `warm_start`, `average`.
-///   The following sklearn fitted attributes are not yet exposed:
+///   The following sklearn fitted attributes are not exposed:
 ///   `classes_`, `n_iter_`, `t_`, `n_features_in_`, `feature_names_in_`,
 ///   `loss_function_`.
 ///
@@ -295,7 +297,7 @@ public:
     /// `SGDClassifier.partial_fit` contract).
     ///
     /// The first call requires `classes` (an Eigen::VectorXi of all
-    /// possible labels — a sklearn parity gap workaround for the
+    /// possible labels — a sklearn convention for the
     /// `classes` argument); subsequent calls accept an empty
     /// `classes` vector and reuse the already-discovered class set.
     ///
@@ -426,13 +428,15 @@ private:
 ///
 /// The learning rate schedule is inverse scaling: @f$\eta_t = \eta_0 / (1 + \eta_0 \alpha t)@f$.
 ///
-/// @note **scikit-learn parity gaps:** The following sklearn constructor
-///   parameters are not yet supported: `loss` (only squared error),
+/// ### Limitations relative to scikit-learn
+///
+/// The following scikit-learn constructor
+///   parameters are not honoured: `loss` (only squared error),
 ///   `penalty` (only L2), `l1_ratio`, `fit_intercept`, `shuffle` (always on),
 ///   `epsilon`, `learning_rate` (only inverse scaling), `power_t`,
 ///   `early_stopping`, `validation_fraction`, `n_iter_no_change`,
 ///   `warm_start`, `average`.
-///   The following sklearn fitted attributes are not yet exposed:
+///   The following sklearn fitted attributes are not exposed:
 ///   `n_iter_`, `t_`, `n_features_in_`, `feature_names_in_`.
 ///
 /// ### Examples

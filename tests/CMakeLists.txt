@@ -204,3 +204,19 @@ target_link_libraries(skigen_test_core_infra PRIVATE Skigen::Skigen)
 target_compile_options(skigen_test_core_infra PRIVATE ${SKIGEN_WARNING_FLAGS})
 
 add_test(NAME skigen_test_core_infra COMMAND skigen_test_core_infra)
+
+# ---------------------------------------------------------------------------
+# SVM tests (LinearSVC, LinearSVR, SVC, SVR + parity-gap stubs)
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_svm test_svm.cpp)
+target_link_libraries(skigen_test_svm PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_svm PRIVATE ${SKIGEN_WARNING_FLAGS})
+add_test(NAME skigen_test_svm COMMAND skigen_test_svm)
+
+# ---------------------------------------------------------------------------
+# NeuralNetwork tests (MLPRegressor, MLPClassifier)
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_neural_network test_neural_network.cpp)
+target_link_libraries(skigen_test_neural_network PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_neural_network PRIVATE ${SKIGEN_WARNING_FLAGS})
+add_test(NAME skigen_test_neural_network COMMAND skigen_test_neural_network)

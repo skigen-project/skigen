@@ -215,7 +215,7 @@ void test_iso_out_of_bounds_raise() {
                                    OutOfBounds::Raise);
     iso.fit(X, y);
     Eigen::MatrixXd T(1, 1); T << 100;
-    ASSERT_THROWS(iso.predict(T), std::invalid_argument);
+    ASSERT_THROWS((void)iso.predict(T), std::invalid_argument);
 }
 
 void test_iso_transform_alias() {

@@ -100,11 +100,12 @@ inline int compute_max_features_eff(int mode, double value, int n_features) {
 /// Uses Gini impurity for classification. The tree is built recursively
 /// with greedy best-first splitting.
 ///
-/// @note **scikit-learn parity gaps:** The following sklearn constructor
-///   parameters are not yet supported: `criterion` (only Gini),
-///   `splitter`, `min_samples_leaf`, `min_weight_fraction_leaf`,
-///   `max_leaf_nodes`, `min_impurity_decrease`,
-///   `class_weight`, `ccp_alpha`, `monotonic_cst`.
+/// ### Limitations relative to scikit-learn
+///
+/// Only the Gini criterion is implemented; `splitter`,
+/// `min_samples_leaf`, `min_weight_fraction_leaf`, `max_leaf_nodes`,
+/// `min_impurity_decrease`, `class_weight`, `ccp_alpha`, and
+/// `monotonic_cst` are not honoured.
 ///
 /// ### Examples
 ///
@@ -144,18 +145,16 @@ public:
         return fit_with_indices(X, y, std::vector<Eigen::Index>{});
     }
 
-    // -- Sparse-aware overloads (v1.1.0 §3.2) --------------------------------
+    // -- Sparse-aware overloads ----------------------------------------------
 
     /// @brief Fit on a sparse design matrix.
     ///
-    /// **v1.1.0 implementation note:** the sparse input is converted to a
-    /// dense `MatrixType` internally and forwarded to the regular
-    /// split-finding path. Native sparse split-finding (skip-zero column
-    /// scans accumulating per-class counts only over explicit nonzeros)
-    /// is a documented parity gap deferred to a follow-up release. The
-    /// API surface and numerical results are still correct on sparse
-    /// input — only the EES (memory / cycles) advantage is currently
-    /// missing.
+    /// The sparse input is converted to a dense `MatrixType` internally
+    /// and forwarded to the regular split-finding path. The numerical
+    /// results match a dense fit; a native sparse split finder
+    /// (skip-zero column scans accumulating per-class counts only over
+    /// explicit nonzeros) would avoid the densification but is not
+    /// implemented.
     template <int Options, typename StorageIndex>
     DecisionTreeClassifier& fit(
         const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X,
@@ -481,10 +480,14 @@ public:
         return fit_with_indices(X, y, std::vector<Eigen::Index>{});
     }
 
-    // -- Sparse-aware overloads (v1.1.0 §3.2) --------------------------------
+    // -- Sparse-aware overloads ----------------------------------------------
 
-    /// @brief Fit on a sparse design matrix (densifies internally — see
-    ///   the parity-gap note on DecisionTreeClassifier::fit).
+    /// @brief Fit on a sparse design matrix.
+    ///
+    /// The sparse input is converted to a dense `MatrixType` internally
+    /// and forwarded to the regular split-finding path. The numerical
+    /// results match a dense fit; native sparse split-finding is not
+    /// implemented.
     template <int Options, typename StorageIndex>
     DecisionTreeRegressor& fit(
         const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X,
@@ -574,7 +577,7 @@ public:
         this->check_is_fitted(); return feature_importances_;
     }
 
-    // -- Multi-target regression (v1.1.0 §3.3) ------------------------------
+    // -- Multi-target regression --------------------------------------------
 
     /// @brief Fit on a multi-target response matrix Y (n_samples × n_targets).
     ///
@@ -586,10 +589,9 @@ public:
     /// only when the targets are uncorrelated; for correlated targets the
     /// per-tree splits will diverge from sklearn's joint splits.
     ///
-    /// Documented parity gap. The single-target API (`fit(X, y)` /
-    /// `predict(X)`) is unchanged; after `fit_multi` the first target
-    /// column's tree backs `predict()` for callers that expect a vector
-    /// output.
+    /// The single-target API (`fit(X, y)` / `predict(X)`) is unchanged;
+    /// after `fit_multi`, the first target column's tree backs
+    /// `predict()` for callers that expect a vector output.
     DecisionTreeRegressor& fit_multi(
         const Eigen::Ref<const MatrixType>& X,
         const Eigen::Ref<const MatrixType>& Y) {

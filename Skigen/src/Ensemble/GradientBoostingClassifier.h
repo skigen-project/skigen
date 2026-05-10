@@ -48,7 +48,7 @@ namespace Skigen {
 /// `learning_rate=0.1`, `n_estimators=100`, `subsample=1.0`,
 /// `criterion=FriedmanMSE`, `min_samples_split=2`, `min_samples_leaf=1`,
 /// `max_depth=3`, `validation_fraction=0.1`, `tol=1e-4`. Multiclass,
-/// stochastic boosting, and early stopping are deferred parity gaps.
+/// stochastic boosting, and early stopping are not implemented.
 ///
 /// ### Attributes (after fitting)
 ///
@@ -114,7 +114,7 @@ public:
         if (loss_ != Loss::LogLoss) {
             throw std::invalid_argument(
                 "GradientBoostingClassifier: only loss=LogLoss is implemented "
-                "in Skigen v1.1.0. Exponential is not yet supported.");
+                "in Exponential is not honoured.");
         }
         if (subsample_ <= Scalar{0} || subsample_ > Scalar{1}) {
             throw std::invalid_argument(
@@ -124,7 +124,7 @@ public:
         if (subsample_ < Scalar{1}) {
             throw std::invalid_argument(
                 "GradientBoostingClassifier: subsample < 1.0 (stochastic GB) "
-                "is not yet implemented in Skigen v1.1.0.");
+                "is not implemented.");
         }
     }
 
@@ -175,7 +175,7 @@ public:
 
         if (uniq.size() != 2) {
             throw std::invalid_argument(
-                "GradientBoostingClassifier (Skigen v1.1.0): only binary "
+                "GradientBoostingClassifier: only binary "
                 "classification (n_classes=2) is supported; got " +
                 std::to_string(uniq.size()) + " classes.");
         }

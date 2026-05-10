@@ -95,7 +95,7 @@ inline constexpr return_std_t with_std{};
 /// - M. E. Tipping, *Sparse Bayesian Learning and the Relevance Vector Machine*, JMLR 2001.
 /// - D. J. C. MacKay, *Bayesian Interpolation*, Neural Computation, 1992.
 ///
-/// @note **scikit-learn parity gaps:** `sample_weight` in `fit()` is not
+/// ### Limitations relative to scikit-learn `sample_weight` in `fit()` is not
 ///   supported. `copy_X` is accepted but ignored (no-op). Sparse inputs are
 ///   not supported. `n_features_in_` is exposed via `n_features_in()` but
 ///   `feature_names_in_` is not.

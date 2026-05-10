@@ -69,9 +69,11 @@ Scalar quantile_sorted(const Scalar* data, Eigen::Index n, Scalar q) {
 /// - Skigen::StandardScaler — Standardize using mean and std (not robust to outliers).
 /// - Skigen::MinMaxScaler — Scale features to a given range.
 ///
-/// @note **scikit-learn parity gaps:** The following sklearn constructor
-///   parameters are not yet supported: `copy`, `unit_variance`.
-///   The following sklearn fitted attributes are not yet exposed:
+/// ### Limitations relative to scikit-learn
+///
+/// The following scikit-learn constructor
+///   parameters are not honoured: `copy`, `unit_variance`.
+///   The following sklearn fitted attributes are not exposed:
 ///   `n_features_in_`, `feature_names_in_`.
 ///
 /// ### Examples

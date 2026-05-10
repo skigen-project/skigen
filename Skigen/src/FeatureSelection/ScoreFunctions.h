@@ -459,7 +459,7 @@ chi2(const Eigen::Ref<const Eigen::Matrix<
 }
 
 // ---------------------------------------------------------------------------
-// chi2 — sparse overload (v1.1.0 §3.2)
+// chi2 — sparse overload
 //
 // Operates directly on the CSC nonzeros: per-column sums and per-class
 // per-column observed totals are accumulated by iterating column-wise

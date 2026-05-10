@@ -159,4 +159,35 @@ using IsotonicRegressionF = IsotonicRegression<float>;
 
 } // namespace Skigen
 
+// ---------------------------------------------------------------------------
+// SVM + NeuralNetwork (declared at the bottom because they depend on the
+// rest of the type-alias surface for their template scaffolding).
+// ---------------------------------------------------------------------------
+#include "SVM"
+#include "NeuralNetwork"
+
+namespace Skigen {
+
+using LinearSVCD     = LinearSVC<double>;
+using LinearSVCF     = LinearSVC<float>;
+using LinearSVRD     = LinearSVR<double>;
+using LinearSVRF     = LinearSVR<float>;
+using SVCD           = SVC<double>;
+using SVCF           = SVC<float>;
+using SVRD           = SVR<double>;
+using SVRF           = SVR<float>;
+using NuSVCD         = NuSVC<double>;
+using NuSVCF         = NuSVC<float>;
+using NuSVRD         = NuSVR<double>;
+using NuSVRF         = NuSVR<float>;
+using OneClassSVMD   = OneClassSVM<double>;
+using OneClassSVMF   = OneClassSVM<float>;
+
+using MLPRegressorD  = MLPRegressor<double>;
+using MLPRegressorF  = MLPRegressor<float>;
+using MLPClassifierD = MLPClassifier<double>;
+using MLPClassifierF = MLPClassifier<float>;
+
+} // namespace Skigen
+
 #endif // SKIGEN_TYPE_ALIASES

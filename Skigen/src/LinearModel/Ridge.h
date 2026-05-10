@@ -65,12 +65,12 @@ namespace Skigen {
 /// the variance of the estimates. Larger values specify stronger
 /// regularization.
 ///
-/// @note **scikit-learn parity gaps:** The following sklearn constructor
-///   parameters are not yet supported: `copy_X`, `max_iter`, `tol`,
-///   `solver` (only Cholesky is implemented), `positive`, `random_state`.
-///   The following sklearn fitted attributes are not yet exposed:
-///   `n_iter_`, `n_features_in_`, `feature_names_in_`, `solver_`.
-///   `sample_weight` in `fit()` is not yet supported.
+/// ### Limitations relative to scikit-learn
+///
+/// Only the Cholesky solver is implemented; `solver` selection,
+/// `max_iter`, `tol`, `positive`, `random_state`, and `sample_weight`
+/// are not honoured. The fitted attributes `n_iter_`,
+/// `feature_names_in_`, and `solver_` are not exposed.
 ///
 /// ### Examples
 ///
@@ -89,6 +89,15 @@ public:
     // Make the dense base-class fit overload visible alongside the
     // sparse fit overload added below.
     using Base::fit;
+
+    // Register parameters with the reflection layer. The macro generates
+    // `set_param_impl` and `get_params_impl` hooks that the Estimator
+    // base's `set_param` / `get_params` dispatch into; hyperparameter-
+    // search drivers like GridSearchCV use these to read and write
+    // settings by name.
+    SKIGEN_PARAMS(
+        (alpha,         alpha_,         double),
+        (fit_intercept, fit_intercept_, bool))
 
     /// @brief Construct a Ridge estimator.
     ///
@@ -137,8 +146,7 @@ public:
     ///   Will be cast to `Scalar` if necessary.
     /// @return Reference to the fitted estimator (`*this`).
     ///
-    /// @note **sklearn parity gap:** `sample_weight` parameter is
-    ///   not yet supported.
+    /// `sample_weight` is not honoured.
     Ridge& fit_impl(const Eigen::Ref<const MatrixType>& X,
                     const Eigen::Ref<const VectorType>& y) {
         internal::check_non_empty(X);
@@ -185,7 +193,7 @@ public:
         return *this;
     }
 
-    // -- Sparse-aware overload (v1.1.0 §3.2) --------------------------------
+    // -- Sparse-aware overload ----------------------------------------------
 
     /// @brief Fit Ridge on a sparse design matrix without densifying X.
     ///
@@ -203,8 +211,8 @@ public:
     /// the sparse representation; only the small Gram matrix is
     /// materialised dense, then factored with Cholesky.
     ///
-    /// Mirrors sklearn's `Ridge` behaviour on sparse input. `sample_weight`,
-    /// `solver`, `tol`, `max_iter`, `positive` are documented parity gaps.
+    /// `sample_weight`, `solver` selection, `tol`, `max_iter`, and
+    /// `positive` are not honoured on the sparse path either.
     template <int Options, typename StorageIndex>
     Ridge& fit(const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X,
                const Eigen::Ref<const VectorType>& y) {
@@ -301,7 +309,7 @@ public:
         return Scalar{1} - ss_res / ss_tot;
     }
 
-    // -- Multi-target regression (v1.1.0 §3.3) ------------------------------
+    // -- Multi-target regression --------------------------------------------
 
     /// @brief Fit Ridge with a multi-target response matrix.
     ///

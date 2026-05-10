@@ -53,13 +53,15 @@ namespace Skigen {
 ///
 /// - Skigen::MiniBatchKMeans — Mini-batch variant for large datasets.
 ///
-/// @note **scikit-learn parity gaps:** The following sklearn constructor
-///   parameters are not yet supported: `init` (only k-means++), `tol`,
+/// ### Limitations relative to scikit-learn
+///
+/// The following scikit-learn constructor
+///   parameters are not honoured: `init` (only k-means++), `tol`,
 ///   `verbose`, `copy_x`, `algorithm` (only Lloyd).
-///   The following sklearn fitted attributes are not yet exposed:
+///   The following sklearn fitted attributes are not exposed:
 ///   `n_features_in_`, `feature_names_in_`.
 ///   The `fit_predict()`, `fit_transform()`, and `score()` methods
-///   are not yet implemented.
+///   are not implemented.
 ///
 /// ### Examples
 ///
@@ -188,7 +190,7 @@ public:
         return *this;
     }
 
-    // -- Sparse-aware overloads (v1.1.0 §3.2) --------------------------------
+    // -- Sparse-aware overloads --------------------------------
 
     /// @brief Fit k-means on a sparse design matrix without densifying X.
     ///
@@ -203,7 +205,7 @@ public:
     ///
     /// Mirrors sklearn's `KMeans.fit` behaviour on sparse input.
     /// `algorithm` selection (only Lloyd implemented), `tol`, `verbose`,
-    /// `init=random`, `init=array` are documented parity gaps.
+    /// `init=random`, `init=array` are not honoured.
     template <int Options, typename StorageIndex>
     KMeans& fit(
         const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X) {

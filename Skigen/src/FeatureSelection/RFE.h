@@ -87,7 +87,7 @@ Eigen::Matrix<Scalar, 1, Eigen::Dynamic> compute_importances(
 /// | `ranking()` | `Eigen::VectorXi` | 1-based feature ranks (1 = selected). |
 /// | `estimator()` | `const Estimator&` | Estimator refit on selected features. |
 ///
-/// @note **scikit-learn parity gaps:** `importance_getter` callable is not
+/// ### Limitations relative to scikit-learn `importance_getter` callable is not
 ///   supported. `feature_names_in_` is not exposed.
 template <typename Estimator>
 class RFE {

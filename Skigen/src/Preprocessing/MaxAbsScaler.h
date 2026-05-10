@@ -46,10 +46,12 @@ namespace Skigen {
 /// - Skigen::StandardScaler — Standardize to zero mean and unit variance.
 /// - Skigen::MinMaxScaler — Scale features to a given range.
 ///
-/// @note **scikit-learn parity gaps:** The following sklearn constructor
-///   parameters are not yet supported: `copy`.
-///   `partial_fit()` is not yet implemented.
-///   The following sklearn fitted attributes are not yet exposed:
+/// ### Limitations relative to scikit-learn
+///
+/// The following scikit-learn constructor
+///   parameters are not honoured: `copy`.
+///   `partial_fit()` is not implemented.
+///   The following sklearn fitted attributes are not exposed:
 ///   `n_features_in_`, `feature_names_in_`.
 ///
 /// ### Examples

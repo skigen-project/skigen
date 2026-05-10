@@ -66,8 +66,11 @@ concept ClassifierLike = EstimatorLike<T> &&
     };
 
 // ---------------------------------------------------------------------------
-// IncrementalLike concept (v1.1.0 §3.1) — `partial_fit` for streaming /
-// online learning. The contract is documented in v1.1.0-requirements §3.1.
+// Online-learning concepts: estimators that accept new batches of data via
+// `partial_fit` and update their state in place rather than refitting from
+// scratch. Required contract: subsequent calls produce fitted attributes
+// equivalent (within FP tolerance) to a single `fit` over the concatenated
+// batches.
 // ---------------------------------------------------------------------------
 
 template <typename T>
@@ -89,8 +92,9 @@ concept IncrementalLike =
     IncrementalUnsupervised<T> || IncrementalSupervised<T>;
 
 // ---------------------------------------------------------------------------
-// MultiOutputRegressor concept (v1.1.0 §3.3) — additive multi-target
-// regression API: fit_multi(X, Y) + predict_multi(X) + n_targets().
+// MultiOutputRegressor concept — regressors that expose a multi-target
+// API: `fit_multi(X, Y)` accepts a (n_samples × n_targets) response matrix
+// and `predict_multi(X)` returns the matching prediction matrix.
 // ---------------------------------------------------------------------------
 
 template <typename T>
@@ -101,6 +105,18 @@ concept MultiOutputRegressorLike = EstimatorLike<T> &&
         { t.fit_multi(X, Y) } -> std::same_as<T&>;
         { t.predict_multi(X) } -> std::same_as<typename T::MatrixType>;
         { t.n_targets() } -> std::convertible_to<int>;
+    };
+
+// ---------------------------------------------------------------------------
+// ParametrizedLike — estimators that have registered their hyperparameters
+// with the SKIGEN_PARAMS(...) reflection layer, exposing the
+// `set_param` / `get_params` API used by hyperparameter-search drivers.
+// ---------------------------------------------------------------------------
+
+template <typename T>
+concept ParametrizedLike = EstimatorLike<T> &&
+    requires(T t, const T ct) {
+        { ct.get_params_impl() };
     };
 
 } // namespace Skigen

@@ -33,12 +33,14 @@ namespace Skigen {
 /// `std::tuple`. The number and types of steps are fixed at compile
 /// time, which enables full inlining and zero runtime overhead.
 ///
-/// @note **scikit-learn parity gaps:** The following sklearn features
-///   are not yet supported: `memory` (caching), `verbose`,
+/// ### Limitations relative to scikit-learn
+///
+/// The following scikit-learn features
+///   are not honoured: `memory` (caching), `verbose`,
 ///   named steps (steps are accessed by index), `set_params()`,
 ///   `get_params()`, `set_output()`.
 ///   `fit_transform()`, `fit_predict()`, and `inverse_transform()`
-///   are not yet implemented.
+///   are not implemented.
 ///
 /// ### Examples
 ///

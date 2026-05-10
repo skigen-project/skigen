@@ -54,11 +54,13 @@ namespace Skigen {
 ///
 /// - Skigen::PCA — PCA with centering (not suitable for sparse data).
 ///
-/// @note **scikit-learn parity gaps:** The following sklearn constructor
-///   parameters are not yet supported: `algorithm` (only full SVD),
+/// ### Limitations relative to scikit-learn
+///
+/// The following scikit-learn constructor
+///   parameters are not honoured: `algorithm` (only full SVD),
 ///   `n_iter`, `n_oversamples`, `power_iteration_normalizer`, `random_state`,
 ///   `tol`.
-///   The following sklearn fitted attributes are not yet exposed:
+///   The following sklearn fitted attributes are not exposed:
 ///   `n_features_in_`, `feature_names_in_`.
 ///
 /// ### Examples
@@ -144,7 +146,7 @@ public:
         return *this;
     }
 
-    // -- Sparse-aware overloads (v1.1.0 §3.2) --------------------------------
+    // -- Sparse-aware overloads --------------------------------
 
     /// @brief Fit the model on a sparse matrix without densifying.
     ///

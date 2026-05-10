@@ -69,13 +69,15 @@ namespace Skigen {
 /// soft-thresholding. To avoid unnecessary memory duplication the `X`
 /// argument should ideally be column-major (Eigen's default).
 ///
-/// @note **scikit-learn parity gaps:** The following sklearn constructor
-///   parameters are not yet supported: `precompute`, `copy_X`, `warm_start`,
+/// ### Limitations relative to scikit-learn
+///
+/// The following scikit-learn constructor
+///   parameters are not honoured: `precompute`, `copy_X`, `warm_start`,
 ///   `positive`, `random_state`, `selection`.
-///   The following sklearn fitted attributes are not yet exposed:
+///   The following sklearn fitted attributes are not exposed:
 ///   `n_iter_`, `dual_gap_`, `sparse_coef_`, `n_features_in_`,
 ///   `feature_names_in_`.
-///   `sample_weight` in `fit()` is not yet supported.
+///   `sample_weight` in `fit()` is not honoured.
 ///
 /// ### Examples
 ///
@@ -138,8 +140,10 @@ public:
     ///   Will be cast to `Scalar` if necessary.
     /// @return Reference to the fitted estimator (`*this`).
     ///
-    /// @note **sklearn parity gap:** `sample_weight` and `check_input`
-    ///   parameters are not yet supported.
+    /// ### Limitations relative to scikit-learn
+///
+/// `sample_weight` and `check_input`
+    ///   parameters are not honoured.
     Lasso& fit_impl(const Eigen::Ref<const MatrixType>& X,
                     const Eigen::Ref<const VectorType>& y) {
         internal::check_non_empty(X);
@@ -216,7 +220,7 @@ public:
         return *this;
     }
 
-    // -- Sparse-aware overload (v1.1.0 §3.2) --------------------------------
+    // -- Sparse-aware overload --------------------------------
 
     /// @brief Fit Lasso on a sparse design matrix without densifying X.
     ///
@@ -233,7 +237,7 @@ public:
     ///
     /// Mirrors sklearn's `Lasso.fit` behaviour on sparse input.
     /// `sample_weight`, `precompute`, `positive`, `random_state`,
-    /// `selection`, and `warm_start` are documented parity gaps.
+    /// `selection`, and `warm_start` are not honoured.
     template <int Options, typename StorageIndex>
     Lasso& fit(const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X,
                const Eigen::Ref<const VectorType>& y) {
@@ -378,7 +382,7 @@ public:
         return Scalar{1} - ss_res / ss_tot;
     }
 
-    // -- Multi-target regression (v1.1.0 §3.3) ------------------------------
+    // -- Multi-target regression ------------------------------
 
     /// @brief Fit Lasso with a multi-target response matrix.
     ///

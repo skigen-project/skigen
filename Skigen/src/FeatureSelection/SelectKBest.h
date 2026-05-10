@@ -96,7 +96,7 @@ struct Chi2 {
 /// - Skigen::feature_selection::f_regression — F-test for regression.
 /// - Skigen::feature_selection::chi2 — Chi-squared test.
 ///
-/// @note **scikit-learn parity gaps:** Passing the score function as a string
+/// ### Limitations relative to scikit-learn Passing the score function as a string
 ///   (e.g. `"f_classif"`) is not supported — pass the callable directly.
 ///   `feature_names_in_` is not exposed.
 template <typename Scalar = double,
@@ -183,14 +183,14 @@ public:
         return *this;
     }
 
-    // -- Sparse-aware overloads (v1.1.0 §3.2) --------------------------------
+    // -- Sparse-aware overloads --------------------------------
 
     /// @brief Fit using a sparse design matrix and a classification target.
     ///
     /// Only compiles when the configured `ScoreFn` provides a sparse
     /// `operator()` overload — currently `Chi2` (and any user-supplied
     /// score function with the same shape). For `FClassif` and
-    /// `FRegression`, the sparse path is a documented v1.1.0 parity gap
+    /// `FRegression`, the sparse path is a not implemented
     /// and a compile error.
     template <int Options, typename StorageIndex>
     SelectKBest& fit(

@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 The Skigen Contributors
+//
+// Skigen/NeuralNetwork — Multi-layer perceptron estimators.
+//
+// Usage:
+//   #include <Skigen/NeuralNetwork>
+
+#ifndef SKIGEN_NEURAL_NETWORK
+#define SKIGEN_NEURAL_NETWORK
+
+#include "Core"
+#include "src/NeuralNetwork/MLPRegressor.h"
+#include "src/NeuralNetwork/MLPClassifier.h"
+
+#endif // SKIGEN_NEURAL_NETWORK

@@ -48,19 +48,19 @@ namespace Skigen {
 /// | `criterion` | `CriterionClf` | `Gini` | Split quality function. |
 /// | `max_depth` | `optional<int>` | `nullopt` | Max tree depth (unlimited if absent). |
 /// | `min_samples_split` | `int` | `2` | Min samples required to split a node. |
-/// | `min_samples_leaf` | `int` | `1` | Min samples per leaf (sklearn parity gap). |
+/// | `min_samples_leaf` | `int` | `1` | Min samples per leaf (not honoured). |
 /// | `min_weight_fraction_leaf` | `Scalar` | `0` | **Deprecated**, no-op. |
 /// | `max_features_mode` | `MaxFeaturesMode` | `Sqrt` | Feature subspace mode at each split. |
 /// | `max_features_value` | `optional<Scalar>` | `nullopt` | Used with `FractionOrCount`. |
-/// | `max_leaf_nodes` | `optional<int>` | `nullopt` | sklearn parity gap. |
-/// | `min_impurity_decrease` | `Scalar` | `0` | sklearn parity gap. |
+/// | `max_leaf_nodes` | `optional<int>` | `nullopt` | not honoured. |
+/// | `min_impurity_decrease` | `Scalar` | `0` | not honoured. |
 /// | `bootstrap` | `bool` | `true` | Whether bootstrap samples are used. |
 /// | `oob_score` | `bool` | `false` | Use out-of-bag samples to estimate generalization score. |
 /// | `n_jobs` | `int` | `1` | Number of parallel jobs (uses `std::async`). |
 /// | `random_state` | `optional<uint64_t>` | `nullopt` | RNG seed. |
 /// | `verbose` | `int` | `0` | Verbosity (currently unused). |
-/// | `warm_start` | `bool` | `false` | sklearn parity gap. |
-/// | `ccp_alpha` | `optional<Scalar>` | `nullopt` | sklearn parity gap. |
+/// | `warm_start` | `bool` | `false` | not honoured. |
+/// | `ccp_alpha` | `optional<Scalar>` | `nullopt` | not honoured. |
 /// | `max_samples` | `optional<int>` | `nullopt` | Bootstrap sample size (defaults to n_samples). |
 ///
 /// ### Attributes (after fitting)
@@ -85,7 +85,7 @@ namespace Skigen {
 ///   \hat{y} = \arg\max_c \frac{1}{T} \sum_{t=1}^T P_t(c \mid x).
 /// @f]
 ///
-/// @note **scikit-learn parity gaps:** `criterion::LogLoss` is not yet
+/// ### Limitations relative to scikit-learn `criterion::LogLoss` is not yet
 ///   implemented. `min_samples_leaf`, `min_weight_fraction_leaf`,
 ///   `max_leaf_nodes`, `min_impurity_decrease`, `class_weight`,
 ///   `ccp_alpha`, `monotonic_cst`, `warm_start` are not yet honoured.
@@ -143,8 +143,8 @@ public:
         // Reject unsupported configurations early (matches sklearn parity-gap pattern).
         if (criterion_ == CriterionClf::LogLoss) {
             throw std::invalid_argument(
-                "RandomForestClassifier: criterion=LogLoss not yet implemented in "
-                "Skigen v1.1.0. Use Gini or Entropy.");
+                "RandomForestClassifier: criterion=LogLoss not implemented in "
+                "Use Gini or Entropy.");
         }
     }
 

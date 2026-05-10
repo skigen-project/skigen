@@ -51,7 +51,7 @@ namespace Skigen {
 /// Variances are computed using the biased (ddof=0) estimator, matching
 /// numpy/scikit-learn convention.
 ///
-/// @note **scikit-learn parity gaps:** `feature_names_in_` is not exposed.
+/// ### Limitations relative to scikit-learn `feature_names_in_` is not exposed.
 template <typename Scalar = double>
 class VarianceThreshold
     : public Transformer<VarianceThreshold<Scalar>, Scalar> {
@@ -173,7 +173,7 @@ public:
         return out;
     }
 
-    // -- Sparse-aware overloads (v1.1.0 §3.2) --------------------------------
+    // -- Sparse-aware overloads --------------------------------
 
     /// @brief Fit on a sparse matrix without densifying.
     ///

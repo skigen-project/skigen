@@ -50,11 +50,13 @@ namespace Skigen {
 ///
 /// - Skigen::TruncatedSVD — SVD without centering (suitable for sparse data).
 ///
-/// @note **scikit-learn parity gaps:** The following sklearn constructor
-///   parameters are not yet supported: `copy`, `whiten`, `svd_solver`
+/// ### Limitations relative to scikit-learn
+///
+/// The following scikit-learn constructor
+///   parameters are not honoured: `copy`, `whiten`, `svd_solver`
 ///   (only full SVD via JacobiSVD), `tol`, `iterated_power`, `n_oversamples`,
 ///   `power_iteration_normalizer`, `random_state`.
-///   The following sklearn fitted attributes are not yet exposed:
+///   The following sklearn fitted attributes are not exposed:
 ///   `noise_variance_`, `n_samples_`, `n_features_in_`, `feature_names_in_`.
 ///
 /// ### Examples

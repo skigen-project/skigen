@@ -92,8 +92,10 @@ Eigen::MatrixXi kneighbors_indices(
 /// @f$O(n \cdot m)@f$ per query where @f$n@f$ is the number of
 /// training samples and @f$m@f$ is the number of features.
 ///
-/// @note **scikit-learn parity gaps:** The following sklearn constructor
-///   parameters are not yet supported: `weights`, `algorithm`
+/// ### Limitations relative to scikit-learn
+///
+/// The following scikit-learn constructor
+///   parameters are not honoured: `weights`, `algorithm`
 ///   (only brute-force), `leaf_size`, `p`, `metric`, `metric_params`,
 ///   `n_jobs`.
 ///
@@ -201,9 +203,9 @@ private:
 /// | `is_fitted()` | `bool` | Whether the estimator has been fitted. |
 /// | `n_features_in()` | `IndexType` | Number of features seen during fit. |
 ///
-/// @note **scikit-learn parity gaps:** Same as KNeighborsClassifier —
+/// ### Limitations relative to scikit-learn Same as KNeighborsClassifier —
 ///   `weights`, `algorithm`, `leaf_size`, `p`, `metric`, etc.
-///   are not yet supported.
+///   are not honoured.
 ///
 /// ### Examples
 ///
@@ -283,7 +285,7 @@ public:
         return Scalar{1} - ss_res / ss_tot;
     }
 
-    // -- Multi-target regression (v1.1.0 §3.3) ------------------------------
+    // -- Multi-target regression ------------------------------
 
     /// @brief Fit on multi-target Y (shape n × n_targets).
     ///

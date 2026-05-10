@@ -77,7 +77,7 @@ namespace Skigen {
 ///
 /// - Skigen::BayesianRidge — Bayesian regression with a single weight precision.
 ///
-/// @note **scikit-learn parity gaps:** `sample_weight` in `fit()` is not
+/// ### Limitations relative to scikit-learn `sample_weight` in `fit()` is not
 ///   supported. `copy_X` is accepted but ignored. Sparse inputs are not
 ///   supported. `feature_names_in_` is not exposed.
 ///

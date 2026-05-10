@@ -57,8 +57,8 @@ namespace Skigen {
 /// | `log_likelihood()` | `Scalar` | Final log-likelihood. |
 /// | `n_iter()` | `int` | Number of EM iterations run. |
 ///
-/// @note **scikit-learn parity gaps:** `svd_method`, `rotation`,
-///   `random_state` are not yet supported.
+/// ### Limitations relative to scikit-learn `svd_method`, `rotation`,
+///   `random_state` are not honoured.
 ///
 /// ### Examples
 ///

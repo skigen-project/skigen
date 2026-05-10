@@ -57,10 +57,12 @@ namespace Skigen {
 /// - Skigen::RobustScaler — Scale using statistics robust to outliers.
 /// - Skigen::MaxAbsScaler — Scale each feature by its maximum absolute value.
 ///
-/// @note **scikit-learn parity gaps:** The following sklearn constructor
-///   parameters are not yet supported: `copy`.
+/// ### Limitations relative to scikit-learn
+///
+/// The following scikit-learn constructor
+///   parameters are not honoured: `copy`.
 ///   `partial_fit()` is supported via Chan's online algorithm (sklearn parity).
-///   The following sklearn fitted attributes are not yet exposed:
+///   The following sklearn fitted attributes are not exposed:
 ///   `n_features_in_`, `feature_names_in_`.
 ///
 /// ### Examples

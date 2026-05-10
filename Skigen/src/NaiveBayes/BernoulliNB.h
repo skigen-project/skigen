@@ -61,7 +61,9 @@ namespace Skigen {
 /// The decision rule for BernoulliNB is based on
 /// @f$ P(x_i | y) = P(i|y)x_i + (1 - P(i|y))(1 - x_i) @f$.
 ///
-/// @note **scikit-learn parity gap:** `sample_weight` not supported.
+/// ### Limitations relative to scikit-learn
+///
+/// `sample_weight` not supported.
 ///   `feature_names_in_` not exposed.
 template <typename Scalar = double>
 class BernoulliNB : public Classifier<BernoulliNB<Scalar>, Scalar> {

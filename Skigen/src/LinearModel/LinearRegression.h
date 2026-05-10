@@ -64,11 +64,13 @@ namespace Skigen {
 /// From the implementation point of view, this is QR decomposition
 /// (Eigen::ColPivHouseholderQR) wrapped as a predictor object.
 ///
-/// @note **scikit-learn parity gaps:** The following sklearn constructor
-///   parameters are not yet supported: `copy_X`, `n_jobs`, `positive`, `tol`.
-///   The following sklearn fitted attributes are not yet exposed:
+/// ### Limitations relative to scikit-learn
+///
+/// The following scikit-learn constructor
+///   parameters are not honoured: `copy_X`, `n_jobs`, `positive`, `tol`.
+///   The following sklearn fitted attributes are not exposed:
 ///   `singular_`, `n_features_in_`, `feature_names_in_`.
-///   `sample_weight` in `fit()` is not yet supported.
+///   `sample_weight` in `fit()` is not honoured.
 ///
 /// ### Examples
 ///
@@ -133,7 +135,9 @@ public:
     ///   Will be cast to `Scalar` if necessary.
     /// @return Reference to the fitted estimator (`*this`).
     ///
-    /// @note **sklearn parity gap:** `sample_weight` parameter is
+    /// ### Limitations relative to scikit-learn
+///
+/// `sample_weight` parameter is
     ///   not yet supported.
     LinearRegression& fit_impl(const Eigen::Ref<const MatrixType>& X,
                                const Eigen::Ref<const VectorType>& y) {
@@ -170,7 +174,7 @@ public:
         return *this;
     }
 
-    // -- Sparse-aware overload (v1.1.0 §3.2) --------------------------------
+    // -- Sparse-aware overload --------------------------------
 
     /// @brief Fit OLS on a sparse design matrix without densifying X.
     ///
@@ -182,7 +186,7 @@ public:
     /// to LSQR for sparse OLS, which is also robust to rank deficiency.
     ///
     /// Mirrors sklearn's `LinearRegression.fit` behaviour on sparse input.
-    /// `sample_weight`, `positive`, `n_jobs` are documented parity gaps.
+    /// `sample_weight`, `positive`, `n_jobs` are not honoured.
     template <int Options, typename StorageIndex>
     LinearRegression& fit(
         const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X,
@@ -254,7 +258,7 @@ public:
         return *this;
     }
 
-    // -- Multi-target regression (v1.1.0 §3.3) ------------------------------
+    // -- Multi-target regression ------------------------------
 
     /// @brief Fit OLS with a multi-target response matrix.
     ///
@@ -273,7 +277,7 @@ public:
     ///
     /// Mirrors sklearn's `LinearRegression.fit(X, Y)` behaviour for
     /// multi-output regression. `sample_weight`, `positive`, `n_jobs` are
-    /// documented parity gaps.
+    /// not implementeds.
     LinearRegression& fit_multi(const Eigen::Ref<const MatrixType>& X,
                                 const Eigen::Ref<const MatrixType>& Y) {
         internal::check_non_empty(X);
@@ -396,7 +400,9 @@ public:
     /// @return @f$R^2@f$ score.
     /// @throws std::runtime_error if the model has not been fitted.
     ///
-    /// @note **sklearn parity gap:** `sample_weight` parameter is
+    /// ### Limitations relative to scikit-learn
+///
+/// `sample_weight` parameter is
     ///   not yet supported.
     [[nodiscard]] ScalarType score_impl(
         const Eigen::Ref<const MatrixType>& X,

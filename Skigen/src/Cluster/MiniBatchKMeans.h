@@ -53,11 +53,13 @@ namespace Skigen {
 ///
 /// - Skigen::KMeans — Standard K-Means (more accurate, slower on large data).
 ///
-/// @note **scikit-learn parity gaps:** The following sklearn constructor
-///   parameters are not yet supported: `init` (only k-means++), `n_init`,
+/// ### Limitations relative to scikit-learn
+///
+/// The following scikit-learn constructor
+///   parameters are not honoured: `init` (only k-means++), `n_init`,
 ///   `tol`, `verbose`, `compute_labels`, `max_no_improvement`,
 ///   `init_size`, `reassignment_ratio`.
-///   The following sklearn fitted attributes are not yet exposed:
+///   The following sklearn fitted attributes are not exposed:
 ///   `n_iter_`, `n_steps_`, `n_features_in_`, `feature_names_in_`.
 ///
 /// ### Examples

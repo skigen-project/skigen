@@ -56,7 +56,7 @@ enum class CalibrationMethod {
 /// | `estimator` | `Base` | (no default; required) |
 /// | `method` | `CalibrationMethod` | `Sigmoid` |
 /// | `cv` | `int` | `5` |
-/// | `n_jobs` | `int` | `1` *(no-op for now; deferred to a future release)* |
+/// | `n_jobs` | `int` | `1` *(no-op for now; not implemented)* |
 /// | `ensemble` | `bool` | `true` |
 /// | `random_state` | `optional<uint64_t>` | `nullopt` |
 ///
@@ -68,7 +68,7 @@ enum class CalibrationMethod {
 /// | `n_classes()` | `int` |
 /// | `n_estimators_fitted()` | `int` (== `cv` when `ensemble=true`) |
 ///
-/// @note **scikit-learn parity gaps:** Only binary classification is
+/// ### Limitations relative to scikit-learn Only binary classification is
 ///   supported; only `ensemble=true` (default) is implemented;
 ///   `n_jobs > 1` is not honoured. The base estimator must expose
 ///   `predict_proba(X) → MatrixType` of shape (n_samples, 2). sklearn's
@@ -118,9 +118,10 @@ public:
         }
         if (!ensemble_) {
             throw std::invalid_argument(
-                "CalibratedClassifierCV (Skigen v1.1.0): only "
-                "ensemble=true is implemented. ensemble=false uses "
-                "cross_val_predict and is deferred.");
+                "CalibratedClassifierCV: only ensemble=true is "
+                "implemented. ensemble=false (single base + single "
+                "calibrator from out-of-fold predictions) is not "
+                "implemented.");
         }
     }
 
@@ -160,7 +161,7 @@ public:
         uniq.erase(std::unique(uniq.begin(), uniq.end()), uniq.end());
         if (uniq.size() != 2) {
             throw std::invalid_argument(
-                "CalibratedClassifierCV (Skigen v1.1.0): only binary "
+                "CalibratedClassifierCV: only binary "
                 "classification is supported; got " +
                 std::to_string(uniq.size()) + " classes.");
         }

@@ -64,15 +64,17 @@ namespace Skigen {
 /// approximation. It converges quickly for well-scaled data, but
 /// `StandardScaler` is recommended for best performance.
 ///
-/// @note **scikit-learn parity gaps:** The following sklearn constructor
-///   parameters are not yet supported: `penalty` (only L2 is implemented),
+/// ### Limitations relative to scikit-learn
+///
+/// The following scikit-learn constructor
+///   parameters are not honoured: `penalty` (only L2 is implemented),
 ///   `dual`, `solver` (only IRLS), `multi_class` (only OvR), `class_weight`,
 ///   `verbose`, `warm_start`, `n_jobs`, `l1_ratio`.
-///   The following sklearn fitted attributes are not yet exposed:
+///   The following sklearn fitted attributes are not exposed:
 ///   `n_iter_`, `n_features_in_`, `feature_names_in_`.
 ///   The sklearn methods `decision_function()` and `predict_log_proba()`
 ///   are not yet public.
-///   `sample_weight` in `fit()` is not yet supported.
+///   `sample_weight` in `fit()` is not honoured.
 ///
 /// ### Examples
 ///
@@ -131,8 +133,10 @@ public:
     /// @throws std::invalid_argument if fewer than 2 classes are found
     ///   or X and y have inconsistent lengths.
     ///
-    /// @note **sklearn parity gap:** `sample_weight`, `class_weight`
-    ///   parameters are not yet supported.
+    /// ### Limitations relative to scikit-learn
+///
+/// `sample_weight`, `class_weight`
+    ///   parameters are not honoured.
     LogisticRegression& fit_impl(const Eigen::Ref<const MatrixType>& X,
                             const Eigen::Ref<const IndexVector>& y) {
         internal::check_non_empty(X);

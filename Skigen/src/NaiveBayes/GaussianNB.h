@@ -64,8 +64,8 @@ namespace Skigen {
 /// fitting yields bit-equivalent results to a single `fit` call on the
 /// concatenated data.
 ///
-/// @note **scikit-learn parity gaps:** `sample_weight` in `fit` /
-///   `partial_fit` is not yet supported. Sklearn's `feature_names_in_` is
+/// ### Limitations relative to scikit-learn `sample_weight` in `fit` /
+///   `partial_fit` is not honoured. Sklearn's `feature_names_in_` is
 ///   not exposed.
 template <typename Scalar = double>
 class GaussianNB : public Classifier<GaussianNB<Scalar>, Scalar> {

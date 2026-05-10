@@ -86,6 +86,18 @@ skigen_add_example(ex_isotonic_regression isotonic/isotonic_regression.cpp)
 skigen_add_example(ex_calibrated_classifier_cv calibration/calibrated_classifier_cv.cpp)
 
 # ---------------------------------------------------------------------------
+# SVM examples
+# ---------------------------------------------------------------------------
+skigen_add_example(ex_linear_svc                svm/linear_svc.cpp)
+skigen_add_example(ex_svc                       svm/svc.cpp)
+
+# ---------------------------------------------------------------------------
+# Neural network examples
+# ---------------------------------------------------------------------------
+skigen_add_example(ex_mlp_classifier            neural_network/mlp_classifier.cpp)
+skigen_add_example(ex_mlp_regressor             neural_network/mlp_regressor.cpp)
+
+# ---------------------------------------------------------------------------
 # Ensemble examples
 # ---------------------------------------------------------------------------
 skigen_add_example(ex_random_forest_classifier    ensemble/random_forest_classifier.cpp)

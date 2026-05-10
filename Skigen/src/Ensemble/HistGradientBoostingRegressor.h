@@ -41,15 +41,15 @@ namespace Skigen {
 /// | `loss` | `Loss` | `SquaredError` |
 /// | `learning_rate` | `Scalar` | `0.1` |
 /// | `max_iter` | `int` | `100` |
-/// | `max_leaf_nodes` | `optional<int>` | `31` *(parity gap: not enforced — depth-first growth used instead)* |
+/// | `max_leaf_nodes` | `optional<int>` | `31` *(accepted but not enforced — depth-first growth is used instead of leaf-wise)* |
 /// | `max_depth` | `optional<int>` | `nullopt` *(unlimited)* |
 /// | `min_samples_leaf` | `int` | `20` |
-/// | `l2_regularization` | `Scalar` | `0.0` *(parity gap: ignored)* |
+/// | `l2_regularization` | `Scalar` | `0.0` *(accepted but currently ignored)* |
 /// | `max_bins` | `int` | `255` |
-/// | `categorical_features` | `optional<vector<int>>` | `nullopt` *(parity gap)* |
-/// | `monotonic_cst` | `optional<vector<int>>` | `nullopt` *(parity gap)* |
-/// | `early_stopping` | `bool` | `false` *(parity gap)* |
-/// | `tol` | `Scalar` | `1e-7` *(parity gap)* |
+/// | `categorical_features` | `optional<vector<int>>` | `nullopt` *(accepted but ignored — categoricals treated as ordinals)* |
+/// | `monotonic_cst` | `optional<vector<int>>` | `nullopt` *(accepted but ignored)* |
+/// | `early_stopping` | `bool` | `false` *(accepted but ignored — full max_iter is always run)* |
+/// | `tol` | `Scalar` | `1e-7` *(accepted but ignored)* |
 /// | `random_state` | `optional<uint64_t>` | `nullopt` |
 ///
 /// ### Attributes (after fitting)
@@ -61,16 +61,18 @@ namespace Skigen {
 /// | `bin_edges()` | `vector<vector<Scalar>>` (per-feature thresholds) |
 /// | `train_score()` | `VectorType` (per-stage MSE) |
 ///
-/// @note **scikit-learn parity gaps:** Only `loss=SquaredError` is
-///   honoured. Native histogram-based split-finding is **not** yet
-///   implemented — once X is binned the existing
-///   `DecisionTreeRegressor` is used for split selection (sort-based,
-///   not histogram-based). This produces the same predictions when the
-///   binning is fine enough but does **not** realise the
-///   scaling-on-large-n advantage. `max_leaf_nodes` is accepted but
-///   ignored (depth-first growth is used). `categorical_features`,
-///   `monotonic_cst`, `early_stopping`, `l2_regularization` are all
-///   accepted but ignored.
+/// ### Limitations relative to scikit-learn
+///
+/// Only `loss=SquaredError` is supported; AbsoluteError, Poisson, and
+/// Quantile losses raise on construction. Once X is binned, the
+/// existing `DecisionTreeRegressor` is used for split selection
+/// (sort-based, not the native histogram-based split finder) — this
+/// produces equivalent predictions when the binning is fine enough but
+/// does **not** realise the scaling-on-large-n advantage that a
+/// histogram split finder would. Leaf-wise growth (`max_leaf_nodes`),
+/// native categoricals, monotonic constraints, early stopping, and
+/// `l2_regularization` are accepted as constructor parameters but are
+/// not honoured at fit time.
 template <typename Scalar = double>
 class HistGradientBoostingRegressor
     : public Predictor<HistGradientBoostingRegressor<Scalar>, Scalar> {
@@ -114,7 +116,7 @@ public:
         if (loss_ != Loss::SquaredError) {
             throw std::invalid_argument(
                 "HistGradientBoostingRegressor: only loss=SquaredError is "
-                "implemented in Skigen v1.1.0.");
+                "implemented.");
         }
         if (max_bins_ < 2 || max_bins_ > 255) {
             throw std::invalid_argument(

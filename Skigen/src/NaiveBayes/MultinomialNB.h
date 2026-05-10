@@ -59,7 +59,9 @@ namespace Skigen {
 /// Implements Laplace/Lidstone smoothing:
 /// @f$ \log P(x_j | y) = \log\!\frac{N_{yj} + \alpha}{N_y + \alpha n} @f$.
 ///
-/// @note **scikit-learn parity gap:** `sample_weight` not supported.
+/// ### Limitations relative to scikit-learn
+///
+/// `sample_weight` not supported.
 ///   `feature_names_in_` not exposed.
 template <typename Scalar = double>
 class MultinomialNB : public Classifier<MultinomialNB<Scalar>, Scalar> {

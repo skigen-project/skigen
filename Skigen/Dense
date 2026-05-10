@@ -22,6 +22,8 @@
 #include "FeatureSelection"
 #include "Isotonic"
 #include "Calibration"
+#include "SVM"
+#include "NeuralNetwork"
 #include "ModelSelection"
 #include "Pipeline"
 #include "Metrics"

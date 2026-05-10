@@ -194,6 +194,78 @@ void test_multi_output_regressor_concept() {
     ASSERT_TRUE(true);
 }
 
+// ---------------------------------------------------------------------------
+// SKIGEN_PARAMS reflection layer (Phase A)
+// ---------------------------------------------------------------------------
+
+void test_get_params_returns_registered_pairs() {
+    Skigen::Ridge<double> r(/*alpha=*/2.5, /*fit_intercept=*/false);
+    Skigen::ParameterDict d = r.get_params();
+    ASSERT_TRUE(d.size() == 2);
+    ASSERT_TRUE(d.count("alpha") == 1);
+    ASSERT_TRUE(d.count("fit_intercept") == 1);
+    ASSERT_NEAR(std::get<double>(d["alpha"]), 2.5, 1e-12);
+    ASSERT_TRUE(std::get<bool>(d["fit_intercept"]) == false);
+}
+
+void test_set_param_round_trip() {
+    Skigen::Ridge<double> r(1.0, true);
+    r.set_param("alpha", Skigen::ParameterValue(0.25));
+    r.set_param("fit_intercept", Skigen::ParameterValue(false));
+    auto d = r.get_params();
+    ASSERT_NEAR(std::get<double>(d["alpha"]), 0.25, 1e-12);
+    ASSERT_TRUE(std::get<bool>(d["fit_intercept"]) == false);
+    ASSERT_NEAR(r.alpha(), 0.25, 1e-12);
+    ASSERT_TRUE(r.fit_intercept() == false);
+}
+
+void test_set_param_int_to_double_widening() {
+    Skigen::Ridge<double> r;
+    // Pass an int where double is expected — widening must succeed.
+    r.set_param("alpha", Skigen::ParameterValue(3));
+    ASSERT_NEAR(r.alpha(), 3.0, 1e-12);
+}
+
+void test_set_param_unknown_throws() {
+    Skigen::Ridge<double> r;
+    bool threw = false;
+    try { r.set_param("nonexistent", Skigen::ParameterValue(1.0)); }
+    catch (const Skigen::UnknownParameter&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
+void test_set_param_type_mismatch_throws() {
+    Skigen::Ridge<double> r;
+    // Try to set fit_intercept (bool) with a string — must reject.
+    bool threw = false;
+    try {
+        r.set_param("fit_intercept",
+                    Skigen::ParameterValue(std::string("yes")));
+    } catch (const Skigen::ParameterTypeMismatch&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
+void test_default_get_params_empty_for_unregistered_estimator() {
+    // LinearRegression doesn't (yet) register params — its get_params
+    // should return an empty dict via the base-class fallback, and
+    // set_param on any name should throw UnknownParameter.
+    Skigen::LinearRegression<double> lr;
+    auto d = lr.get_params();
+    ASSERT_TRUE(d.empty());
+    bool threw = false;
+    try { lr.set_param("alpha", Skigen::ParameterValue(1.0)); }
+    catch (const Skigen::UnknownParameter&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
+void test_parametrized_like_concept() {
+    // Ridge has SKIGEN_PARAMS registered; LinearRegression doesn't.
+    static_assert(Skigen::ParametrizedLike<Skigen::Ridge<double>>);
+    static_assert(!Skigen::ParametrizedLike<
+                  Skigen::LinearRegression<double>>);
+    ASSERT_TRUE(true);
+}
+
 int main() {
     std::cout << "Skigen Core infrastructure (Phase A) tests\n";
     std::cout << "------------------------------------------\n";
@@ -206,6 +278,14 @@ int main() {
     run("is_eigen_sparse_trait",                    test_is_eigen_sparse_trait);
     run("incremental_concepts",                     test_incremental_concepts);
     run("multi_output_regressor_concept",           test_multi_output_regressor_concept);
+    run("get_params_returns_registered_pairs",      test_get_params_returns_registered_pairs);
+    run("set_param_round_trip",                     test_set_param_round_trip);
+    run("set_param_int_to_double_widening",         test_set_param_int_to_double_widening);
+    run("set_param_unknown_throws",                 test_set_param_unknown_throws);
+    run("set_param_type_mismatch_throws",           test_set_param_type_mismatch_throws);
+    run("default_get_params_empty_for_unregistered_estimator",
+        test_default_get_params_empty_for_unregistered_estimator);
+    run("parametrized_like_concept",                test_parametrized_like_concept);
 
     std::cout << "------------------------------------------\n";
     std::cout << g_passed << " passed, " << g_failed << " failed\n";

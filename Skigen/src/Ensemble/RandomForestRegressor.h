@@ -45,7 +45,7 @@ namespace Skigen {
 /// The forest prediction is the per-tree mean:
 /// @f[ \hat{y}(x) = \frac{1}{T} \sum_{t=1}^T h_t(x). @f]
 ///
-/// @note **scikit-learn parity gaps:** Only `criterion=SquaredError` is
+/// ### Limitations relative to scikit-learn Only `criterion=SquaredError` is
 ///   currently implemented. `min_samples_leaf`,
 ///   `min_weight_fraction_leaf`, `max_leaf_nodes`,
 ///   `min_impurity_decrease`, `ccp_alpha`, `monotonic_cst`, `warm_start`
@@ -104,8 +104,8 @@ public:
         if (criterion_ != CriterionReg::SquaredError) {
             throw std::invalid_argument(
                 "RandomForestRegressor: only criterion=SquaredError is "
-                "implemented in Skigen v1.1.0. AbsoluteError, FriedmanMSE, "
-                "Poisson are not yet implemented.");
+                "implemented. AbsoluteError, FriedmanMSE, "
+                "Poisson are not implemented.");
         }
     }
 

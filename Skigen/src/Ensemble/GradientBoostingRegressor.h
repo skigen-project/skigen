@@ -69,13 +69,14 @@ namespace Skigen {
 /// | `feature_importances()` | `RowVectorType` | Mean tree feature importances. |
 /// | `train_score()` | `VectorType` | Per-stage training MSE (length n_stages). |
 ///
-/// @note **scikit-learn parity gaps:** Only `loss=SquaredError`,
-///   `subsample=1.0`, and `criterion=FriedmanMSE` are honoured in v1.1.0.
+/// ### Limitations relative to scikit-learn Only `loss=SquaredError`,
+///   `subsample=1.0`, and `criterion=FriedmanMSE` are honoured .
 ///   `AbsoluteError`, `Huber`, `Quantile`, stochastic boosting,
 ///   early stopping, `warm_start`, `ccp_alpha`, `min_impurity_decrease`,
-///   `max_leaf_nodes`, `min_weight_fraction_leaf` are accepted but logged
-///   as parity gaps. `max_features` is supported for the underlying tree
-///   via the explicit mode/value pair.
+///   `max_leaf_nodes`, and `min_weight_fraction_leaf` are accepted as
+///   constructor parameters but are not honoured at fit time.
+///   `max_features` is forwarded to the underlying tree via the
+///   explicit mode/value pair.
 template <typename Scalar = double>
 class GradientBoostingRegressor
     : public Predictor<GradientBoostingRegressor<Scalar>, Scalar> {
@@ -132,8 +133,8 @@ public:
         if (loss_ != Loss::SquaredError) {
             throw std::invalid_argument(
                 "GradientBoostingRegressor: only loss=SquaredError is "
-                "implemented in Skigen v1.1.0. AbsoluteError, Huber, Quantile "
-                "are not yet implemented.");
+                "implemented. AbsoluteError, Huber, Quantile "
+                "are not implemented.");
         }
         if (subsample_ <= Scalar{0} || subsample_ > Scalar{1}) {
             throw std::invalid_argument(
@@ -143,7 +144,7 @@ public:
         if (subsample_ < Scalar{1}) {
             throw std::invalid_argument(
                 "GradientBoostingRegressor: subsample < 1.0 (stochastic GB) is "
-                "not yet implemented in Skigen v1.1.0.");
+                "not implemented.");
         }
     }
 

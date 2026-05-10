@@ -44,9 +44,11 @@ enum class Norm { L1, L2, Max };
 /// features. `inverse_transform()` is not supported because
 /// normalization is not reversible.
 ///
-/// @note **scikit-learn parity gaps:** The following sklearn constructor
-///   parameters are not yet supported: `copy`.
-///   The following sklearn fitted attributes are not yet exposed:
+/// ### Limitations relative to scikit-learn
+///
+/// The following scikit-learn constructor
+///   parameters are not honoured: `copy`.
+///   The following sklearn fitted attributes are not exposed:
 ///   `n_features_in_`, `feature_names_in_`.
 ///
 /// ### Examples
@@ -123,7 +125,7 @@ public:
         normalize_rows(X);
     }
 
-    // -- Sparse-aware overloads (v1.1.0 §3.2) --------------------------------
+    // -- Sparse-aware overloads --------------------------------
 
     /// @brief Fit on a sparse matrix (stateless — only records `n_features_in_`).
     template <int Options, typename StorageIndex>

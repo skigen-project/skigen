@@ -40,7 +40,7 @@ namespace Skigen {
 /// Unlike the sklearn version which supports string labels, this
 /// implementation only supports integer (or any arithmetic) label types.
 ///
-/// @note **scikit-learn parity gaps:** String labels are not supported;
+/// ### Limitations relative to scikit-learn String labels are not supported;
 ///   only integer or arithmetic label types are handled.
 ///
 /// ### Examples
