@@ -65,6 +65,44 @@ concept ClassifierLike = EstimatorLike<T> &&
         { t.score(X, y) } -> std::same_as<typename T::ScalarType>;
     };
 
+// ---------------------------------------------------------------------------
+// IncrementalLike concept (v1.1.0 §3.1) — `partial_fit` for streaming /
+// online learning. The contract is documented in v1.1.0-requirements §3.1.
+// ---------------------------------------------------------------------------
+
+template <typename T>
+concept IncrementalUnsupervised = EstimatorLike<T> &&
+    requires(T t, const typename T::MatrixType& X) {
+        { t.partial_fit(X) } -> std::same_as<T&>;
+    };
+
+template <typename T>
+concept IncrementalSupervised = EstimatorLike<T> &&
+    requires(T t,
+             const typename T::MatrixType& X,
+             const typename T::VectorType& y) {
+        { t.partial_fit(X, y) } -> std::same_as<T&>;
+    };
+
+template <typename T>
+concept IncrementalLike =
+    IncrementalUnsupervised<T> || IncrementalSupervised<T>;
+
+// ---------------------------------------------------------------------------
+// MultiOutputRegressor concept (v1.1.0 §3.3) — additive multi-target
+// regression API: fit_multi(X, Y) + predict_multi(X) + n_targets().
+// ---------------------------------------------------------------------------
+
+template <typename T>
+concept MultiOutputRegressorLike = EstimatorLike<T> &&
+    requires(T t,
+             const typename T::MatrixType& X,
+             const typename T::MatrixType& Y) {
+        { t.fit_multi(X, Y) } -> std::same_as<T&>;
+        { t.predict_multi(X) } -> std::same_as<typename T::MatrixType>;
+        { t.n_targets() } -> std::convertible_to<int>;
+    };
+
 } // namespace Skigen
 
 #endif // SKIGEN_CORE_CONCEPTS_H

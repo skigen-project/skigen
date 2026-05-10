@@ -10,5 +10,7 @@
 #include "src/Ensemble/RandomForestRegressor.h"
 #include "src/Ensemble/GradientBoostingRegressor.h"
 #include "src/Ensemble/GradientBoostingClassifier.h"
+#include "src/Ensemble/HistGradientBoostingRegressor.h"
+#include "src/Ensemble/HistGradientBoostingClassifier.h"
 
 #endif // SKIGEN_ENSEMBLE

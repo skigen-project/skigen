@@ -638,6 +638,176 @@ void test_gbc_unsupported_loss_throws() {
 }
 
 // ---------------------------------------------------------------------------
+// HistGradientBoostingRegressor
+// ---------------------------------------------------------------------------
+
+void test_hgbr_recovers_linear_signal() {
+    constexpr int n = 200;
+    Eigen::MatrixXd X(n, 1);
+    Eigen::VectorXd y(n);
+    for (int i = 0; i < n; ++i) {
+        const double x = -1.0 + 2.0 * static_cast<double>(i) / (n - 1);
+        X(i, 0) = x;
+        y(i)    = 3.0 * x + 1.0;
+    }
+    using HGBR = Skigen::HistGradientBoostingRegressor<double>;
+    HGBR hgb(HGBR::Loss::SquaredError, /*lr=*/0.1,
+             /*max_iter=*/100, /*max_leaf_nodes=*/31,
+             /*max_depth=*/std::nullopt, /*min_samples_leaf=*/2);
+    hgb.fit(X, y);
+    ASSERT_TRUE(hgb.score(X, y) > 0.99);
+}
+
+void test_hgbr_init_equals_mean_of_y() {
+    Eigen::MatrixXd X(5, 1); X << 0, 1, 2, 3, 4;
+    Eigen::VectorXd y(5);    y << 10, 12, 11, 13, 14;
+    Skigen::HistGradientBoostingRegressor<double> hgb;
+    hgb.fit(X, y);
+    ASSERT_NEAR(hgb.init(), y.mean(), 1e-12);
+}
+
+void test_hgbr_n_iter_honoured() {
+    Eigen::MatrixXd X(20, 2);
+    Eigen::VectorXd y(20);
+    for (int i = 0; i < 20; ++i) {
+        X(i, 0) = i; X(i, 1) = 20 - i;
+        y(i) = 0.5 * X(i, 0) - 0.3 * X(i, 1);
+    }
+    using HGBR = Skigen::HistGradientBoostingRegressor<double>;
+    HGBR hgb(HGBR::Loss::SquaredError, 0.1,
+             /*max_iter=*/30, /*max_leaf_nodes=*/31,
+             std::nullopt, 2);
+    hgb.fit(X, y);
+    ASSERT_TRUE(hgb.n_iter() == 30);
+}
+
+void test_hgbr_train_score_decreases() {
+    Eigen::MatrixXd X(50, 1);
+    Eigen::VectorXd y(50);
+    for (int i = 0; i < 50; ++i) { X(i, 0) = i; y(i) = std::sin(0.2 * i); }
+    using HGBR = Skigen::HistGradientBoostingRegressor<double>;
+    HGBR hgb(HGBR::Loss::SquaredError, 0.1,
+             /*max_iter=*/50, std::nullopt, std::nullopt, 2);
+    hgb.fit(X, y);
+    const Eigen::VectorXd s = hgb.train_score();
+    ASSERT_TRUE(s.size() == 50);
+    ASSERT_TRUE(s(s.size() - 1) < s(0));
+}
+
+void test_hgbr_bin_edges_per_feature() {
+    Eigen::MatrixXd X(40, 3);
+    for (int i = 0; i < 40; ++i) {
+        X(i, 0) = static_cast<double>(i);          // many distinct values
+        X(i, 1) = static_cast<double>(i % 4);      // few distinct values
+        X(i, 2) = 0.0;                             // constant
+    }
+    Eigen::VectorXd y(40);
+    for (int i = 0; i < 40; ++i) y(i) = X(i, 0);
+    using HGBR = Skigen::HistGradientBoostingRegressor<double>;
+    HGBR hgb(HGBR::Loss::SquaredError, 0.1,
+             /*max_iter=*/10, std::nullopt, std::nullopt, 2,
+             /*l2=*/0.0, /*max_bins=*/8);
+    hgb.fit(X, y);
+    const auto& edges = hgb.bin_edges();
+    ASSERT_TRUE(edges.size() == 3);
+    // Feature 0 has many distinct values → at most max_bins - 1 thresholds,
+    // and we expect a healthy number of them.
+    ASSERT_TRUE(edges[0].size() <= 7);
+    ASSERT_TRUE(edges[0].size() >= 4);
+    // Feature 1 has 4 distinct values → at most 4 unique thresholds.
+    ASSERT_TRUE(edges[1].size() <= 4);
+    // Feature 2 is constant → at most 1 unique threshold.
+    ASSERT_TRUE(edges[2].size() <= 1);
+}
+
+void test_hgbr_unsupported_loss_throws() {
+    using HGBR = Skigen::HistGradientBoostingRegressor<double>;
+    bool threw = false;
+    try {
+        HGBR hgb(HGBR::Loss::Quantile);
+        (void)hgb;
+    } catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
+void test_hgbr_invalid_max_bins_throws() {
+    using HGBR = Skigen::HistGradientBoostingRegressor<double>;
+    bool threw = false;
+    try {
+        HGBR hgb(HGBR::Loss::SquaredError, 0.1, 100, 31, std::nullopt, 20,
+                 0.0, /*max_bins=*/300);   // too large
+        (void)hgb;
+    } catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
+// ---------------------------------------------------------------------------
+// HistGradientBoostingClassifier (binary, log-loss)
+// ---------------------------------------------------------------------------
+
+void test_hgbc_binary_separable_high_accuracy() {
+    constexpr int n = 200;
+    Eigen::MatrixXd X(n, 2);
+    Eigen::VectorXi y(n);
+    std::mt19937_64 rng(11);
+    std::normal_distribution<double> ns(0.0, 0.5);
+    for (int i = 0; i < n; ++i) {
+        const double cls = (i < n / 2) ? -1.0 : 1.0;
+        X(i, 0) = cls + ns(rng);
+        X(i, 1) = cls + ns(rng);
+        y(i)    = (cls > 0) ? 1 : 0;
+    }
+    using HGBC = Skigen::HistGradientBoostingClassifier<double>;
+    HGBC hgb(HGBC::Loss::LogLoss, 0.1, 100, 31, std::nullopt, 2,
+             0.0, 64, false, 1e-7, std::optional<uint64_t>(11));
+    hgb.fit(X, y);
+    auto preds = hgb.predict(X);
+    int correct = 0;
+    for (int i = 0; i < n; ++i) if (preds(i) == y(i)) ++correct;
+    const double acc = static_cast<double>(correct) / n;
+    ASSERT_TRUE(acc > 0.9);
+}
+
+void test_hgbc_predict_proba_rows_sum_to_one() {
+    constexpr int n = 30;
+    Eigen::MatrixXd X(n, 1);
+    Eigen::VectorXi y(n);
+    for (int i = 0; i < n; ++i) {
+        X(i, 0) = i;
+        y(i)    = (i >= n / 2) ? 1 : 0;
+    }
+    using HGBC = Skigen::HistGradientBoostingClassifier<double>;
+    HGBC hgb(HGBC::Loss::LogLoss, 0.1, 50, 31, std::nullopt, 2);
+    hgb.fit(X, y);
+    Eigen::MatrixXd P = hgb.predict_proba(X);
+    ASSERT_TRUE(P.rows() == n);
+    ASSERT_TRUE(P.cols() == 2);
+    for (int i = 0; i < n; ++i) {
+        ASSERT_NEAR(P(i, 0) + P(i, 1), 1.0, 1e-12);
+    }
+}
+
+void test_hgbc_init_log_odds() {
+    constexpr int n = 50;
+    Eigen::MatrixXd X(n, 1);
+    Eigen::VectorXi y(n);
+    for (int i = 0; i < n; ++i) {
+        X(i, 0) = i;
+        y(i)    = (i < n * 4 / 5) ? 1 : 0;          // 80/20 prior
+    }
+    Skigen::HistGradientBoostingClassifier<double> hgb;
+    hgb.fit(X, y);
+    ASSERT_NEAR(hgb.init(), std::log(4.0), 1e-9);
+}
+
+void test_hgbc_multiclass_throws() {
+    Eigen::MatrixXd X(6, 1); X << 0, 1, 2, 3, 4, 5;
+    Eigen::VectorXi y(6); y << 0, 1, 2, 0, 1, 2;
+    Skigen::HistGradientBoostingClassifier<double> hgb;
+    ASSERT_THROW(hgb.fit(X, y), std::invalid_argument);
+}
+
+// ---------------------------------------------------------------------------
 
 int main() {
     std::cout << "=== RandomForestClassifier Tests ===\n";
@@ -679,6 +849,23 @@ int main() {
     run_test("gbc_classes_recorded",                          test_gbc_classes_recorded);
     run_test("gbc_multiclass_throws",                         test_gbc_multiclass_throws);
     run_test("gbc_unsupported_loss_throws",                   test_gbc_unsupported_loss_throws);
+
+    std::cout << "\n=== HistGradientBoostingRegressor Tests ===\n";
+    run_test("hgbr_recovers_linear_signal",       test_hgbr_recovers_linear_signal);
+    run_test("hgbr_init_equals_mean_of_y",        test_hgbr_init_equals_mean_of_y);
+    run_test("hgbr_n_iter_honoured",              test_hgbr_n_iter_honoured);
+    run_test("hgbr_train_score_decreases",        test_hgbr_train_score_decreases);
+    run_test("hgbr_bin_edges_per_feature",        test_hgbr_bin_edges_per_feature);
+    run_test("hgbr_unsupported_loss_throws",      test_hgbr_unsupported_loss_throws);
+    run_test("hgbr_invalid_max_bins_throws",      test_hgbr_invalid_max_bins_throws);
+
+    std::cout << "\n=== HistGradientBoostingClassifier Tests ===\n";
+    run_test("hgbc_binary_separable_high_accuracy",
+             test_hgbc_binary_separable_high_accuracy);
+    run_test("hgbc_predict_proba_rows_sum_to_one",
+             test_hgbc_predict_proba_rows_sum_to_one);
+    run_test("hgbc_init_log_odds",                test_hgbc_init_log_odds);
+    run_test("hgbc_multiclass_throws",            test_hgbc_multiclass_throws);
 
     std::cout << "\n" << g_passed << " passed, " << g_failed << " failed.\n";
     return g_failed > 0 ? 1 : 0;

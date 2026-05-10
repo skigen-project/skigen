@@ -192,3 +192,15 @@ target_link_libraries(skigen_test_calibration PRIVATE Skigen::Skigen)
 target_compile_options(skigen_test_calibration PRIVATE ${SKIGEN_WARNING_FLAGS})
 
 add_test(NAME skigen_test_calibration COMMAND skigen_test_calibration)
+
+# ---------------------------------------------------------------------------
+# Core-infrastructure tests (SparseSupport helpers + new concepts) — Phase A
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_core_infra
+    test_core_infra.cpp
+)
+
+target_link_libraries(skigen_test_core_infra PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_core_infra PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_test(NAME skigen_test_core_infra COMMAND skigen_test_core_infra)

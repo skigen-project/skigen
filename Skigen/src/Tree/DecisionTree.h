@@ -8,6 +8,7 @@
 #include "../Core/Validation.h"
 
 #include <Eigen/Core>
+#include <Eigen/SparseCore>
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -120,6 +121,11 @@ public:
     using typename Base::LabelType;
     using IndexVector = Eigen::VectorXi;
 
+    // Make the base-class fit/predict visible alongside the sparse
+    // overloads added below.
+    using Base::fit;
+    using Base::predict;
+
     /// @brief Construct a DecisionTreeClassifier.
     explicit DecisionTreeClassifier(int max_depth = -1,
                                     int min_samples_split = 2,
@@ -136,6 +142,45 @@ public:
     DecisionTreeClassifier& fit_impl(const Eigen::Ref<const MatrixType>& X,
                                 const Eigen::Ref<const IndexVector>& y) {
         return fit_with_indices(X, y, std::vector<Eigen::Index>{});
+    }
+
+    // -- Sparse-aware overloads (v1.1.0 §3.2) --------------------------------
+
+    /// @brief Fit on a sparse design matrix.
+    ///
+    /// **v1.1.0 implementation note:** the sparse input is converted to a
+    /// dense `MatrixType` internally and forwarded to the regular
+    /// split-finding path. Native sparse split-finding (skip-zero column
+    /// scans accumulating per-class counts only over explicit nonzeros)
+    /// is a documented parity gap deferred to a follow-up release. The
+    /// API surface and numerical results are still correct on sparse
+    /// input — only the EES (memory / cycles) advantage is currently
+    /// missing.
+    template <int Options, typename StorageIndex>
+    DecisionTreeClassifier& fit(
+        const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X,
+        const Eigen::Ref<const IndexVector>& y) {
+        if (X.rows() == 0 || X.cols() == 0) {
+            throw std::invalid_argument(
+                "DecisionTreeClassifier.fit: empty sparse matrix.");
+        }
+        MatrixType Xd = MatrixType(X);
+        return this->fit(Xd, y);
+    }
+
+    /// @brief Predict using a sparse design matrix (densifies internally).
+    template <int Options, typename StorageIndex>
+    [[nodiscard]] IndexVector predict(
+        const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X) const {
+        this->check_is_fitted();
+        if (X.cols() != this->n_features_in_) {
+            throw std::invalid_argument(
+                "X has " + std::to_string(X.cols()) +
+                " features, but classifier was fitted with " +
+                std::to_string(this->n_features_in_) + " features.");
+        }
+        MatrixType Xd = MatrixType(X);
+        return this->predict(Xd);
     }
 
     /// @brief Fit using a specific row index subset (used by RandomForest bootstraps).
@@ -412,6 +457,11 @@ public:
     using typename Base::VectorType;
     using typename Base::RowVectorType;
     using typename Base::IndexType;
+
+    // Make the base-class fit/predict visible alongside the sparse
+    // overloads added below.
+    using Base::fit;
+    using Base::predict;
     using typename Base::ScalarType;
 
     explicit DecisionTreeRegressor(int max_depth = -1,
@@ -429,6 +479,37 @@ public:
     DecisionTreeRegressor& fit_impl(const Eigen::Ref<const MatrixType>& X,
                                const Eigen::Ref<const VectorType>& y) {
         return fit_with_indices(X, y, std::vector<Eigen::Index>{});
+    }
+
+    // -- Sparse-aware overloads (v1.1.0 §3.2) --------------------------------
+
+    /// @brief Fit on a sparse design matrix (densifies internally — see
+    ///   the parity-gap note on DecisionTreeClassifier::fit).
+    template <int Options, typename StorageIndex>
+    DecisionTreeRegressor& fit(
+        const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X,
+        const Eigen::Ref<const VectorType>& y) {
+        if (X.rows() == 0 || X.cols() == 0) {
+            throw std::invalid_argument(
+                "DecisionTreeRegressor.fit: empty sparse matrix.");
+        }
+        MatrixType Xd = MatrixType(X);
+        return this->fit(Xd, y);
+    }
+
+    /// @brief Predict using a sparse design matrix (densifies internally).
+    template <int Options, typename StorageIndex>
+    [[nodiscard]] VectorType predict(
+        const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X) const {
+        this->check_is_fitted();
+        if (X.cols() != this->n_features_in_) {
+            throw std::invalid_argument(
+                "X has " + std::to_string(X.cols()) +
+                " features, but regressor was fitted with " +
+                std::to_string(this->n_features_in_) + " features.");
+        }
+        MatrixType Xd = MatrixType(X);
+        return this->predict(Xd);
     }
 
     DecisionTreeRegressor& fit_with_indices(const Eigen::Ref<const MatrixType>& X,

@@ -124,6 +124,10 @@ using GradientBoostingRegressorD  = GradientBoostingRegressor<double>;
 using GradientBoostingRegressorF  = GradientBoostingRegressor<float>;
 using GradientBoostingClassifierD = GradientBoostingClassifier<double>;
 using GradientBoostingClassifierF = GradientBoostingClassifier<float>;
+using HistGradientBoostingRegressorD = HistGradientBoostingRegressor<double>;
+using HistGradientBoostingRegressorF = HistGradientBoostingRegressor<float>;
+using HistGradientBoostingClassifierD = HistGradientBoostingClassifier<double>;
+using HistGradientBoostingClassifierF = HistGradientBoostingClassifier<float>;
 
 // ---------------------------------------------------------------------------
 // Naive Bayes

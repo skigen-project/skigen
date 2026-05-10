@@ -14,5 +14,6 @@
 #include "src/Core/Base.h"
 #include "src/Core/Validation.h"
 #include "src/Core/EigenHelpers.h"
+#include "src/Core/SparseSupport.h"
 
 #endif // SKIGEN_CORE

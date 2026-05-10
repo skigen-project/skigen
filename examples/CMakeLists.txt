@@ -92,6 +92,8 @@ skigen_add_example(ex_random_forest_classifier    ensemble/random_forest_classif
 skigen_add_example(ex_random_forest_regressor     ensemble/random_forest_regressor.cpp)
 skigen_add_example(ex_gradient_boosting_regressor  ensemble/gradient_boosting_regressor.cpp)
 skigen_add_example(ex_gradient_boosting_classifier ensemble/gradient_boosting_classifier.cpp)
+skigen_add_example(ex_hist_gradient_boosting_regressor  ensemble/hist_gradient_boosting_regressor.cpp)
+skigen_add_example(ex_hist_gradient_boosting_classifier ensemble/hist_gradient_boosting_classifier.cpp)
 
 # ---------------------------------------------------------------------------
 # Metrics examples
