@@ -9,6 +9,7 @@
 #include "KMeans.h"
 
 #include <Eigen/Core>
+#include <Eigen/SparseCore>
 #include <algorithm>
 #include <limits>
 #include <numeric>
@@ -239,6 +240,116 @@ public:
                 Scalar{1} / static_cast<Scalar>(cluster_counts_(best_k));
             cluster_centers_.row(best_k) +=
                 lr * (X.row(i) - cluster_centers_.row(best_k));
+        }
+        return *this;
+    }
+
+    /// @brief Online update from a sparse mini-batch (see dense overload).
+    ///
+    /// Mirrors sklearn's `MiniBatchKMeans.partial_fit` on sparse input. Each
+    /// row's nearest centroid is found via the
+    /// @f$ \|x\|^2 + \|c\|^2 - 2\,x\!\cdot\!c @f$ expansion (sparse dot,
+    /// dense centroid); the assigned centroid is then updated by a running
+    /// mean using `cluster_counts_`.
+    template <int Options, typename StorageIndex>
+    MiniBatchKMeans& partial_fit(
+        const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X) {
+        if (X.rows() == 0 || X.cols() == 0) {
+            throw std::invalid_argument(
+                "partial_fit: empty sparse matrix.");
+        }
+
+        using RowSparse =
+            Eigen::SparseMatrix<Scalar, Eigen::RowMajor, StorageIndex>;
+        const RowSparse Xr = X;
+        const Eigen::Index n = Xr.rows();
+
+        if (!this->fitted_) {
+            if (n < n_clusters_) {
+                throw std::invalid_argument(
+                    "partial_fit: first batch must contain at least "
+                    "n_clusters (" + std::to_string(n_clusters_) +
+                    ") samples; got " + std::to_string(n) + ".");
+            }
+            this->n_features_in_ = X.cols();
+            std::mt19937 rng(random_state_);
+            // Use the first row materialised dense as the seed centroid;
+            // grow with farthest-first via the sparse distance expansion.
+            VectorType row_sq_norm(n);
+            for (Eigen::Index i = 0; i < n; ++i) {
+                Scalar s{0};
+                for (typename RowSparse::InnerIterator it(Xr, i); it; ++it) {
+                    s += it.value() * it.value();
+                }
+                row_sq_norm(i) = s;
+            }
+            cluster_centers_ = MatrixType::Zero(n_clusters_, X.cols());
+            std::uniform_int_distribution<Eigen::Index> first_dist(0, n - 1);
+            const Eigen::Index first = first_dist(rng);
+            for (typename RowSparse::InnerIterator it(Xr, first); it; ++it) {
+                cluster_centers_(0, it.col()) = it.value();
+            }
+            VectorType min_dist =
+                VectorType::Constant(n, std::numeric_limits<Scalar>::max());
+            for (int k = 1; k < n_clusters_; ++k) {
+                const Scalar c_sq =
+                    cluster_centers_.row(k - 1).squaredNorm();
+                for (Eigen::Index i = 0; i < n; ++i) {
+                    Scalar dot{0};
+                    for (typename RowSparse::InnerIterator it(Xr, i); it; ++it) {
+                        dot += it.value() * cluster_centers_(k - 1, it.col());
+                    }
+                    const Scalar d =
+                        row_sq_norm(i) + c_sq - Scalar{2} * dot;
+                    if (d < min_dist(i)) min_dist(i) = d;
+                }
+                std::discrete_distribution<Eigen::Index> dist(
+                    min_dist.data(), min_dist.data() + n);
+                const Eigen::Index pick = dist(rng);
+                cluster_centers_.row(k).setZero();
+                for (typename RowSparse::InnerIterator it(Xr, pick); it; ++it) {
+                    cluster_centers_(k, it.col()) = it.value();
+                }
+            }
+            cluster_counts_ = Eigen::VectorXi::Ones(n_clusters_);
+            this->fitted_ = true;
+        } else {
+            if (X.cols() != this->n_features_in_) {
+                throw std::invalid_argument(
+                    "X has " + std::to_string(X.cols()) +
+                    " features, but partial_fit was previously called with " +
+                    std::to_string(this->n_features_in_) + " features.");
+            }
+        }
+
+        for (Eigen::Index i = 0; i < n; ++i) {
+            Scalar row_sq{0};
+            for (typename RowSparse::InnerIterator it(Xr, i); it; ++it) {
+                row_sq += it.value() * it.value();
+            }
+            Scalar best = std::numeric_limits<Scalar>::max();
+            int best_k = 0;
+            for (int k = 0; k < n_clusters_; ++k) {
+                Scalar dot{0};
+                for (typename RowSparse::InnerIterator it(Xr, i); it; ++it) {
+                    dot += it.value() * cluster_centers_(k, it.col());
+                }
+                const Scalar c_sq = cluster_centers_.row(k).squaredNorm();
+                const Scalar d = row_sq + c_sq - Scalar{2} * dot;
+                if (d < best) { best = d; best_k = k; }
+            }
+            cluster_counts_(best_k) += 1;
+            const Scalar lr =
+                Scalar{1} / static_cast<Scalar>(cluster_counts_(best_k));
+            // Sparse update: row_dense - center; we apply
+            //   center += lr * (row - center) = (1 - lr)*center + lr*row
+            // For the dense-row analogue we'd compute it elementwise, but
+            // for sparse we apply the (1 - lr) scaling and then add lr*row
+            // along the nonzeros only.
+            cluster_centers_.row(best_k) *= (Scalar{1} - lr);
+            for (typename RowSparse::InnerIterator it(Xr, i); it; ++it) {
+                cluster_centers_(best_k, it.col()) += lr * it.value();
+            }
         }
         return *this;
     }

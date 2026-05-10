@@ -730,6 +730,30 @@ void test_mini_batch_kmeans_partial_fit_feature_mismatch_throws() {
     ASSERT_TRUE(threw);
 }
 
+void test_mini_batch_kmeans_sparse_partial_fit_separates_clusters() {
+    Eigen::MatrixXd Xd(8, 4);
+    Xd.setZero();
+    Xd(0, 0) = 10; Xd(0, 1) = 10;
+    Xd(1, 0) = 11; Xd(1, 1) = 9;
+    Xd(2, 0) = 9;  Xd(2, 1) = 11;
+    Xd(3, 0) = 10; Xd(3, 1) = 10;
+    Xd(4, 2) = 10; Xd(4, 3) = 10;
+    Xd(5, 2) = 11; Xd(5, 3) = 9;
+    Xd(6, 2) = 9;  Xd(6, 3) = 11;
+    Xd(7, 2) = 10; Xd(7, 3) = 10;
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+
+    Skigen::MiniBatchKMeans<double> mbk(2);
+    mbk.partial_fit(Xs);
+
+    // Centroids should be near (~10, ~10, 0, 0) and (0, 0, ~10, ~10).
+    Eigen::MatrixXd centers = mbk.cluster_centers();
+    int hi_left = (centers(0, 0) > centers(1, 0)) ? 0 : 1;
+    int hi_right = 1 - hi_left;
+    ASSERT_TRUE(centers(hi_left, 0) > 5.0);
+    ASSERT_TRUE(centers(hi_right, 2) > 5.0);
+}
+
 // ===================================================================
 // CrossValidation Tests
 // ===================================================================
@@ -1035,6 +1059,8 @@ int main() {
              test_mini_batch_kmeans_partial_fit_first_call_too_small_throws);
     run_test("mini_batch_kmeans_partial_fit_feature_mismatch_throws",
              test_mini_batch_kmeans_partial_fit_feature_mismatch_throws);
+    run_test("mini_batch_kmeans_sparse_partial_fit_separates_clusters",
+             test_mini_batch_kmeans_sparse_partial_fit_separates_clusters);
 
     std::cout << "\n=== CrossValidation Tests ===\n";
     run_test("cross_val_score", test_cross_val_score);
