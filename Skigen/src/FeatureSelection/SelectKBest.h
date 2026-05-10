@@ -9,6 +9,7 @@
 #include "ScoreFunctions.h"
 
 #include <Eigen/Core>
+#include <Eigen/SparseCore>
 #include <algorithm>
 #include <stdexcept>
 #include <utility>
@@ -51,6 +52,14 @@ struct Chi2 {
         const Eigen::Ref<const Mat>& X,
         const Eigen::Ref<const Eigen::VectorXi>& y) const {
         return chi2<Scalar>(X, y);
+    }
+
+    // Sparse overload: forwards to the sparse chi2 implementation.
+    template <int Options, typename StorageIndex>
+    std::pair<RowVec, RowVec> operator()(
+        const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X,
+        const Eigen::Ref<const Eigen::VectorXi>& y) const {
+        return chi2<Scalar, Options, StorageIndex>(X, y);
     }
 };
 
@@ -172,6 +181,76 @@ public:
         compute_support();
         this->fitted_ = true;
         return *this;
+    }
+
+    // -- Sparse-aware overloads (v1.1.0 §3.2) --------------------------------
+
+    /// @brief Fit using a sparse design matrix and a classification target.
+    ///
+    /// Only compiles when the configured `ScoreFn` provides a sparse
+    /// `operator()` overload — currently `Chi2` (and any user-supplied
+    /// score function with the same shape). For `FClassif` and
+    /// `FRegression`, the sparse path is a documented v1.1.0 parity gap
+    /// and a compile error.
+    template <int Options, typename StorageIndex>
+    SelectKBest& fit(
+        const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X,
+        const Eigen::Ref<const Eigen::VectorXi>& y) {
+        if (X.rows() == 0 || X.cols() == 0) {
+            throw std::invalid_argument(
+                "SelectKBest.fit: empty sparse matrix.");
+        }
+        if (X.rows() != y.size()) {
+            throw std::invalid_argument(
+                "SelectKBest.fit: X has " + std::to_string(X.rows()) +
+                " rows but y has " + std::to_string(y.size()) + " entries.");
+        }
+        this->n_features_in_ = X.cols();
+        auto [s, p] = score_func_(X, y);
+        scores_ = s;
+        pvalues_ = p;
+        compute_support();
+        this->fitted_ = true;
+        return *this;
+    }
+
+    /// @brief Transform a sparse design matrix to keep only the top-k columns.
+    template <int Options, typename StorageIndex>
+    [[nodiscard]] Eigen::SparseMatrix<Scalar, Options, StorageIndex>
+    transform(
+        const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X) const {
+        this->check_is_fitted();
+        if (X.cols() != this->n_features_in_) {
+            throw std::invalid_argument(
+                "X has " + std::to_string(X.cols()) +
+                " features, but selector was fitted with " +
+                std::to_string(this->n_features_in_) + " features.");
+        }
+
+        std::vector<Eigen::Index> kept;
+        kept.reserve(static_cast<std::size_t>(support_mask_.size()));
+        for (Eigen::Index j = 0; j < support_mask_.size(); ++j) {
+            if (support_mask_(j)) kept.push_back(j);
+        }
+
+        using ColSparse =
+            Eigen::SparseMatrix<Scalar, Eigen::ColMajor, StorageIndex>;
+        const ColSparse Xc = X;
+        ColSparse out_col(X.rows(), static_cast<Eigen::Index>(kept.size()));
+        std::vector<Eigen::Index> col_nnz(kept.size(), 0);
+        for (std::size_t i = 0; i < kept.size(); ++i) {
+            col_nnz[i] =
+                Xc.outerIndexPtr()[kept[i] + 1] - Xc.outerIndexPtr()[kept[i]];
+        }
+        out_col.reserve(col_nnz);
+        for (std::size_t i = 0; i < kept.size(); ++i) {
+            for (typename ColSparse::InnerIterator it(Xc, kept[i]); it; ++it) {
+                out_col.insert(it.row(), static_cast<Eigen::Index>(i)) =
+                    it.value();
+            }
+        }
+        out_col.makeCompressed();
+        return Eigen::SparseMatrix<Scalar, Options, StorageIndex>(out_col);
     }
 
     // -- Transform ----------------------------------------------------------

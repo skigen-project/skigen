@@ -7,6 +7,7 @@
 #include "../Core/Validation.h"
 
 #include <Eigen/Core>
+#include <Eigen/SparseCore>
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -447,6 +448,95 @@ chi2(const Eigen::Ref<const Eigen::Matrix<
                 Scalar exp_cj = class_count(c) * feature_total(j) / grand_total;
                 if (exp_cj > Scalar{0}) {
                     Scalar diff = observed(c, j) - exp_cj;
+                    s += diff * diff / exp_cj;
+                }
+            }
+        }
+        stat(j) = s;
+        pv(j) = detail::chi2_sf(s, static_cast<Scalar>(k - 1));
+    }
+    return {stat, pv};
+}
+
+// ---------------------------------------------------------------------------
+// chi2 — sparse overload (v1.1.0 §3.2)
+//
+// Operates directly on the CSC nonzeros: per-column sums and per-class
+// per-column observed totals are accumulated by iterating column-wise
+// without materialising X dense. Implicit zeros contribute 0 to every
+// expected/observed cell, matching the dense formula exactly.
+// ---------------------------------------------------------------------------
+template <typename Scalar, int Options, typename StorageIndex>
+std::pair<Eigen::Matrix<Scalar, 1, Eigen::Dynamic>,
+          Eigen::Matrix<Scalar, 1, Eigen::Dynamic>>
+chi2(const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X,
+     const Eigen::Ref<const Eigen::VectorXi>& y) {
+    using RowVec = Eigen::Matrix<Scalar, 1, Eigen::Dynamic>;
+    using Mat    = Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>;
+    using ColSparse =
+        Eigen::SparseMatrix<Scalar, Eigen::ColMajor, StorageIndex>;
+
+    if (X.rows() == 0 || X.cols() == 0) {
+        throw std::invalid_argument("chi2: empty sparse matrix.");
+    }
+    if (X.rows() != y.size()) {
+        throw std::invalid_argument(
+            "chi2: X has " + std::to_string(X.rows()) +
+            " rows but y has " + std::to_string(y.size()) + " entries.");
+    }
+
+    const ColSparse Xc = X;
+    const Eigen::Index n = Xc.rows();
+    const Eigen::Index p = Xc.cols();
+
+    // Build class-index map (sorted ascending).
+    std::map<int, int> class_to_row;
+    for (Eigen::Index i = 0; i < n; ++i) {
+        if (class_to_row.find(y(i)) == class_to_row.end()) {
+            const int next = static_cast<int>(class_to_row.size());
+            class_to_row[y(i)] = next;
+        }
+    }
+    const int k = static_cast<int>(class_to_row.size());
+    if (k < 2) {
+        throw std::invalid_argument(
+            "chi2 requires at least 2 distinct classes.");
+    }
+
+    Eigen::VectorX<Scalar> class_count = Eigen::VectorX<Scalar>::Zero(k);
+    for (Eigen::Index i = 0; i < n; ++i) {
+        class_count(class_to_row[y(i)]) += Scalar{1};
+    }
+
+    Mat observed = Mat::Zero(k, p);
+    RowVec feature_total = RowVec::Zero(p);
+
+    // One CSC column-iteration pass: accumulate observed[c, j] and
+    // feature_total[j] from explicit nonzeros only. Reject negative values.
+    for (Eigen::Index j = 0; j < p; ++j) {
+        for (typename ColSparse::InnerIterator it(Xc, j); it; ++it) {
+            const Scalar v = it.value();
+            if (v < Scalar{0}) {
+                throw std::invalid_argument(
+                    "Input X must be non-negative for chi2 feature selection.");
+            }
+            const int c = class_to_row[y(it.row())];
+            observed(c, j)    += v;
+            feature_total(j)  += v;
+        }
+    }
+
+    Scalar grand_total = feature_total.sum();
+    RowVec stat(p);
+    RowVec pv(p);
+    for (Eigen::Index j = 0; j < p; ++j) {
+        Scalar s = Scalar{0};
+        if (feature_total(j) > Scalar{0} && grand_total > Scalar{0}) {
+            for (int c = 0; c < k; ++c) {
+                const Scalar exp_cj =
+                    class_count(c) * feature_total(j) / grand_total;
+                if (exp_cj > Scalar{0}) {
+                    const Scalar diff = observed(c, j) - exp_cj;
                     s += diff * diff / exp_cj;
                 }
             }

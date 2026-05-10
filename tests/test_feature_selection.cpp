@@ -281,6 +281,66 @@ void test_select_k_best_chi2_works() {
     ASSERT_NEAR(s(1), 3.0, 1e-6);
 }
 
+void test_select_k_best_chi2_sparse_matches_dense() {
+    Eigen::MatrixXd Xd(8, 4);
+    Xd << 1, 0, 0, 1,
+          0, 2, 0, 0,
+          1, 0, 0, 1,
+          0, 1, 0, 0,
+          1, 0, 0, 1,
+          0, 3, 0, 0,
+          1, 0, 0, 1,
+          0, 1, 0, 0;
+    Eigen::VectorXi y(8);
+    y << 0, 1, 0, 1, 0, 1, 0, 1;
+
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+
+    Skigen::SelectKBestChi2<double> dense_sel(
+        Skigen::feature_selection::Chi2<double>{}, 2);
+    Skigen::SelectKBestChi2<double> sparse_sel(
+        Skigen::feature_selection::Chi2<double>{}, 2);
+    dense_sel.fit(Xd, y);
+    sparse_sel.fit(Xs, y);
+
+    // Score and p-value parity
+    for (Eigen::Index j = 0; j < Xd.cols(); ++j) {
+        ASSERT_NEAR(dense_sel.scores()(j),  sparse_sel.scores()(j),  1e-12);
+        ASSERT_NEAR(dense_sel.pvalues()(j), sparse_sel.pvalues()(j), 1e-12);
+        ASSERT_TRUE(dense_sel.get_support_mask()(j) ==
+                    sparse_sel.get_support_mask()(j));
+    }
+
+    // Sparse → sparse transform
+    Eigen::SparseMatrix<double> Ys = sparse_sel.transform(Xs);
+    ASSERT_TRUE(Ys.rows() == 8);
+    ASSERT_TRUE(Ys.cols() == 2);
+    Eigen::MatrixXd Yd_via_dense  = dense_sel.transform(Xd);
+    Eigen::MatrixXd Yd_via_sparse = Eigen::MatrixXd(Ys);
+    for (Eigen::Index i = 0; i < Yd_via_dense.rows(); ++i) {
+        for (Eigen::Index j = 0; j < Yd_via_dense.cols(); ++j) {
+            ASSERT_NEAR(Yd_via_dense(i, j), Yd_via_sparse(i, j), 1e-12);
+        }
+    }
+}
+
+void test_select_k_best_chi2_sparse_negative_input_throws() {
+    // Build a sparse matrix with one negative entry; should reject in fit.
+    Eigen::SparseMatrix<double> X(3, 2);
+    X.insert(0, 0) = 1.0;
+    X.insert(1, 1) = -1.0;   // negative — must be rejected
+    X.insert(2, 0) = 1.0;
+    X.makeCompressed();
+    Eigen::VectorXi y(3); y << 0, 1, 0;
+
+    Skigen::SelectKBestChi2<double> sel(
+        Skigen::feature_selection::Chi2<double>{}, 1);
+    bool threw = false;
+    try { sel.fit(X, y); }
+    catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
 void test_chi2_negative_input_throws() {
     Eigen::MatrixXd X(3, 2);
     X << 1.0, 0.0,
@@ -541,6 +601,8 @@ int main() {
     run_test("variance_threshold_sparse_matches_dense",         test_variance_threshold_sparse_matches_dense);
     run_test("variance_threshold_sparse_transform_returns_sparse", test_variance_threshold_sparse_transform_returns_sparse);
     run_test("variance_threshold_sparse_feature_count_check",   test_variance_threshold_sparse_feature_count_check);
+    run_test("select_k_best_chi2_sparse_matches_dense",         test_select_k_best_chi2_sparse_matches_dense);
+    run_test("select_k_best_chi2_sparse_negative_input_throws", test_select_k_best_chi2_sparse_negative_input_throws);
     run_test("select_k_best_classification",        test_select_k_best_classification);
     run_test("select_k_best_regression",            test_select_k_best_regression);
     run_test("select_k_best_chi2_works",            test_select_k_best_chi2_works);
