@@ -8,8 +8,10 @@
 #include "../Core/Validation.h"
 
 #include <Eigen/Core>
+#include <Eigen/SparseCore>
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace Skigen {
 
@@ -100,6 +102,10 @@ public:
     using typename Base::VectorType;
     using typename Base::RowVectorType;
     using typename Base::IndexType;
+
+    // Make the dense base-class fit overload visible alongside the
+    // sparse fit overload added below.
+    using Base::fit;
 
     /// @brief Construct an ElasticNet estimator.
     ///
@@ -220,6 +226,113 @@ public:
             ? y_mean - (X_mean.array() * coef_.array()).sum()
             : Scalar{0};
 
+        this->fitted_ = true;
+        return *this;
+    }
+
+    // -- Sparse-aware overload (v1.1.0 §3.2) --------------------------------
+
+    /// @brief Fit ElasticNet on a sparse design matrix without densifying X.
+    ///
+    /// Implements coordinate descent with implicit centring (same trick
+    /// as `Lasso::fit(SparseMatrix, ...)`). The CD denominator is
+    /// extended by the L2 penalty
+    /// @f$ \mathrm{denom}_j = \|X_c[:, j]\|^2 + n\,\alpha\,(1 - \rho) @f$
+    /// where @f$\rho@f$ is `l1_ratio_`. The L1 soft-thresholding numerator
+    /// uses @f$ n\,\alpha\,\rho @f$, matching sklearn's parameterisation.
+    /// We maintain `r_raw = y_c - X*w` and a scalar
+    /// `shift = Σ_k w_k · x̄_k` to recover the centred dot product
+    /// @f$ X_c[:, j] \cdot r^{centered}
+    ///   = X[:, j] \cdot r^{raw} + n\,\bar{x}_j\,\mathrm{shift} @f$.
+    ///
+    /// `sample_weight`, `precompute`, `positive`, `random_state`,
+    /// `selection`, and `warm_start` are documented parity gaps.
+    template <int Options, typename StorageIndex>
+    ElasticNet& fit(
+        const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X,
+        const Eigen::Ref<const VectorType>& y) {
+        if (X.rows() == 0 || X.cols() == 0) {
+            throw std::invalid_argument("ElasticNet.fit: empty sparse matrix.");
+        }
+        if (X.rows() != y.size()) {
+            throw std::invalid_argument(
+                "ElasticNet.fit: X has " + std::to_string(X.rows()) +
+                " rows but y has " + std::to_string(y.size()) + ".");
+        }
+        this->n_features_in_ = X.cols();
+
+        using ColSparse =
+            Eigen::SparseMatrix<Scalar, Eigen::ColMajor, StorageIndex>;
+        const ColSparse Xc = X;
+        const Eigen::Index n = Xc.rows();
+        const Eigen::Index p = Xc.cols();
+
+        RowVectorType x_mean = RowVectorType::Zero(p);
+        VectorType    raw_norm_sq = VectorType::Zero(p);
+        for (Eigen::Index j = 0; j < p; ++j) {
+            Scalar s{0}, ss{0};
+            for (typename ColSparse::InnerIterator it(Xc, j); it; ++it) {
+                s  += it.value();
+                ss += it.value() * it.value();
+            }
+            x_mean(j)      = s / static_cast<Scalar>(n);
+            raw_norm_sq(j) = ss;
+        }
+        const Scalar y_mean = fit_intercept_ ? y.mean() : Scalar{0};
+
+        VectorType col_norms_sq(p);
+        for (Eigen::Index j = 0; j < p; ++j) {
+            col_norms_sq(j) = fit_intercept_
+                ? raw_norm_sq(j)
+                  - static_cast<Scalar>(n) * x_mean(j) * x_mean(j)
+                : raw_norm_sq(j);
+            if (col_norms_sq(j) < Scalar{0}) col_norms_sq(j) = Scalar{0};
+        }
+
+        const Scalar l1_penalty =
+            static_cast<Scalar>(n) * alpha_ * l1_ratio_;
+        const Scalar l2_penalty =
+            static_cast<Scalar>(n) * alpha_ * (Scalar{1} - l1_ratio_);
+
+        coef_ = RowVectorType::Zero(p);
+        VectorType r_raw = fit_intercept_
+            ? VectorType((y.array() - y_mean).matrix())
+            : VectorType(y);
+        Scalar shift{0};
+
+        for (int iter = 0; iter < max_iter_; ++iter) {
+            Scalar max_change{0};
+
+            for (Eigen::Index j = 0; j < p; ++j) {
+                const Scalar denom = col_norms_sq(j) + l2_penalty;
+                if (denom < std::numeric_limits<Scalar>::epsilon()) continue;
+
+                const Scalar old_w = coef_(j);
+                Scalar dot{0};
+                for (typename ColSparse::InnerIterator it(Xc, j); it; ++it) {
+                    dot += it.value() * r_raw(it.row());
+                }
+                Scalar rho = dot + col_norms_sq(j) * old_w;
+                if (fit_intercept_) {
+                    rho += static_cast<Scalar>(n) * x_mean(j) * shift;
+                }
+                const Scalar new_w = soft_threshold(rho, l1_penalty) / denom;
+                const Scalar delta = new_w - old_w;
+
+                if (delta != Scalar{0}) {
+                    for (typename ColSparse::InnerIterator it(Xc, j);
+                         it; ++it) {
+                        r_raw(it.row()) -= delta * it.value();
+                    }
+                    if (fit_intercept_) shift += delta * x_mean(j);
+                    coef_(j) = new_w;
+                    if (std::abs(delta) > max_change) max_change = std::abs(delta);
+                }
+            }
+            if (max_change < tol_) break;
+        }
+
+        intercept_ = fit_intercept_ ? y_mean - shift : Scalar{0};
         this->fitted_ = true;
         return *this;
     }

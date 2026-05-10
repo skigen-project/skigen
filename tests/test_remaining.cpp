@@ -195,6 +195,106 @@ void test_lasso_score() {
     ASSERT_TRUE(r2 > 0.99);
 }
 
+void test_lasso_sparse_matches_dense_no_intercept() {
+    // Match the dense fit on a small sparse-friendly matrix with
+    // fit_intercept=false. Use a slightly larger dataset to make CD
+    // converge stably.
+    Eigen::MatrixXd Xd(20, 5);
+    Xd.setZero();
+    // Sparse pattern: each row has 2-3 nonzeros.
+    Xd(0, 0) = 1; Xd(0, 2) = 2;
+    Xd(1, 1) = 3; Xd(1, 3) = 1;
+    Xd(2, 0) = 4; Xd(2, 4) = 1;
+    Xd(3, 2) = 5; Xd(3, 4) = 2;
+    Xd(4, 1) = 1; Xd(4, 3) = 3;
+    Xd(5, 0) = 2; Xd(5, 2) = 1;
+    Xd(6, 4) = 5;
+    Xd(7, 1) = 4;
+    Xd(8, 3) = 6;
+    Xd(9, 0) = 3; Xd(9, 1) = 2;
+    Xd(10, 2) = 7;
+    Xd(11, 4) = 3;
+    Xd(12, 0) = 1; Xd(12, 1) = 1; Xd(12, 2) = 1;
+    Xd(13, 3) = 2;
+    Xd(14, 4) = 4;
+    Xd(15, 1) = 5;
+    Xd(16, 0) = 2; Xd(16, 3) = 4;
+    Xd(17, 2) = 3;
+    Xd(18, 4) = 1;
+    Xd(19, 0) = 4; Xd(19, 1) = 1; Xd(19, 4) = 2;
+
+    Eigen::VectorXd w_true(5);
+    w_true << 1.5, -2.0, 0.5, 1.0, -0.8;
+    Eigen::VectorXd y = Xd * w_true;
+
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+
+    Skigen::Lasso<double> ld(0.01, /*fit_intercept=*/false, 5000, 1e-8);
+    Skigen::Lasso<double> ls(0.01, /*fit_intercept=*/false, 5000, 1e-8);
+    ld.fit(Xd, y);
+    ls.fit(Xs, y);
+
+    for (int j = 0; j < 5; ++j) {
+        ASSERT_NEAR(ld.coef()(j), ls.coef()(j), 1e-6);
+    }
+    ASSERT_NEAR(ls.intercept(), 0.0, 1e-12);
+}
+
+void test_lasso_sparse_matches_dense_with_intercept() {
+    Eigen::MatrixXd Xd(15, 4);
+    Xd.setZero();
+    // Sparse pattern with non-zero column means.
+    Xd(0, 0) = 1; Xd(0, 1) = 2;
+    Xd(1, 0) = 3; Xd(1, 2) = 1;
+    Xd(2, 1) = 4; Xd(2, 3) = 2;
+    Xd(3, 0) = 2; Xd(3, 3) = 3;
+    Xd(4, 2) = 5;
+    Xd(5, 1) = 1; Xd(5, 2) = 2;
+    Xd(6, 0) = 4; Xd(6, 1) = 1;
+    Xd(7, 3) = 6;
+    Xd(8, 0) = 1; Xd(8, 2) = 1;
+    Xd(9, 1) = 3; Xd(9, 3) = 1;
+    Xd(10, 0) = 5;
+    Xd(11, 2) = 4;
+    Xd(12, 1) = 2;
+    Xd(13, 0) = 1; Xd(13, 1) = 1; Xd(13, 3) = 2;
+    Xd(14, 2) = 3;
+
+    Eigen::VectorXd w_true(4);
+    w_true << 1.0, -1.5, 0.5, 0.8;
+    const double b_true = 2.5;
+    Eigen::VectorXd y = (Xd * w_true).array() + b_true;
+
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+
+    Skigen::Lasso<double> ld(0.01, /*fit_intercept=*/true, 5000, 1e-8);
+    Skigen::Lasso<double> ls(0.01, /*fit_intercept=*/true, 5000, 1e-8);
+    ld.fit(Xd, y);
+    ls.fit(Xs, y);
+
+    for (int j = 0; j < 4; ++j) {
+        ASSERT_NEAR(ld.coef()(j), ls.coef()(j), 1e-6);
+    }
+    ASSERT_NEAR(ld.intercept(), ls.intercept(), 1e-6);
+
+    // Predictions should agree (using dense X for both).
+    Eigen::VectorXd pd = ld.predict(Xd);
+    Eigen::VectorXd ps = ls.predict(Xd);
+    for (int i = 0; i < Xd.rows(); ++i) {
+        ASSERT_NEAR(pd(i), ps(i), 1e-6);
+    }
+}
+
+void test_lasso_sparse_empty_throws() {
+    Eigen::SparseMatrix<double> X(0, 0);
+    Eigen::VectorXd y(0);
+    Skigen::Lasso<double> l;
+    bool threw = false;
+    try { l.fit(X, y); }
+    catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
 // ===================================================================
 // ElasticNet Tests
 // ===================================================================
@@ -224,6 +324,69 @@ void test_elastic_net_score() {
     en.fit(X, y);
     double r2 = en.score(X, y);
     ASSERT_TRUE(r2 > 0.99);
+}
+
+void test_elastic_net_sparse_matches_dense() {
+    Eigen::MatrixXd Xd(15, 4);
+    Xd.setZero();
+    Xd(0, 0) = 1; Xd(0, 1) = 2;
+    Xd(1, 0) = 3; Xd(1, 2) = 1;
+    Xd(2, 1) = 4; Xd(2, 3) = 2;
+    Xd(3, 0) = 2; Xd(3, 3) = 3;
+    Xd(4, 2) = 5;
+    Xd(5, 1) = 1; Xd(5, 2) = 2;
+    Xd(6, 0) = 4; Xd(6, 1) = 1;
+    Xd(7, 3) = 6;
+    Xd(8, 0) = 1; Xd(8, 2) = 1;
+    Xd(9, 1) = 3; Xd(9, 3) = 1;
+    Xd(10, 0) = 5;
+    Xd(11, 2) = 4;
+    Xd(12, 1) = 2;
+    Xd(13, 0) = 1; Xd(13, 1) = 1; Xd(13, 3) = 2;
+    Xd(14, 2) = 3;
+
+    Eigen::VectorXd w_true(4);
+    w_true << 1.0, -1.5, 0.5, 0.8;
+    const double b_true = 2.5;
+    Eigen::VectorXd y = (Xd * w_true).array() + b_true;
+
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+
+    Skigen::ElasticNet<double> ed(0.05, 0.5, /*fit_intercept=*/true, 5000, 1e-8);
+    Skigen::ElasticNet<double> es(0.05, 0.5, /*fit_intercept=*/true, 5000, 1e-8);
+    ed.fit(Xd, y);
+    es.fit(Xs, y);
+
+    for (int j = 0; j < 4; ++j) {
+        ASSERT_NEAR(ed.coef()(j), es.coef()(j), 1e-6);
+    }
+    ASSERT_NEAR(ed.intercept(), es.intercept(), 1e-6);
+}
+
+void test_elastic_net_sparse_l1_only_matches_lasso() {
+    // l1_ratio=1 ⇒ ElasticNet should match Lasso on sparse input.
+    Eigen::MatrixXd Xd(12, 3);
+    Xd.setZero();
+    Xd(0, 0) = 1; Xd(1, 1) = 2; Xd(2, 2) = 3;
+    Xd(3, 0) = 4; Xd(4, 1) = 1; Xd(5, 2) = 5;
+    Xd(6, 0) = 2; Xd(7, 1) = 4; Xd(8, 2) = 1;
+    Xd(9, 0) = 3; Xd(10, 1) = 2; Xd(11, 2) = 6;
+
+    Eigen::VectorXd w_true(3);
+    w_true << 0.5, 1.0, -0.7;
+    Eigen::VectorXd y = Xd * w_true;
+
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+
+    Skigen::Lasso<double> ls(0.01, /*fit_intercept=*/false, 5000, 1e-8);
+    Skigen::ElasticNet<double> es(0.01, /*l1_ratio=*/1.0,
+                                  /*fit_intercept=*/false, 5000, 1e-8);
+    ls.fit(Xs, y);
+    es.fit(Xs, y);
+
+    for (int j = 0; j < 3; ++j) {
+        ASSERT_NEAR(ls.coef()(j), es.coef()(j), 1e-6);
+    }
 }
 
 // ===================================================================
@@ -828,10 +991,18 @@ int main() {
     run_test("lasso_sparsity", test_lasso_sparsity);
     run_test("lasso_predict", test_lasso_predict);
     run_test("lasso_score", test_lasso_score);
+    run_test("lasso_sparse_matches_dense_no_intercept",
+             test_lasso_sparse_matches_dense_no_intercept);
+    run_test("lasso_sparse_matches_dense_with_intercept",
+             test_lasso_sparse_matches_dense_with_intercept);
+    run_test("lasso_sparse_empty_throws",
+             test_lasso_sparse_empty_throws);
 
     std::cout << "\n=== ElasticNet Tests ===\n";
     run_test("elastic_net_basic", test_elastic_net_basic);
     run_test("elastic_net_score", test_elastic_net_score);
+    run_test("elastic_net_sparse_matches_dense",      test_elastic_net_sparse_matches_dense);
+    run_test("elastic_net_sparse_l1_only_matches_lasso", test_elastic_net_sparse_l1_only_matches_lasso);
 
     std::cout << "\n=== LogisticRegression Tests ===\n";
     run_test("logreg_binary", test_logreg_binary);

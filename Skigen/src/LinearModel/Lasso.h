@@ -8,8 +8,10 @@
 #include "../Core/Validation.h"
 
 #include <Eigen/Core>
+#include <Eigen/SparseCore>
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace Skigen {
 
@@ -87,6 +89,10 @@ public:
     using typename Base::VectorType;
     using typename Base::RowVectorType;
     using typename Base::IndexType;
+
+    // Make the dense base-class fit overload visible alongside the
+    // sparse fit overload added below.
+    using Base::fit;
 
     /// @brief Construct a Lasso estimator.
     ///
@@ -201,6 +207,136 @@ public:
         intercept_ = fit_intercept_
             ? y_mean - (X_mean.array() * coef_.array()).sum()
             : Scalar{0};
+
+        this->fitted_ = true;
+        return *this;
+    }
+
+    // -- Sparse-aware overload (v1.1.0 §3.2) --------------------------------
+
+    /// @brief Fit Lasso on a sparse design matrix without densifying X.
+    ///
+    /// Implements coordinate descent with implicit centring. Per-column
+    /// quantities are computed directly from the CSC nonzeros; the residual
+    /// is updated via sparse column-iteration. We maintain
+    /// `r_raw = y_c - X*w` (using *uncentered* X but centered `y_c = y - ȳ`)
+    /// and a scalar `shift = Σ_k w_k · x̄_k`. The CD update on the
+    /// centered problem then reduces to
+    /// @f$ \rho_j = X[:, j] \cdot r^{raw} + n\,\bar{x}_j\,\mathrm{shift}
+    ///             + \|X_c[:, j]\|^2 \, w_j^{old} @f$
+    /// where @f$ \|X_c[:, j]\|^2 = \|X[:, j]\|^2 - n\,\bar{x}_j^2 @f$,
+    /// so the centered design is never materialised.
+    ///
+    /// Mirrors sklearn's `Lasso.fit` behaviour on sparse input.
+    /// `sample_weight`, `precompute`, `positive`, `random_state`,
+    /// `selection`, and `warm_start` are documented parity gaps.
+    template <int Options, typename StorageIndex>
+    Lasso& fit(const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X,
+               const Eigen::Ref<const VectorType>& y) {
+        if (X.rows() == 0 || X.cols() == 0) {
+            throw std::invalid_argument("Lasso.fit: empty sparse matrix.");
+        }
+        if (X.rows() != y.size()) {
+            throw std::invalid_argument(
+                "Lasso.fit: X has " + std::to_string(X.rows()) +
+                " rows but y has " + std::to_string(y.size()) + ".");
+        }
+        this->n_features_in_ = X.cols();
+
+        using ColSparse =
+            Eigen::SparseMatrix<Scalar, Eigen::ColMajor, StorageIndex>;
+        const ColSparse Xc = X;
+        const Eigen::Index n = Xc.rows();
+        const Eigen::Index p = Xc.cols();
+
+        // Per-column means and squared norms from CSC nonzeros.
+        RowVectorType x_mean = RowVectorType::Zero(p);
+        VectorType    raw_norm_sq = VectorType::Zero(p);
+        for (Eigen::Index j = 0; j < p; ++j) {
+            Scalar s{0}, ss{0};
+            for (typename ColSparse::InnerIterator it(Xc, j); it; ++it) {
+                s  += it.value();
+                ss += it.value() * it.value();
+            }
+            x_mean(j)      = s / static_cast<Scalar>(n);
+            raw_norm_sq(j) = ss;
+        }
+
+        const Scalar y_mean = fit_intercept_ ? y.mean() : Scalar{0};
+
+        // Centred-column squared norms via the identity
+        // ||X_c[:, j]||^2 = ||X[:, j]||^2 - n * x̄_j^2 (when fit_intercept=true);
+        // when fit_intercept=false the raw norm is used directly.
+        VectorType col_norms_sq(p);
+        for (Eigen::Index j = 0; j < p; ++j) {
+            if (fit_intercept_) {
+                col_norms_sq(j) = raw_norm_sq(j)
+                                  - static_cast<Scalar>(n) *
+                                    x_mean(j) * x_mean(j);
+            } else {
+                col_norms_sq(j) = raw_norm_sq(j);
+            }
+            // Numerical safety: clamp tiny negatives that arise from FP
+            // cancellation in the implicit-centring identity.
+            if (col_norms_sq(j) < Scalar{0}) col_norms_sq(j) = Scalar{0};
+        }
+
+        coef_ = RowVectorType::Zero(p);
+
+        // r_raw = y_c - X * w (uses uncentered X but centered y_c).
+        // Initial w = 0 ⇒ r_raw = y_c.
+        VectorType r_raw = fit_intercept_
+            ? VectorType((y.array() - y_mean).matrix())
+            : VectorType(y);
+
+        // shift = Σ_k w_k · x̄_k (initial 0). Only used when fit_intercept_.
+        Scalar shift{0};
+
+        const Scalar na = static_cast<Scalar>(n) * alpha_;
+
+        for (int iter = 0; iter < max_iter_; ++iter) {
+            Scalar max_change{0};
+
+            for (Eigen::Index j = 0; j < p; ++j) {
+                if (col_norms_sq(j) < std::numeric_limits<Scalar>::epsilon()) {
+                    continue;
+                }
+                const Scalar old_w = coef_(j);
+
+                // X[:, j] · r_raw via sparse column iteration.
+                Scalar dot{0};
+                for (typename ColSparse::InnerIterator it(Xc, j); it; ++it) {
+                    dot += it.value() * r_raw(it.row());
+                }
+
+                // Add the implicit-centring correction term n*x̄_j*shift
+                // when fit_intercept_ (zero otherwise — x_mean(j) is 0).
+                Scalar rho = dot + col_norms_sq(j) * old_w;
+                if (fit_intercept_) {
+                    rho += static_cast<Scalar>(n) * x_mean(j) * shift;
+                }
+
+                const Scalar new_w = soft_threshold(rho, na) / col_norms_sq(j);
+                const Scalar delta = new_w - old_w;
+
+                if (delta != Scalar{0}) {
+                    // r_raw -= delta * X[:, j]  (sparse update — only nz rows)
+                    for (typename ColSparse::InnerIterator it(Xc, j);
+                         it; ++it) {
+                        r_raw(it.row()) -= delta * it.value();
+                    }
+                    if (fit_intercept_) {
+                        shift += delta * x_mean(j);
+                    }
+                    coef_(j) = new_w;
+                    if (std::abs(delta) > max_change) max_change = std::abs(delta);
+                }
+            }
+
+            if (max_change < tol_) break;
+        }
+
+        intercept_ = fit_intercept_ ? y_mean - shift : Scalar{0};
 
         this->fitted_ = true;
         return *this;
