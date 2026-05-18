@@ -24,6 +24,7 @@ doc/website/.docusaurus/
 
 # Generated API docs (Doxygen + doxygen2mdx.py)
 doc/doxygen_output/
+doxygen_output/
 doc/website/docs/api/
 
 # Compiled objects
