@@ -25,22 +25,20 @@ using ParameterValue = std::variant<int, double, bool, std::string>;
 ///   by `set_param(...)` (one key at a time).
 using ParameterDict = std::map<std::string, ParameterValue, std::less<>>;
 
-/// @brief Thrown when `set_param` / `get_params` is called with a name
-///   the estimator does not advertise.
+/// @cond INTERNAL
 struct UnknownParameter : std::invalid_argument {
     explicit UnknownParameter(std::string_view name)
         : std::invalid_argument(
               std::string("Unknown parameter: ") + std::string(name)) {}
 };
 
-/// @brief Thrown when `set_param` is called with a value of the wrong
-///   variant alternative for the named parameter.
 struct ParameterTypeMismatch : std::invalid_argument {
     ParameterTypeMismatch(std::string_view name, std::string_view what)
         : std::invalid_argument(
               std::string("Parameter ") + std::string(name) +
               ": " + std::string(what)) {}
 };
+/// @endcond
 
 namespace internal {
 

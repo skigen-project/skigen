@@ -22,8 +22,9 @@
 
 namespace Skigen {
 
-/// @brief Tag type used to request predictive standard deviations.
+/// @cond INTERNAL
 struct return_std_t {};
+/// @endcond
 /// @brief Convenience tag value: `est.predict(X, with_std)`.
 inline constexpr return_std_t with_std{};
 

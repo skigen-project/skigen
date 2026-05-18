@@ -60,6 +60,7 @@ public:
         return out;
     }
 
+    /// @cond INTERNAL
     class Iterator {
     public:
         using value_type = ParameterDict;
@@ -77,6 +78,7 @@ public:
         const ParameterGrid* g_;
         std::size_t i_;
     };
+    /// @endcond
 
     [[nodiscard]] Iterator begin() const { return {this, 0}; }
     [[nodiscard]] Iterator end() const { return {this, size()}; }

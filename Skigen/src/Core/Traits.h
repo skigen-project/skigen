@@ -13,6 +13,7 @@ namespace Skigen {
 // Canonical type aliases for all Skigen estimators
 // ---------------------------------------------------------------------------
 
+/// @cond INTERNAL
 template <typename Scalar>
 struct EigenTypes {
     static_assert(std::is_floating_point_v<Scalar>,
@@ -24,6 +25,7 @@ struct EigenTypes {
     using RowVectorType = Eigen::Matrix<Scalar, 1, Eigen::Dynamic>;
     using IndexType     = Eigen::Index;
 };
+/// @endcond
 
 } // namespace Skigen
 

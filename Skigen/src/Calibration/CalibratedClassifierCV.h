@@ -87,7 +87,7 @@ public:
     using typename BaseClass::LabelType;
     using VectorType = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
 
-    /// @brief Per-fold (cloned base classifier, calibrator) pair.
+    /// @cond INTERNAL
     struct FoldFit {
         Base base;
         // Used when method == Sigmoid.
@@ -96,6 +96,7 @@ public:
         // Used when method == Isotonic.
         std::optional<IsotonicRegression<Scalar>> iso;
     };
+    /// @endcond
 
     explicit CalibratedClassifierCV(
         Base estimator,

@@ -19,8 +19,7 @@ namespace Skigen {
 
 namespace feature_selection {
 
-// Default callable for f_classif so users can construct without specifying
-// a score function explicitly.
+/// @cond INTERNAL
 template <typename Scalar>
 struct FClassif {
     using RowVec = Eigen::Matrix<Scalar, 1, Eigen::Dynamic>;
@@ -62,6 +61,7 @@ struct Chi2 {
         return chi2<Scalar, Options, StorageIndex>(X, y);
     }
 };
+/// @endcond
 
 }  // namespace feature_selection
 
