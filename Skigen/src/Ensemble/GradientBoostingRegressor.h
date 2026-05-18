@@ -174,6 +174,22 @@ public:
         this->check_is_fitted(); return train_score_;
     }
 
+    SKIGEN_PARAMS(
+        (learning_rate,            learning_rate_,            double),
+        (n_estimators,             n_estimators_,             int),
+        (subsample,                subsample_,                double),
+        (min_samples_split,        min_samples_split_,        int),
+        (min_samples_leaf,         min_samples_leaf_,         int),
+        (min_weight_fraction_leaf, min_weight_fraction_leaf_,  double),
+        (max_depth,                max_depth_,                int),
+        (min_impurity_decrease,    min_impurity_decrease_,     double),
+        (alpha,                    alpha_,                    double),
+        (verbose,                  verbose_,                  int),
+        (warm_start,               warm_start_,               bool),
+        (validation_fraction,      validation_fraction_,       double),
+        (tol,                      tol_,                      double),
+        (ccp_alpha,                ccp_alpha_,                double))
+
     // -- Fit/Predict --------------------------------------------------------
 
     GradientBoostingRegressor& fit_impl(

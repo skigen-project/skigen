@@ -128,6 +128,10 @@ public:
         this->check_is_fitted(); return scale_;
     }
 
+    // -- Parameter reflection ---------------------------------------------------
+
+    SKIGEN_PARAMS((with_centering, with_centering_, bool), (with_scaling, with_scaling_, bool))
+
     // -- Implementation (called by CRTP base) --------------------------------
 
     /// @brief Compute median and quantile range for later scaling.

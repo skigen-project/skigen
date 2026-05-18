@@ -104,6 +104,8 @@ public:
         this->check_is_fitted(); return var_;
     }
 
+    SKIGEN_PARAMS((var_smoothing, var_smoothing_, double))
+
     // -- Implementation -----------------------------------------------------
 
     /// @brief Fit the model from scratch using a single training batch.

@@ -40,6 +40,13 @@ public:
         : nu_(nu), C_(C), kernel_(kernel), degree_(degree),
           gamma_(gamma), coef0_(coef0) {}
 
+    SKIGEN_PARAMS(
+        (nu,     nu_,     double),
+        (C,      C_,      double),
+        (degree, degree_, int),
+        (gamma,  gamma_,  double),
+        (coef0,  coef0_,  double))
+
     NuSVR& fit_impl(const Eigen::Ref<const MatrixType>& /*X*/,
                     const Eigen::Ref<const VectorType>& /*y*/) {
         throw std::runtime_error(

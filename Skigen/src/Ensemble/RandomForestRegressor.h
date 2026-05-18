@@ -138,6 +138,18 @@ public:
         return oob_score_value_;
     }
 
+    SKIGEN_PARAMS(
+        (n_estimators,             n_estimators_,             int),
+        (min_samples_split,        min_samples_split_,        int),
+        (min_samples_leaf,         min_samples_leaf_,         int),
+        (min_weight_fraction_leaf, min_weight_fraction_leaf_,  double),
+        (min_impurity_decrease,    min_impurity_decrease_,     double),
+        (bootstrap,                bootstrap_,                bool),
+        (oob_score,                oob_score_flag_,           bool),
+        (n_jobs,                   n_jobs_,                   int),
+        (verbose,                  verbose_,                  int),
+        (warm_start,               warm_start_,               bool))
+
     // -- Fit/Predict --------------------------------------------------------
 
     RandomForestRegressor& fit_impl(const Eigen::Ref<const MatrixType>& X,

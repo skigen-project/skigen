@@ -123,6 +123,9 @@ public:
         this->check_is_fitted(); return rank_;
     }
 
+    SKIGEN_PARAMS(
+        (fit_intercept, fit_intercept_, bool))
+
     // -- Implementation (called by CRTP base) --------------------------------
 
     /// @brief Fit the model using Ordinary Least Squares.

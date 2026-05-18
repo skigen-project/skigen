@@ -151,6 +151,13 @@ public:
         this->check_is_fitted(); return intercept_;
     }
 
+    SKIGEN_PARAMS(
+        (alpha,         alpha_,         double),
+        (l1_ratio,      l1_ratio_,      double),
+        (fit_intercept, fit_intercept_, bool),
+        (max_iter,      max_iter_,      int),
+        (tol,           tol_,           double))
+
     /// @brief Fit model with coordinate descent.
     ///
     /// Centers the data when `fit_intercept` is `true`, then runs

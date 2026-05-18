@@ -116,6 +116,15 @@ public:
         this->check_is_fitted(); return train_score_;
     }
 
+    SKIGEN_PARAMS(
+        (learning_rate,      learning_rate_,      double),
+        (max_iter,           max_iter_,           int),
+        (min_samples_leaf,   min_samples_leaf_,   int),
+        (l2_regularization,  l2_regularization_,  double),
+        (max_bins,           max_bins_,           int),
+        (early_stopping,     early_stopping_,     bool),
+        (tol,                tol_,                double))
+
     // -- Fit / Predict ------------------------------------------------------
 
     HistGradientBoostingClassifier& fit_impl(

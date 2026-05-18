@@ -220,3 +220,11 @@ add_executable(skigen_test_neural_network test_neural_network.cpp)
 target_link_libraries(skigen_test_neural_network PRIVATE Skigen::Skigen)
 target_compile_options(skigen_test_neural_network PRIVATE ${SKIGEN_WARNING_FLAGS})
 add_test(NAME skigen_test_neural_network COMMAND skigen_test_neural_network)
+
+# ---------------------------------------------------------------------------
+# Manifold tests (MDS, Isomap, TSNE, LLE, SpectralEmbedding, UMAP)
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_manifold test_manifold.cpp)
+target_link_libraries(skigen_test_manifold PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_manifold PRIVATE ${SKIGEN_WARNING_FLAGS})
+add_test(NAME skigen_test_manifold COMMAND skigen_test_manifold)

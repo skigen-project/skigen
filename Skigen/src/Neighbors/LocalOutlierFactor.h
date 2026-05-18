@@ -131,6 +131,9 @@ public:
         return offset_;
     }
 
+    SKIGEN_PARAMS((n_neighbors, n_neighbors_, int),
+                  (contamination, contamination_, double))
+
     // -- fit / predict -------------------------------------------------------
 
     /// @brief Fit the LOF model from the training data.

@@ -246,22 +246,23 @@ void test_set_param_type_mismatch_throws() {
 }
 
 void test_default_get_params_empty_for_unregistered_estimator() {
-    // LinearRegression doesn't (yet) register params — its get_params
-    // should return an empty dict via the base-class fallback, and
-    // set_param on any name should throw UnknownParameter.
+    // LinearRegression now has SKIGEN_PARAMS; verify it works.
     Skigen::LinearRegression<double> lr;
     auto d = lr.get_params();
-    ASSERT_TRUE(d.empty());
+    ASSERT_TRUE(d.size() == 1);
+    ASSERT_TRUE(std::get<bool>(d.at("fit_intercept")) == true);
+    lr.set_param("fit_intercept", Skigen::ParameterValue(false));
+    auto d2 = lr.get_params();
+    ASSERT_TRUE(std::get<bool>(d2.at("fit_intercept")) == false);
     bool threw = false;
-    try { lr.set_param("alpha", Skigen::ParameterValue(1.0)); }
+    try { lr.set_param("nonexistent", Skigen::ParameterValue(1.0)); }
     catch (const Skigen::UnknownParameter&) { threw = true; }
     ASSERT_TRUE(threw);
 }
 
 void test_parametrized_like_concept() {
-    // Ridge has SKIGEN_PARAMS registered; LinearRegression doesn't.
     static_assert(Skigen::ParametrizedLike<Skigen::Ridge<double>>);
-    static_assert(!Skigen::ParametrizedLike<
+    static_assert(Skigen::ParametrizedLike<
                   Skigen::LinearRegression<double>>);
     ASSERT_TRUE(true);
 }

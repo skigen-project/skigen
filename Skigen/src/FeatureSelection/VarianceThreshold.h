@@ -131,6 +131,8 @@ public:
         return out;
     }
 
+    SKIGEN_PARAMS((threshold, threshold_, double))
+
     // -- Implementation (called by CRTP base) --------------------------------
 
     /// @brief Compute per-feature variance and the support mask.

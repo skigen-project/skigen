@@ -40,6 +40,7 @@ int main() {
     Skigen::MLPRegressor<double> reg(
         /*hidden_layer_sizes=*/{32},
         Skigen::MLPActivation::Tanh,
+        Skigen::MLPSolver::SGD,
         /*alpha=*/1e-4, /*lr=*/0.05, /*max_iter=*/500,
         /*tol=*/1e-7, /*batch_size=*/0,
         std::optional<uint64_t>(0));

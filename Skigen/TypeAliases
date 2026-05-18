@@ -26,6 +26,8 @@
 #include "Covariance"
 #include "FeatureSelection"
 #include "Isotonic"
+#include "SVM"
+#include "NeuralNetwork"
 
 namespace Skigen {
 
@@ -157,17 +159,9 @@ using SelectKBestChi2F         = SelectKBestChi2<float>;
 using IsotonicRegressionD = IsotonicRegression<double>;
 using IsotonicRegressionF = IsotonicRegression<float>;
 
-} // namespace Skigen
-
 // ---------------------------------------------------------------------------
-// SVM + NeuralNetwork (declared at the bottom because they depend on the
-// rest of the type-alias surface for their template scaffolding).
+// SVM
 // ---------------------------------------------------------------------------
-#include "SVM"
-#include "NeuralNetwork"
-
-namespace Skigen {
-
 using LinearSVCD     = LinearSVC<double>;
 using LinearSVCF     = LinearSVC<float>;
 using LinearSVRD     = LinearSVR<double>;
@@ -183,6 +177,9 @@ using NuSVRF         = NuSVR<float>;
 using OneClassSVMD   = OneClassSVM<double>;
 using OneClassSVMF   = OneClassSVM<float>;
 
+// ---------------------------------------------------------------------------
+// Neural Network
+// ---------------------------------------------------------------------------
 using MLPRegressorD  = MLPRegressor<double>;
 using MLPRegressorF  = MLPRegressor<float>;
 using MLPClassifierD = MLPClassifier<double>;

@@ -109,6 +109,10 @@ public:
         return inertia_;
     }
 
+    SKIGEN_PARAMS((n_clusters, n_clusters_, int),
+                  (batch_size, batch_size_, int),
+                  (max_iter, max_iter_, int))
+
     /// @brief Fit the MiniBatchKMeans model.
     ///
     /// Uses k-means++ initialization on the first batch, then performs

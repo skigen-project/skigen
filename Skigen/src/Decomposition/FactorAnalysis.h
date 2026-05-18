@@ -122,6 +122,10 @@ public:
         return n_iter_;
     }
 
+    SKIGEN_PARAMS((n_components, n_components_, int),
+                  (max_iter, max_iter_, int),
+                  (tol, tol_, double))
+
     // -- fit ----------------------------------------------------------------
 
     /// @brief Fit the factor analysis model via EM.

@@ -39,6 +39,12 @@ public:
         : kernel_(kernel), degree_(degree),
           gamma_(gamma), coef0_(coef0), nu_(nu) {}
 
+    SKIGEN_PARAMS(
+        (degree, degree_, int),
+        (gamma,  gamma_,  double),
+        (coef0,  coef0_,  double),
+        (nu,     nu_,     double))
+
     OneClassSVM& fit(const Eigen::Ref<const MatrixType>& /*X*/) {
         throw std::runtime_error(
             "OneClassSVM: not implemented (requires the nu-SVM SMO "

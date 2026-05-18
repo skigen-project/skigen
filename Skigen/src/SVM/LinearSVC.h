@@ -8,6 +8,7 @@
 #include "../Core/Validation.h"
 
 #include <Eigen/Core>
+#include <Eigen/SparseCore>
 #include <algorithm>
 #include <cstdint>
 #include <map>
@@ -75,6 +76,8 @@ public:
     using typename Base::ScalarType;
     using typename Base::LabelType;
     using VectorType = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
+    using Base::fit;
+    using Base::predict;
 
     enum class Loss { Hinge, SquaredHinge };
 
@@ -106,6 +109,12 @@ public:
     [[nodiscard]] const VectorType& intercept() const {
         this->check_is_fitted(); return intercept_;
     }
+
+    SKIGEN_PARAMS(
+        (C,             C_,             double),
+        (tol,           tol_,           double),
+        (max_iter,      max_iter_,      int),
+        (fit_intercept, fit_intercept_, bool))
 
     // -- Fit / Predict ------------------------------------------------------
 
@@ -160,6 +169,16 @@ public:
         return *this;
     }
 
+    /// @brief Fit from a sparse design matrix (densifies internally).
+    template <int Options, typename StorageIndex>
+    LinearSVC& fit(const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X,
+                   const Eigen::Ref<const Eigen::VectorXi>& y) {
+        if (X.rows() == 0 || X.cols() == 0)
+            throw std::invalid_argument("LinearSVC.fit: empty sparse matrix.");
+        MatrixType Xd = MatrixType(X);
+        return fit_impl(Xd, y);
+    }
+
     [[nodiscard]] LabelType predict_impl(
         const Eigen::Ref<const MatrixType>& X) const {
         MatrixType df = decision_function(X);
@@ -178,6 +197,15 @@ public:
             }
         }
         return out;
+    }
+
+    /// @brief Predict from a sparse design matrix (densifies internally).
+    template <int Options, typename StorageIndex>
+    [[nodiscard]] LabelType predict(
+        const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X) const {
+        this->check_is_fitted();
+        MatrixType Xd = MatrixType(X);
+        return predict_impl(Xd);
     }
 
     /// @brief Raw decision function. Shape is (n_samples,) for binary

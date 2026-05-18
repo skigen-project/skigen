@@ -86,6 +86,10 @@ public:
         return n_output_features_;
     }
 
+    // -- Parameter reflection ---------------------------------------------------
+
+    SKIGEN_PARAMS((degree, degree_, int), (include_bias, include_bias_, bool), (interaction_only, interaction_only_, bool))
+
     /// @brief Compute the powers matrix for later transformation.
     ///
     /// @param X Training data of shape (n_samples, n_features).

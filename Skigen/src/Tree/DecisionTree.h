@@ -275,6 +275,12 @@ public:
         this->check_is_fitted(); return feature_importances_;
     }
 
+    SKIGEN_PARAMS(
+        (max_depth,           max_depth_,           int),
+        (min_samples_split,   min_samples_split_,   int),
+        (max_features_mode,   max_features_mode_,   int),
+        (max_features_value,  max_features_value_,  double))
+
 private:
     int max_depth_;
     int min_samples_split_;
@@ -667,6 +673,12 @@ public:
         this->check_is_fitted();
         return per_target_trees_.empty() ? 1 : n_targets_;
     }
+
+    SKIGEN_PARAMS(
+        (max_depth,           max_depth_,           int),
+        (min_samples_split,   min_samples_split_,   int),
+        (max_features_mode,   max_features_mode_,   int),
+        (max_features_value,  max_features_value_,  double))
 
 private:
     int max_depth_;

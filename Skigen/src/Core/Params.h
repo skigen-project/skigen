@@ -103,8 +103,7 @@ T param_cast(std::string_view name, const ParameterValue& v) {
 #define SKIGEN_PARAMS_DETAIL_EXPAND_SET(entry) \
     SKIGEN_PARAMS_DETAIL_SET entry
 
-// Hand-rolled FOR_EACH (variadic) supporting up to 12 entries — enough
-// for every estimator currently in the library with margin to spare.
+// Hand-rolled FOR_EACH (variadic) supporting up to 18 entries.
 #define SKIGEN_PARAMS_FE_1(M, x)              M(x)
 #define SKIGEN_PARAMS_FE_2(M, x, ...)         M(x) SKIGEN_PARAMS_FE_1(M, __VA_ARGS__)
 #define SKIGEN_PARAMS_FE_3(M, x, ...)         M(x) SKIGEN_PARAMS_FE_2(M, __VA_ARGS__)
@@ -117,10 +116,16 @@ T param_cast(std::string_view name, const ParameterValue& v) {
 #define SKIGEN_PARAMS_FE_10(M, x, ...)        M(x) SKIGEN_PARAMS_FE_9(M, __VA_ARGS__)
 #define SKIGEN_PARAMS_FE_11(M, x, ...)        M(x) SKIGEN_PARAMS_FE_10(M, __VA_ARGS__)
 #define SKIGEN_PARAMS_FE_12(M, x, ...)        M(x) SKIGEN_PARAMS_FE_11(M, __VA_ARGS__)
+#define SKIGEN_PARAMS_FE_13(M, x, ...)        M(x) SKIGEN_PARAMS_FE_12(M, __VA_ARGS__)
+#define SKIGEN_PARAMS_FE_14(M, x, ...)        M(x) SKIGEN_PARAMS_FE_13(M, __VA_ARGS__)
+#define SKIGEN_PARAMS_FE_15(M, x, ...)        M(x) SKIGEN_PARAMS_FE_14(M, __VA_ARGS__)
+#define SKIGEN_PARAMS_FE_16(M, x, ...)        M(x) SKIGEN_PARAMS_FE_15(M, __VA_ARGS__)
+#define SKIGEN_PARAMS_FE_17(M, x, ...)        M(x) SKIGEN_PARAMS_FE_16(M, __VA_ARGS__)
+#define SKIGEN_PARAMS_FE_18(M, x, ...)        M(x) SKIGEN_PARAMS_FE_17(M, __VA_ARGS__)
 
-#define SKIGEN_PARAMS_NARG_HELPER(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, N, ...) N
+#define SKIGEN_PARAMS_NARG_HELPER(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, N, ...) N
 #define SKIGEN_PARAMS_NARG(...) \
-    SKIGEN_PARAMS_NARG_HELPER(__VA_ARGS__, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)
+    SKIGEN_PARAMS_NARG_HELPER(__VA_ARGS__, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)
 
 #define SKIGEN_PARAMS_FE_PICK_HELPER(N) SKIGEN_PARAMS_FE_##N
 #define SKIGEN_PARAMS_FE_PICK(N) SKIGEN_PARAMS_FE_PICK_HELPER(N)

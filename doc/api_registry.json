@@ -104,7 +104,7 @@
       "dir_slug": "ensemble",
       "sidebar_label": "Skigen::Ensemble",
       "test": "tests/test_ensemble.cpp",
-      "benchmark": null
+      "benchmark": "benchmarks/bench_ensembles.cpp"
     },
     "SVM": {
       "include": "Skigen/SVM",
@@ -118,6 +118,13 @@
       "dir_slug": "neural-network",
       "sidebar_label": "Skigen::NeuralNetwork",
       "test": "tests/test_neural_network.cpp",
+      "benchmark": "benchmarks/bench_mlp.cpp"
+    },
+    "Manifold": {
+      "include": "Skigen/Manifold",
+      "dir_slug": "manifold",
+      "sidebar_label": "Skigen::Manifold",
+      "test": "tests/test_manifold.cpp",
       "benchmark": null
     }
   },
@@ -658,6 +665,94 @@
       "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPClassifier.html",
       "example": "examples/neural_network/mlp_classifier.cpp",
       "sidebar_position": 2
+    },
+    {
+      "name": "TrainTestSplit",
+      "module": "ModelSelection",
+      "documented": false,
+      "sklearn": "sklearn.model_selection.train_test_split",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.train_test_split.html",
+      "sidebar_position": 1
+    },
+    {
+      "name": "CrossValidation",
+      "module": "ModelSelection",
+      "documented": false,
+      "sklearn": "sklearn.model_selection.cross_val_score",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.cross_val_score.html",
+      "sidebar_position": 2
+    },
+    {
+      "name": "ParameterGrid",
+      "module": "ModelSelection",
+      "documented": false,
+      "sklearn": "sklearn.model_selection.ParameterGrid",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.ParameterGrid.html",
+      "sidebar_position": 3
+    },
+    {
+      "name": "GridSearchCV",
+      "module": "ModelSelection",
+      "documented": false,
+      "sklearn": "sklearn.model_selection.GridSearchCV",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.GridSearchCV.html",
+      "sidebar_position": 4
+    },
+    {
+      "name": "RandomizedSearchCV",
+      "module": "ModelSelection",
+      "documented": false,
+      "sklearn": "sklearn.model_selection.RandomizedSearchCV",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.RandomizedSearchCV.html",
+      "sidebar_position": 5
+    },
+    {
+      "name": "MDS",
+      "module": "Manifold",
+      "documented": false,
+      "sklearn": "sklearn.manifold.MDS",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.manifold.MDS.html",
+      "sidebar_position": 1
+    },
+    {
+      "name": "Isomap",
+      "module": "Manifold",
+      "documented": false,
+      "sklearn": "sklearn.manifold.Isomap",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.manifold.Isomap.html",
+      "sidebar_position": 2
+    },
+    {
+      "name": "TSNE",
+      "module": "Manifold",
+      "documented": false,
+      "sklearn": "sklearn.manifold.TSNE",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.manifold.TSNE.html",
+      "sidebar_position": 3
+    },
+    {
+      "name": "LocallyLinearEmbedding",
+      "module": "Manifold",
+      "documented": false,
+      "sklearn": "sklearn.manifold.LocallyLinearEmbedding",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.manifold.LocallyLinearEmbedding.html",
+      "sidebar_position": 4
+    },
+    {
+      "name": "SpectralEmbedding",
+      "module": "Manifold",
+      "documented": false,
+      "sklearn": "sklearn.manifold.SpectralEmbedding",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.manifold.SpectralEmbedding.html",
+      "sidebar_position": 5
+    },
+    {
+      "name": "UMAP",
+      "module": "Manifold",
+      "documented": false,
+      "sklearn": "umap.UMAP",
+      "sklearn_url": "https://umap-learn.readthedocs.io/en/latest/",
+      "sidebar_position": 6
     }
   ]
 }

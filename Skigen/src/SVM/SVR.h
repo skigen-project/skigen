@@ -9,6 +9,7 @@
 #include "Detail/Kernels.h"
 
 #include <Eigen/Core>
+#include <Eigen/SparseCore>
 #include <algorithm>
 #include <cstdint>
 #include <numeric>
@@ -40,6 +41,7 @@ public:
     using typename Base::IndexType;
     using typename Base::ScalarType;
     using Kernel = internal::KernelKind;
+    using Base::fit;
 
     explicit SVR(Scalar C = Scalar{1.0},
                  Kernel kernel = Kernel::RBF,
@@ -67,6 +69,15 @@ public:
         this->check_is_fitted();
         return static_cast<int>(support_.size());
     }
+
+    SKIGEN_PARAMS(
+        (C,       C_,       double),
+        (degree,  degree_,  int),
+        (gamma,   gamma_,   double),
+        (coef0,   coef0_,   double),
+        (epsilon, epsilon_, double),
+        (tol,     tol_,     double),
+        (max_iter,max_iter_, int))
 
     SVR& fit_impl(const Eigen::Ref<const MatrixType>& X,
                   const Eigen::Ref<const VectorType>& y) {
@@ -154,6 +165,16 @@ public:
         intercept_ = b;
         this->fitted_ = true;
         return *this;
+    }
+
+    /// @brief Fit from a sparse design matrix (densifies internally).
+    template <int Options, typename StorageIndex>
+    SVR& fit(const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X,
+             const Eigen::Ref<const VectorType>& y) {
+        if (X.rows() == 0 || X.cols() == 0)
+            throw std::invalid_argument("SVR.fit: empty sparse matrix.");
+        MatrixType Xd = MatrixType(X);
+        return fit_impl(Xd, y);
     }
 
     [[nodiscard]] VectorType predict_impl(

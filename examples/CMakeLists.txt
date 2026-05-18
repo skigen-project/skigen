@@ -89,6 +89,7 @@ skigen_add_example(ex_calibrated_classifier_cv calibration/calibrated_classifier
 # SVM examples
 # ---------------------------------------------------------------------------
 skigen_add_example(ex_linear_svc                svm/linear_svc.cpp)
+skigen_add_example(ex_linear_svr                svm/linear_svr.cpp)
 skigen_add_example(ex_svc                       svm/svc.cpp)
 
 # ---------------------------------------------------------------------------

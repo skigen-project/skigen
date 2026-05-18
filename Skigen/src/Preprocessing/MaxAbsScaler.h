@@ -93,6 +93,10 @@ public:
         this->check_is_fitted(); return n_samples_seen_;
     }
 
+    // -- Parameter reflection ---------------------------------------------------
+
+    SKIGEN_PARAMS((clip, clip_, bool))
+
     // -- Implementation (called by CRTP base) --------------------------------
 
     /// @brief Compute per-feature maximum absolute value for later scaling.

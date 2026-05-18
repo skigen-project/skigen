@@ -40,6 +40,7 @@ int main() {
     Skigen::MLPClassifier<double> mlp(
         /*hidden_layer_sizes=*/{16},
         Skigen::MLPActivation::ReLU,
+        Skigen::MLPSolver::SGD,
         /*alpha=*/1e-4, /*lr=*/0.05, /*max_iter=*/300,
         /*tol=*/1e-6, /*batch_size=*/0,
         std::optional<uint64_t>(7));

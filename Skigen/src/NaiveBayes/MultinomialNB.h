@@ -99,6 +99,10 @@ public:
         this->check_is_fitted(); return feature_log_prob_;
     }
 
+    SKIGEN_PARAMS((alpha, alpha_, double),
+                  (force_alpha, force_alpha_, bool),
+                  (fit_prior, fit_prior_, bool))
+
     // -- Implementation -----------------------------------------------------
 
     MultinomialNB& fit_impl(const Eigen::Ref<const MatrixType>& X,

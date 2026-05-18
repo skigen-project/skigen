@@ -9,6 +9,7 @@
 
 #include <Eigen/Core>
 #include <Eigen/SVD>
+#include <Eigen/SparseCore>
 
 #include <cmath>
 #include <iostream>
@@ -113,6 +114,7 @@ public:
     using typename Base::RowVectorType;
     using typename Base::IndexType;
     using typename Base::ScalarType;
+    using Base::fit;
 
     /// @brief Construct a Bayesian Ridge estimator with the given hyper-parameters.
     explicit BayesianRidge(int max_iter = 300,
@@ -201,6 +203,16 @@ public:
     [[nodiscard]] Scalar y_offset() const {
         this->check_is_fitted(); return y_offset_;
     }
+
+    SKIGEN_PARAMS(
+        (max_iter,      max_iter_,      int),
+        (tol,           tol_,           double),
+        (alpha_1,       alpha_1_,       double),
+        (alpha_2,       alpha_2_,       double),
+        (lambda_1,      lambda_1_,      double),
+        (lambda_2,      lambda_2_,      double),
+        (compute_score, compute_score_, bool),
+        (fit_intercept, fit_intercept_, bool))
 
     // -- Implementation (called by CRTP base) --------------------------------
 
@@ -335,6 +347,16 @@ public:
 
         this->fitted_ = true;
         return *this;
+    }
+
+    /// @brief Fit from a sparse design matrix (densifies internally).
+    template <int Options, typename StorageIndex>
+    BayesianRidge& fit(const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X,
+                       const Eigen::Ref<const VectorType>& y) {
+        if (X.rows() == 0 || X.cols() == 0)
+            throw std::invalid_argument("BayesianRidge.fit: empty sparse matrix.");
+        MatrixType Xd = MatrixType(X);
+        return fit_impl(Xd, y);
     }
 
     /// @brief Predictive mean @f$\hat{y} = X w + b@f$.

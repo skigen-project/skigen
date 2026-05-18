@@ -3,6 +3,7 @@
 
 #include <Skigen/SVM>
 
+#include <Eigen/SparseCore>
 #include <cmath>
 #include <functional>
 #include <iostream>
@@ -194,6 +195,59 @@ void test_svc_multiclass_throws() {
     ASSERT_TRUE(threw);
 }
 
+void test_svc_predict_proba_rows_sum_to_one() {
+    auto [X, y] = two_cluster(100, 2.0, 7);
+    using K = Skigen::SVC<double>::Kernel;
+    Skigen::SVC<double> clf(
+        /*C=*/1.0, K::RBF, /*degree=*/3, /*gamma=*/0.5,
+        /*coef0=*/0.0, /*probability=*/true,
+        /*tol=*/1e-3, /*max_passes=*/50,
+        std::optional<uint64_t>(7));
+    clf.fit(X, y);
+    Eigen::MatrixXd P = clf.predict_proba(X);
+    ASSERT_TRUE(P.rows() == X.rows());
+    ASSERT_TRUE(P.cols() == 2);
+    for (Eigen::Index i = 0; i < P.rows(); ++i) {
+        ASSERT_NEAR(P(i, 0) + P(i, 1), 1.0, 1e-10);
+        ASSERT_TRUE(P(i, 0) >= 0.0 && P(i, 0) <= 1.0);
+    }
+}
+
+void test_svc_predict_proba_requires_flag() {
+    auto [X, y] = two_cluster(40, 2.0, 0);
+    Skigen::SVC<double> clf;
+    clf.fit(X, y);
+    bool threw = false;
+    try { clf.predict_proba(X); }
+    catch (const std::runtime_error&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
+void test_svc_sparse_fit_predict() {
+    auto [X, y] = two_cluster(60, 2.0, 42);
+    Eigen::SparseMatrix<double> Xs = X.sparseView();
+    using K = Skigen::SVC<double>::Kernel;
+    Skigen::SVC<double> clf(1.0, K::RBF, 3, 0.5);
+    clf.fit(Xs, y);
+    auto preds = clf.predict(Xs);
+    int correct = 0;
+    for (int i = 0; i < y.size(); ++i) if (preds(i) == y(i)) ++correct;
+    ASSERT_TRUE(static_cast<double>(correct) / y.size() > 0.85);
+}
+
+void test_linear_svc_sparse_fit_predict() {
+    auto [X, y] = two_cluster(100, 1.5, 7);
+    Eigen::SparseMatrix<double> Xs = X.sparseView();
+    Skigen::LinearSVC<double> clf(
+        1.0, Skigen::LinearSVC<double>::Loss::SquaredHinge,
+        1e-4, 200, true, std::optional<uint64_t>(7));
+    clf.fit(Xs, y);
+    auto preds = clf.predict(Xs);
+    int correct = 0;
+    for (int i = 0; i < y.size(); ++i) if (preds(i) == y(i)) ++correct;
+    ASSERT_TRUE(static_cast<double>(correct) / y.size() > 0.85);
+}
+
 // ---------------------------------------------------------------------------
 // SVR (kernel)
 // ---------------------------------------------------------------------------
@@ -266,6 +320,10 @@ int main() {
     run("svc_rbf_separates_two_clusters",    test_svc_rbf_separates_two_clusters);
     run("svc_linear_kernel_separates",       test_svc_linear_kernel_separates);
     run("svc_multiclass_throws",             test_svc_multiclass_throws);
+    run("svc_predict_proba_rows_sum_to_one", test_svc_predict_proba_rows_sum_to_one);
+    run("svc_predict_proba_requires_flag",   test_svc_predict_proba_requires_flag);
+    run("svc_sparse_fit_predict",            test_svc_sparse_fit_predict);
+    run("linear_svc_sparse_fit_predict",     test_linear_svc_sparse_fit_predict);
     run("svr_rbf_recovers_nonlinear_signal", test_svr_rbf_recovers_nonlinear_signal);
     run("nu_svc_throws_at_fit",              test_nu_svc_throws_at_fit);
     run("nu_svr_throws_at_fit",              test_nu_svr_throws_at_fit);

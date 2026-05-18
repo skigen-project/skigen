@@ -93,6 +93,8 @@ public:
         return location_;
     }
 
+    SKIGEN_PARAMS((assume_centered, assume_centered_, bool))
+
     // -- fit ----------------------------------------------------------------
 
     /// @brief Fit the OAS covariance model.

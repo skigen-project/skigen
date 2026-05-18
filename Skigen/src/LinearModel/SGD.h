@@ -115,6 +115,12 @@ public:
         return intercept_;
     }
 
+    SKIGEN_PARAMS(
+        (alpha,    alpha_,    double),
+        (max_iter, max_iter_, int),
+        (tol,      tol_,      double),
+        (eta0,     eta0_,     double))
+
     /// @brief Fit the linear model with SGD.
     ///
     /// Discovers unique classes in `y`, then trains a binary classifier
@@ -477,6 +483,12 @@ public:
         this->check_is_fitted();
         return intercept_;
     }
+
+    SKIGEN_PARAMS(
+        (alpha,    alpha_,    double),
+        (max_iter, max_iter_, int),
+        (tol,      tol_,      double),
+        (eta0,     eta0_,     double))
 
     /// @brief Fit the linear model with SGD.
     ///

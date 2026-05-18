@@ -124,6 +124,8 @@ public:
     /// @brief Number of neighbors.
     [[nodiscard]] int n_neighbors() const noexcept { return n_neighbors_; }
 
+    SKIGEN_PARAMS((n_neighbors, n_neighbors_, int))
+
     // -- Implementation (called by CRTP base) --------------------------------
 
     /// @brief Fit the k-nearest neighbors classifier from the training set.
@@ -230,6 +232,8 @@ public:
 
     /// @brief Number of neighbors.
     [[nodiscard]] int n_neighbors() const noexcept { return n_neighbors_; }
+
+    SKIGEN_PARAMS((n_neighbors, n_neighbors_, int))
 
     // -- Implementation (called by CRTP base) --------------------------------
 

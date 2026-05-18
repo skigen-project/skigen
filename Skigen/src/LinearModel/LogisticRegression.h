@@ -122,6 +122,12 @@ public:
         return classes_;
     }
 
+    SKIGEN_PARAMS(
+        (C,             C_,             double),
+        (fit_intercept, fit_intercept_, bool),
+        (max_iter,      max_iter_,      int),
+        (tol,           tol_,           double))
+
     /// @brief Fit the model according to the given training data.
     ///
     /// Discovers unique classes in `y`, then solves binary logistic

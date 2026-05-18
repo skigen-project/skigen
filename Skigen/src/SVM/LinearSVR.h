@@ -8,6 +8,7 @@
 #include "../Core/Validation.h"
 
 #include <Eigen/Core>
+#include <Eigen/SparseCore>
 #include <algorithm>
 #include <cstdint>
 #include <numeric>
@@ -39,6 +40,7 @@ public:
     using typename Base::RowVectorType;
     using typename Base::IndexType;
     using typename Base::ScalarType;
+    using Base::fit;
 
     enum class Loss { EpsilonInsensitive, SquaredEpsilonInsensitive };
 
@@ -63,6 +65,13 @@ public:
     [[nodiscard]] Scalar intercept() const {
         this->check_is_fitted(); return intercept_;
     }
+
+    SKIGEN_PARAMS(
+        (C,             C_,             double),
+        (epsilon,       epsilon_,       double),
+        (tol,           tol_,           double),
+        (max_iter,      max_iter_,      int),
+        (fit_intercept, fit_intercept_, bool))
 
     LinearSVR& fit_impl(const Eigen::Ref<const MatrixType>& X,
                         const Eigen::Ref<const VectorType>& y) {
@@ -132,6 +141,16 @@ public:
 
         this->fitted_ = true;
         return *this;
+    }
+
+    /// @brief Fit from a sparse design matrix (densifies internally).
+    template <int Options, typename StorageIndex>
+    LinearSVR& fit(const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X,
+                   const Eigen::Ref<const VectorType>& y) {
+        if (X.rows() == 0 || X.cols() == 0)
+            throw std::invalid_argument("LinearSVR.fit: empty sparse matrix.");
+        MatrixType Xd = MatrixType(X);
+        return fit_impl(Xd, y);
     }
 
     [[nodiscard]] VectorType predict_impl(

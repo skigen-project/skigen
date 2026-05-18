@@ -42,6 +42,12 @@ public:
 
     [[nodiscard]] Scalar nu() const noexcept { return nu_; }
 
+    SKIGEN_PARAMS(
+        (nu,     nu_,     double),
+        (degree, degree_, int),
+        (gamma,  gamma_,  double),
+        (coef0,  coef0_,  double))
+
     NuSVC& fit_impl(const Eigen::Ref<const MatrixType>& /*X*/,
                     const Eigen::Ref<const Eigen::VectorXi>& /*y*/) {
         throw std::runtime_error(

@@ -140,6 +140,8 @@ public:
         return support_mask_;
     }
 
+    SKIGEN_PARAMS((k, k_, int))
+
     [[nodiscard]] Eigen::VectorXi get_support_indices() const {
         this->check_is_fitted();
         std::vector<int> idx;

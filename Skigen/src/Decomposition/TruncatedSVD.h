@@ -114,6 +114,8 @@ public:
         this->check_is_fitted(); return singular_values_;
     }
 
+    SKIGEN_PARAMS((n_components, n_components_, int))
+
     /// @brief Fit the model on training data X (no centering).
     ///
     /// @param X Training data of shape (n_samples, n_features).

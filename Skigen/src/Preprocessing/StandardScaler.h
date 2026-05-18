@@ -123,6 +123,10 @@ public:
         return n_samples_seen_;
     }
 
+    // -- Parameter reflection ---------------------------------------------------
+
+    SKIGEN_PARAMS((with_mean, with_mean_, bool), (with_std, with_std_, bool))
+
     // -- Implementation (called by CRTP base) --------------------------------
 
     /// @brief Compute the mean and std to be used for later scaling.

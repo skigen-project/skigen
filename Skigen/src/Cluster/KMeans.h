@@ -117,6 +117,10 @@ public:
         return n_iter_;
     }
 
+    SKIGEN_PARAMS((n_clusters, n_clusters_, int),
+                  (max_iter, max_iter_, int),
+                  (n_init, n_init_, int))
+
     // -- fit / predict -------------------------------------------------------
 
     /// @brief Compute k-means clustering.

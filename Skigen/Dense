@@ -24,6 +24,7 @@
 #include "Calibration"
 #include "SVM"
 #include "NeuralNetwork"
+#include "Manifold"
 #include "ModelSelection"
 #include "Pipeline"
 #include "Metrics"

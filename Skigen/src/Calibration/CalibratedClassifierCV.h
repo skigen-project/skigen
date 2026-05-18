@@ -70,11 +70,10 @@ enum class CalibrationMethod {
 ///
 /// ### Limitations relative to scikit-learn Only binary classification is
 ///   supported; only `ensemble=true` (default) is implemented;
-///   `n_jobs > 1` is not honoured. The base estimator must expose
-///   `predict_proba(X) → MatrixType` of shape (n_samples, 2). sklearn's
-///   automatic preference for `decision_function` is not yet honoured.
-///   Stratified K-fold splitting is approximated by a class-balanced
-///   shuffle (matches sklearn for evenly-spaced labels).
+///   `n_jobs > 1` is not honoured. The base estimator should expose
+///   either `decision_function(X)` (preferred, used directly as calibration
+///   input) or `predict_proba(X)` (logit-transformed before calibration),
+///   matching sklearn's `_get_response_method` dispatch.
 template <typename Base, typename Scalar = double>
 class CalibratedClassifierCV
     : public Classifier<CalibratedClassifierCV<Base, Scalar>, Scalar> {
@@ -143,6 +142,9 @@ public:
     [[nodiscard]] const std::vector<FoldFit>& folds() const {
         this->check_is_fitted(); return folds_;
     }
+
+    SKIGEN_PARAMS((cv, cv_, int),
+                  (ensemble, ensemble_, bool))
 
     // -- Fit/Predict --------------------------------------------------------
 
@@ -243,15 +245,7 @@ public:
 
             switch (method_) {
                 case CalibrationMethod::Sigmoid: {
-                    // Use logit(p_raw) as the score input to Platt scaling.
-                    VectorType s(p_pos.size());
-                    for (Eigen::Index i = 0; i < p_pos.size(); ++i) {
-                        const Scalar p = std::clamp(
-                            p_pos(i),
-                            std::numeric_limits<Scalar>::epsilon(),
-                            Scalar{1} - std::numeric_limits<Scalar>::epsilon());
-                        s(i) = std::log(p / (Scalar{1} - p));
-                    }
+                    VectorType s = get_scores(ff.base, X_val);
                     internal::fit_platt_sigmoid<Scalar>(
                         s, y_val_pos, ff.A, ff.B);
                     break;
@@ -295,25 +289,18 @@ public:
         MatrixType acc = MatrixType::Zero(X.rows(), 2);
 
         for (const auto& ff : folds_) {
-            MatrixType P = ff.base.predict_proba(X);
-            VectorType p_pos = P.col(1);
-            VectorType p_cal(p_pos.size());
+            VectorType p_cal(X.rows());
 
             switch (method_) {
                 case CalibrationMethod::Sigmoid: {
-                    VectorType s(p_pos.size());
-                    for (Eigen::Index i = 0; i < p_pos.size(); ++i) {
-                        const Scalar p = std::clamp(
-                            p_pos(i),
-                            std::numeric_limits<Scalar>::epsilon(),
-                            Scalar{1} - std::numeric_limits<Scalar>::epsilon());
-                        s(i) = std::log(p / (Scalar{1} - p));
-                    }
+                    VectorType s = get_scores(ff.base, X);
                     p_cal = internal::apply_platt_sigmoid<Scalar>(
                         s, ff.A, ff.B);
                     break;
                 }
                 case CalibrationMethod::Isotonic: {
+                    MatrixType P = ff.base.predict_proba(X);
+                    VectorType p_pos = P.col(1);
                     MatrixType S(p_pos.size(), 1);
                     S.col(0) = p_pos;
                     p_cal = ff.iso->predict(S);
@@ -332,6 +319,32 @@ public:
     }
 
 private:
+    static VectorType get_scores(const Base& est,
+                                 const Eigen::Ref<const MatrixType>& X) {
+        if constexpr (requires(const Base& b, const MatrixType& m) {
+                          { b.decision_function(m) };
+                      }) {
+            auto df = est.decision_function(X);
+            if constexpr (requires { df.col(0); }) {
+                if (df.cols() == 1) return df.col(0);
+                return df.col(0);
+            } else {
+                return df;
+            }
+        } else {
+            MatrixType P = est.predict_proba(X);
+            VectorType s(P.rows());
+            for (Eigen::Index i = 0; i < P.rows(); ++i) {
+                const Scalar p = std::clamp(
+                    P(i, 1),
+                    std::numeric_limits<Scalar>::epsilon(),
+                    Scalar{1} - std::numeric_limits<Scalar>::epsilon());
+                s(i) = std::log(p / (Scalar{1} - p));
+            }
+            return s;
+        }
+    }
+
     Base estimator_;                 // user-supplied prototype (cloned per fold)
     CalibrationMethod method_;
     int cv_;
