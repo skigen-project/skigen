@@ -6,6 +6,7 @@
 #include <cmath>
 #include <functional>
 #include <iostream>
+#include <numbers>
 #include <sstream>
 #include <string>
 
@@ -64,8 +65,8 @@ static Eigen::MatrixXd make_blobs(int n = 30) {
     Eigen::MatrixXd X(n, 3);
     for (int i = 0; i < n; ++i) {
         double t = static_cast<double>(i) / n;
-        X(i, 0) = std::cos(2.0 * M_PI * t) + 0.1 * (i % 3);
-        X(i, 1) = std::sin(2.0 * M_PI * t) + 0.1 * ((i + 1) % 3);
+        X(i, 0) = std::cos(2.0 * std::numbers::pi * t) + 0.1 * (i % 3);
+        X(i, 1) = std::sin(2.0 * std::numbers::pi * t) + 0.1 * ((i + 1) % 3);
         X(i, 2) = t * 2.0 - 1.0;
     }
     return X;
