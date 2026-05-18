@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 The Skigen Contributors
+
+#ifndef SKIGEN_MANIFOLD
+#define SKIGEN_MANIFOLD
+
+#include "src/Manifold/MDS.h"
+#include "src/Manifold/Isomap.h"
+#include "src/Manifold/TSNE.h"
+#include "src/Manifold/LocallyLinearEmbedding.h"
+#include "src/Manifold/SpectralEmbedding.h"
+#include "src/Manifold/UMAP.h"
+
+#endif // SKIGEN_MANIFOLD
