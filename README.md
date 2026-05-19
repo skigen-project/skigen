@@ -19,9 +19,11 @@
 
 ## About
 
-Skigen is a header-only C++ template library for machine learning, built on [Eigen](https://eigen.tuxfamily.org/). It implements the [scikit-learn](https://scikit-learn.org/) estimator interface — `fit()`, `transform()`, `predict()` — in modern C++ with Eigen-native data types.
+Skigen is a header-only C++ template library for machine learning, built on [Eigen](https://eigen.tuxfamily.org/). It brings the [scikit-learn](https://scikit-learn.org/) API — `fit()`, `transform()`, `predict()` — to native C++.
 
-The library covers preprocessing, linear models, decomposition, clustering, trees, neighbors, pipelines, and metrics. All estimators use Eigen expression templates, CRTP-based static dispatch, and zero-copy inputs via `Eigen::Ref`. Drop `Skigen/` next to `Eigen/` and include — no compiled libraries, no linker flags.
+- **Skigen is versatile.** Preprocessing, linear models, decomposition, clustering, trees, neighbors, pipelines, metrics — covering the core scikit-learn surface with a consistent API.
+- **Skigen is fast.** Eigen's expression templates, explicit SIMD vectorization, and compile-time polymorphism via CRTP. No interpreter, no garbage collector, no runtime dispatch.
+- **Skigen is elegant.** Header-only — drop `Skigen/` next to `Eigen/` and `#include`. The same `fit` / `transform` / `predict` workflow, native to modern C++.
 
 ## Design
 
