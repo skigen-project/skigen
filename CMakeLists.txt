@@ -61,6 +61,33 @@ endif()
 option(SKIGEN_BUILD_TESTS      "Build unit tests"      ON)
 option(SKIGEN_BUILD_BENCHMARKS "Build benchmarks"       OFF)
 option(SKIGEN_BUILD_EXAMPLES   "Build example programs" OFF)
+option(SKIGEN_WITH_PLOT        "Enable optional SkigenPlot integration for examples" OFF)
+
+# ---------------------------------------------------------------------------
+# Optional SkigenPlot dependency (used only by examples that opt in)
+# ---------------------------------------------------------------------------
+# Skigen itself stays strictly header-only. SkigenPlot is a compiled Qt/RHI
+# library and remains an opt-in dependency that only a handful of example
+# targets link against when SKIGEN_WITH_PLOT=ON.
+if(SKIGEN_WITH_PLOT AND NOT TARGET SkigenPlot::SkigenPlot)
+    find_package(SkigenPlot QUIET)
+    if(NOT SkigenPlot_FOUND)
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/skigen-plot/CMakeLists.txt")
+            set(_skigen_plot_dir "${CMAKE_CURRENT_SOURCE_DIR}/skigen-plot")
+        elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../skigen-plot/CMakeLists.txt")
+            set(_skigen_plot_dir "${CMAKE_CURRENT_SOURCE_DIR}/../skigen-plot")
+        endif()
+        if(_skigen_plot_dir)
+            message(STATUS "Using SkigenPlot from source tree: ${_skigen_plot_dir}")
+            add_subdirectory("${_skigen_plot_dir}" skigen-plot-build EXCLUDE_FROM_ALL)
+        else()
+            message(FATAL_ERROR
+                "SKIGEN_WITH_PLOT=ON but SkigenPlot was not found. "
+                "Install SkigenPlot or place its source tree at "
+                "./skigen-plot or ../skigen-plot.")
+        endif()
+    endif()
+endif()
 
 # ---------------------------------------------------------------------------
 # Strict warnings for development targets

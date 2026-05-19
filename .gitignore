@@ -6,6 +6,12 @@ cmake-build-*/
 # Eigen (checked out in-tree by CI)
 /eigen/
 
+# SkigenPlot (optional sibling dependency, checked out in-tree by CI)
+/skigen-plot/
+
+# Example plots are rendered on the fly (CI or local) — never committed
+doc/website/static/img/plots/
+
 # IDE
 .vscode/
 .idea/

@@ -154,6 +154,47 @@ jobs:
             --out-dir website/docs/api \
             --generate-sidebars
 
+      # ── Optional: render example plots on the fly ──────────────────────
+      # We build SkigenPlot + the ex_kmeans_plot example and run it
+      # offscreen to produce fresh PNGs that the website consumes. Plots
+      # are NOT committed to the repo. The step is non-blocking: a
+      # Qt/Vulkan flake should never break the docs deploy.
+      - name: Checkout SkigenPlot
+        uses: actions/checkout@v5
+        with:
+          repository: skigen-project/skigen-plot
+          path: skigen-plot
+
+      - name: Install Qt6 + Vulkan runtime (lavapipe)
+        run: |
+          sudo apt-get install -y \
+            qt6-base-dev qt6-base-private-dev qt6-shadertools-dev \
+            libqt6opengl6-dev libgl1-mesa-dev libvulkan-dev \
+            mesa-vulkan-drivers xvfb
+
+      - name: Build plot example
+        id: render-build
+        continue-on-error: true
+        run: |
+          cmake -B build-plot \
+            -DSKIGEN_BUILD_TESTS=OFF \
+            -DSKIGEN_BUILD_EXAMPLES=ON \
+            -DSKIGEN_WITH_PLOT=ON
+          cmake --build build-plot --target ex_kmeans_plot -j$(nproc)
+
+      - name: Render example plots
+        if: steps.render-build.outcome == 'success'
+        continue-on-error: true
+        env:
+          # QRhiWidget needs a real windowing platform; xvfb-run provides
+          # an Xvfb display, so Qt picks the xcb plugin automatically.
+          QSG_RHI_BACKEND: vulkan
+        run: |
+          mkdir -p doc/website/static/img/plots
+          xvfb-run -a ./build-plot/examples/ex_kmeans_plot \
+            doc/website/static/img/plots
+          ls -la doc/website/static/img/plots || true
+
       - name: Build (production)
         working-directory: doc/website
         env:
