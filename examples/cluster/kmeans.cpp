@@ -118,9 +118,13 @@ int renderPlots(int argc, char* argv[],
                 const Eigen::MatrixXd& centers) {
     QApplication app(argc, argv);
 
-    const QString outDir = argc > 1 ? QString::fromLocal8Bit(argv[1])
-                                    : QStringLiteral("renderings");
-    QDir().mkpath(outDir);
+    // When an output directory is given render both themes to PNG and exit.
+    // When run interactively (no argument) keep the window open so the user
+    // can inspect the plot; press Ctrl+C or close the window to quit.
+    const bool interactive = (argc < 2);
+    const QString outDir = interactive ? QString() : QString::fromLocal8Bit(argv[1]);
+    if (!outDir.isEmpty())
+        QDir().mkpath(outDir);
 
     struct Frame {
         QString filename;
@@ -132,10 +136,14 @@ int renderPlots(int argc, char* argv[],
     };
 
     Skigen::Plot::PlotView view;
-    view.setOverlayVisible(false);
+    view.setOverlayVisible(interactive);
     view.resize(1200, 800);
+    view.setWindowTitle(QStringLiteral("KMeans Clustering — SkigenPlot"));
     plotClusters(view, X, labels, centers, frames.front().theme);
     view.show();
+
+    if (interactive)
+        return app.exec();
 
     auto index = std::make_shared<std::size_t>(0);
     auto runNext = std::make_shared<std::function<void()>>();

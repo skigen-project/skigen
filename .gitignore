@@ -1,6 +1,7 @@
 # Build directories
 build/
 build_*/
+build-*/
 cmake-build-*/
 
 # Eigen (checked out in-tree by CI)
