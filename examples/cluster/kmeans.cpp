@@ -87,9 +87,8 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
        .xlabel("feature 1")
        .ylabel("feature 2")
        .scatter(X, km.predict(X))
-       .scatter(km.cluster_centers().col(0).eval(),
-                km.cluster_centers().col(1).eval(),
-                {.pointSize = 16.0f, .label = "centers"});
+       .scatter(km.cluster_centers(), km.predict(km.cluster_centers()),
+                {.pointSize = 18.0f, .hollow = true});
 
     return argc > 1 ? (fig.saveThemed(argv[1]) ? 0 : 1) : fig.show();
     //! [example_kmeans_plot]
