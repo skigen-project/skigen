@@ -103,6 +103,12 @@ const config: Config = {
                     label: 'API',
                 },
                 {
+                    type: 'docSidebar',
+                    sidebarId: 'plotSidebar',
+                    position: 'left',
+                    label: 'Plot',
+                },
+                {
                     type: 'dropdown',
                     label: versionLabel,
                     position: 'right',
@@ -147,6 +153,13 @@ const config: Config = {
                     items: [
                         { label: 'GitHub', href: 'https://github.com/skigen-project/skigen' },
                         { label: 'How to Cite', to: '/docs/cite' },
+                    ],
+                },
+                {
+                    title: 'SkigenPlot',
+                    items: [
+                        { label: 'Overview', to: '/docs/plot/guide/overview' },
+                        { label: 'Getting Started', to: '/docs/plot/guide/getting-started' },
                     ],
                 },
             ],
