@@ -249,15 +249,7 @@ public:
     /// @brief Fit ElasticNet on a sparse design matrix without densifying X.
     ///
     /// Implements coordinate descent with implicit centring (same trick
-    /// as `Lasso::fit(SparseMatrix, ...)`). The CD denominator is
-    /// extended by the L2 penalty
-    /// @f$ \mathrm{denom}_j = \|X_c[:, j]\|^2 + n\,\alpha\,(1 - \rho) @f$
-    /// where @f$\rho@f$ is `l1_ratio_`. The L1 soft-thresholding numerator
-    /// uses @f$ n\,\alpha\,\rho @f$, matching sklearn's parameterisation.
-    /// We maintain `r_raw = y_c - X*w` and a scalar
-    /// `shift = Σ_k w_k · x̄_k` to recover the centred dot product
-    /// @f$ X_c[:, j] \cdot r^{centered}
-    ///   = X[:, j] \cdot r^{raw} + n\,\bar{x}_j\,\mathrm{shift} @f$.
+    /// as `Lasso::fit(SparseMatrix, ...)`).
     ///
     /// `sample_weight`, `precompute`, `positive`, `random_state`,
     /// `selection`, and `warm_start` are not honoured.

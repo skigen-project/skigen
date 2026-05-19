@@ -232,14 +232,7 @@ public:
     ///
     /// Implements coordinate descent with implicit centring. Per-column
     /// quantities are computed directly from the CSC nonzeros; the residual
-    /// is updated via sparse column-iteration. We maintain
-    /// `r_raw = y_c - X*w` (using *uncentered* X but centered `y_c = y - ȳ`)
-    /// and a scalar `shift = Σ_k w_k · x̄_k`. The CD update on the
-    /// centered problem then reduces to
-    /// @f$ \rho_j = X[:, j] \cdot r^{raw} + n\,\bar{x}_j\,\mathrm{shift}
-    ///             + \|X_c[:, j]\|^2 \, w_j^{old} @f$
-    /// where @f$ \|X_c[:, j]\|^2 = \|X[:, j]\|^2 - n\,\bar{x}_j^2 @f$,
-    /// so the centered design is never materialised.
+    /// is updated via sparse column-iteration.
     ///
     /// Mirrors sklearn's `Lasso.fit` behaviour on sparse input.
     /// `sample_weight`, `precompute`, `positive`, `random_state`,
