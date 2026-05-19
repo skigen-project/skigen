@@ -9,18 +9,14 @@ function(skigen_add_example name source)
     target_compile_options(${name} PRIVATE ${SKIGEN_WARNING_FLAGS})
 endfunction()
 
-# Plot-enabled variant of an existing example. Builds the SAME source file
-# with SKIGEN_EXAMPLE_WITH_PLOT defined and SkigenPlot linked in, so a single
-# .cpp remains the ground truth for both the headless and the visualized
-# version. Silently skipped when SKIGEN_WITH_PLOT=OFF.
-function(skigen_add_plot_example name source)
+# Augment an existing example target with SkigenPlot. No-op when
+# SKIGEN_WITH_PLOT=OFF so the target stays dependency-free by default.
+function(skigen_enable_plot name)
     if(NOT SKIGEN_WITH_PLOT)
         return()
     endif()
-    add_executable(${name} ${source})
-    target_link_libraries(${name} PRIVATE Skigen::Skigen SkigenPlot::SkigenPlot)
+    target_link_libraries(${name} PRIVATE SkigenPlot::SkigenPlot)
     target_compile_definitions(${name} PRIVATE SKIGEN_EXAMPLE_WITH_PLOT)
-    target_compile_options(${name} PRIVATE ${SKIGEN_WARNING_FLAGS})
 endfunction()
 
 # ---------------------------------------------------------------------------
@@ -62,7 +58,7 @@ skigen_add_example(ex_covariance          covariance/covariance.cpp)
 # Cluster examples
 # ---------------------------------------------------------------------------
 skigen_add_example(ex_kmeans              cluster/kmeans.cpp)
-skigen_add_plot_example(ex_kmeans_plot    cluster/kmeans.cpp)
+skigen_enable_plot(ex_kmeans)
 
 # ---------------------------------------------------------------------------
 # Neighbors examples

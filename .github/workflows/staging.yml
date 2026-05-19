@@ -168,7 +168,7 @@ jobs:
             -DSKIGEN_BUILD_TESTS=OFF \
             -DSKIGEN_BUILD_EXAMPLES=ON \
             -DSKIGEN_WITH_PLOT=ON
-          cmake --build build-plot --target ex_kmeans_plot -j$(nproc)
+          cmake --build build-plot --target ex_kmeans -j$(nproc)
 
       - name: Render example plots
         if: steps.render-build.outcome == 'success'
@@ -179,7 +179,7 @@ jobs:
           QSG_RHI_BACKEND: vulkan
         run: |
           mkdir -p doc/website/static/img/plots
-          xvfb-run -a ./build-plot/examples/ex_kmeans_plot \
+          xvfb-run -a ./build-plot/examples/ex_kmeans \
             doc/website/static/img/plots
           ls -la doc/website/static/img/plots || true
 
