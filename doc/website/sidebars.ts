@@ -136,26 +136,6 @@ const sidebars: SidebarsConfig = {
         'development/contributing',
         'development/ees-standard',
     ],
-    plotSidebar: [
-        'plot/guide/overview',
-        'plot/guide/getting-started',
-        {
-            type: 'category',
-            label: '2D Plotting',
-            items: [
-                'plot/guide/line-plot',
-                'plot/guide/scatter-plot',
-            ],
-        },
-        {
-            type: 'category',
-            label: '3D Rendering',
-            items: [
-                'plot/guide/camera3d',
-            ],
-        },
-        'plot/guide/realtime',
-    ],
 };
 
 export default sidebars;

@@ -10,6 +10,9 @@ cmake-build-*/
 # SkigenPlot (optional sibling dependency, checked out in-tree by CI)
 /skigen-plot/
 
+# SkigenPlot documentation (separate repo, may be cloned here locally)
+/skigen-plot-doc/
+
 # Example plots are rendered on the fly (CI or local) — never committed
 doc/website/static/img/plots/
 

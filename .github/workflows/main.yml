@@ -159,6 +159,13 @@ jobs:
       # offscreen to produce fresh PNGs that the website consumes. Plots
       # are NOT committed to the repo. The step is non-blocking: a
       # Qt/Vulkan flake should never break the docs deploy.
+      - name: Checkout Eigen
+        uses: actions/checkout@v5
+        with:
+          repository: skigen-project/eigen
+          ref: '3.4'
+          path: eigen
+
       - name: Checkout SkigenPlot
         uses: actions/checkout@v5
         with:
@@ -179,7 +186,8 @@ jobs:
           cmake -B build-plot \
             -DSKIGEN_BUILD_TESTS=OFF \
             -DSKIGEN_BUILD_EXAMPLES=ON \
-            -DSKIGEN_WITH_PLOT=ON
+            -DSKIGEN_WITH_PLOT=ON \
+            -DCMAKE_PREFIX_PATH=${{ github.workspace }}/skigen-plot
           cmake --build build-plot --target ex_kmeans -j$(nproc)
 
       - name: Render example plots
