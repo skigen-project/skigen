@@ -102,6 +102,20 @@ skigen_add_example(ex_calibrated_classifier_cv calibration/calibrated_classifier
 skigen_add_example(ex_linear_svc                svm/linear_svc.cpp)
 skigen_add_example(ex_linear_svr                svm/linear_svr.cpp)
 skigen_add_example(ex_svc                       svm/svc.cpp)
+skigen_add_example(ex_svr                       svm/svr.cpp)
+skigen_add_example(ex_nu_svc                    svm/nu_svc.cpp)
+skigen_add_example(ex_nu_svr                    svm/nu_svr.cpp)
+skigen_add_example(ex_one_class_svm             svm/one_class_svm.cpp)
+
+# ---------------------------------------------------------------------------
+# Manifold examples
+# ---------------------------------------------------------------------------
+skigen_add_example(ex_isomap                    manifold/isomap.cpp)
+skigen_add_example(ex_mds                       manifold/mds.cpp)
+skigen_add_example(ex_locally_linear_embedding  manifold/locally_linear_embedding.cpp)
+skigen_add_example(ex_spectral_embedding        manifold/spectral_embedding.cpp)
+skigen_add_example(ex_tsne                      manifold/tsne.cpp)
+skigen_add_example(ex_umap                      manifold/umap.cpp)
 
 # ---------------------------------------------------------------------------
 # Neural network examples
@@ -128,6 +142,8 @@ skigen_add_example(ex_metrics             metrics/metrics.cpp)
 # ModelSelection examples
 # ---------------------------------------------------------------------------
 skigen_add_example(ex_model_selection     model_selection/model_selection.cpp)
+skigen_add_example(ex_grid_search         model_selection/grid_search.cpp)
+skigen_add_example(ex_randomized_search   model_selection/randomized_search.cpp)
 
 # ---------------------------------------------------------------------------
 # Pipeline examples

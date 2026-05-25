@@ -21,7 +21,7 @@
 
 Skigen is a header-only C++ template library for machine learning, built on [Eigen](https://eigen.tuxfamily.org/). It brings the [scikit-learn](https://scikit-learn.org/) API — `fit()`, `transform()`, `predict()` — to native C++.
 
-- **Skigen is versatile.** Preprocessing, linear models, decomposition, clustering, trees, neighbors, pipelines, metrics — covering the core scikit-learn surface with a consistent API.
+- **Skigen is versatile.** Preprocessing, linear & Bayesian linear models, decomposition, clustering, trees, ensembles (random forests, gradient boosting, histogram GB), naive Bayes, SVMs (linear + kernel SMO), MLPs, manifold learning (Isomap/MDS/LLE/SpectralEmbedding/t-SNE/UMAP), feature selection, calibration, isotonic regression, hyperparameter search (Grid/Randomized), pipelines, metrics — covering the scikit-learn 1.7.x surface with a consistent API.
 - **Skigen is fast.** Eigen's expression templates, explicit SIMD vectorization, and compile-time polymorphism via CRTP. No interpreter, no garbage collector, no runtime dispatch.
 - **Skigen is elegant.** Header-only — drop `Skigen/` next to `Eigen/` and `#include`. The same `fit` / `transform` / `predict` workflow, native to modern C++.
 
@@ -92,29 +92,45 @@ Skigen follows the same convention as Eigen — module headers without file exte
 Skigen/                     # Header library (Eigen-style)
 ├── Core                    # Module header — base classes, traits, concepts
 ├── Preprocessing           # Module header — scalers, normalizers, ...
-├── LinearModel             # Module header — regression, classification
+├── LinearModel             # Module header — regression, classification, Bayesian
 ├── Decomposition           # Module header — PCA, TruncatedSVD
 ├── Cluster                 # Module header — KMeans, MiniBatchKMeans
 ├── Neighbors               # Module header — KNN classifier/regressor
 ├── Tree                    # Module header — decision trees
-├── ModelSelection          # Module header — train/test split, cross-validation
+├── Ensemble                # Module header — RandomForest, (Hist)GradientBoosting
+├── NaiveBayes              # Module header — Gaussian/Multinomial/Bernoulli NB
+├── SVM                     # Module header — Linear SVM, kernel SVM (SMO)
+├── NeuralNetwork           # Module header — MLPClassifier, MLPRegressor
+├── FeatureSelection        # Module header — VarianceThreshold, SelectKBest, ...
+├── Manifold                # Module header — Isomap, MDS, LLE, SE, t-SNE, UMAP
+├── Calibration             # Module header — CalibratedClassifierCV
+├── Isotonic                # Module header — IsotonicRegression
+├── ModelSelection          # Module header — split/CV, Grid/RandomizedSearchCV
 ├── Pipeline                # Module header — compile-time pipeline composition
 ├── Metrics                 # Module header — regression, classification, pairwise
 ├── Dense                   # Convenience header — bundles all modules
 └── src/                    # Internal headers (.h)
     ├── Core/               # Traits, Concepts, Base, Validation, EigenHelpers
     ├── Preprocessing/      # StandardScaler, MinMaxScaler, MaxAbsScaler, ...
-    ├── LinearModel/        # LinearRegression, Ridge, Lasso, ElasticNet, ...
+    ├── LinearModel/        # LinearRegression, Ridge, Lasso, BayesianRidge, ARD
     ├── Decomposition/      # PCA, TruncatedSVD
     ├── Cluster/            # KMeans, MiniBatchKMeans
     ├── Neighbors/          # KNeighborsClassifier, KNeighborsRegressor
     ├── Tree/               # DecisionTreeClassifier, DecisionTreeRegressor
-    ├── ModelSelection/     # TrainTestSplit, CrossValidation
+    ├── Ensemble/           # RandomForest, GradientBoosting, HistGradientBoosting
+    ├── NaiveBayes/         # GaussianNB, MultinomialNB, BernoulliNB
+    ├── SVM/                # LinearSVC, LinearSVR, SVC, SVR, Nu*/OneClassSVM
+    ├── NeuralNetwork/      # MLPClassifier, MLPRegressor
+    ├── FeatureSelection/   # VarianceThreshold, SelectKBest, SelectFromModel, RFE
+    ├── Manifold/           # Isomap, MDS, LLE, SpectralEmbedding, TSNE, UMAP
+    ├── Calibration/        # CalibratedClassifierCV
+    ├── Isotonic/           # IsotonicRegression
+    ├── ModelSelection/     # TrainTestSplit, CrossValidation, Grid/RandomizedSearchCV
     ├── Pipeline/           # Pipeline (compile-time)
     └── Metrics/            # Regression, Classification, Pairwise
 tests/                      # Unit + parity tests
 benchmarks/                 # Performance benchmarks
-examples/                   # Usage examples
+examples/                   # Usage examples (one per public estimator)
 doc/                        # Requirements + Docusaurus website
 ```
 
