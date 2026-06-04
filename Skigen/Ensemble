@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 The Skigen Contributors
+//
+// Skigen/Ensemble — Tree-based ensemble methods (RandomForest).
+
+#ifndef SKIGEN_ENSEMBLE
+#define SKIGEN_ENSEMBLE
+
+#include "src/Ensemble/RandomForestClassifier.h"
+#include "src/Ensemble/RandomForestRegressor.h"
+#include "src/Ensemble/GradientBoostingRegressor.h"
+#include "src/Ensemble/GradientBoostingClassifier.h"
+#include "src/Ensemble/HistGradientBoostingRegressor.h"
+#include "src/Ensemble/HistGradientBoostingClassifier.h"
+
+#endif // SKIGEN_ENSEMBLE

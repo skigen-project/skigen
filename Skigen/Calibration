@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 The Skigen Contributors
+//
+// Skigen/Calibration — Probability calibration via cross-validated
+// Platt sigmoid or isotonic regression.
+
+#ifndef SKIGEN_CALIBRATION
+#define SKIGEN_CALIBRATION
+
+#include "Core"
+#include "Isotonic"
+#include "src/Calibration/CalibratedClassifierCV.h"
+
+#endif // SKIGEN_CALIBRATION

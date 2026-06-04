@@ -13,7 +13,7 @@
 
 namespace Skigen {
 
-/// Result of train_test_split for (X, y) data.
+/// @cond INTERNAL
 template <typename MatrixType, typename LabelType>
 struct TrainTestSplitResult {
     MatrixType X_train;
@@ -21,6 +21,7 @@ struct TrainTestSplitResult {
     LabelType y_train;
     LabelType y_test;
 };
+/// @endcond
 
 /// train_test_split — Split arrays into random train and test subsets.
 /// Mirrors sklearn.model_selection.train_test_split.

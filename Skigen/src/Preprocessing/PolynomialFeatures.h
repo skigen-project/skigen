@@ -46,11 +46,13 @@ namespace Skigen {
 ///
 /// `inverse_transform()` is not supported.
 ///
-/// @note **scikit-learn parity gaps:** The following sklearn constructor
-///   parameters are not yet supported: `order`.
-///   The following sklearn fitted attributes are not yet exposed:
+/// ### Limitations relative to scikit-learn
+///
+/// The following scikit-learn constructor
+///   parameters are not honoured: `order`.
+///   The following sklearn fitted attributes are not exposed:
 ///   `powers_`, `n_features_in_`, `feature_names_in_`.
-///   `get_feature_names_out()` is not yet implemented.
+///   `get_feature_names_out()` is not implemented.
 ///
 /// ### Examples
 ///
@@ -83,6 +85,10 @@ public:
         this->check_is_fitted();
         return n_output_features_;
     }
+
+    // -- Parameter reflection ---------------------------------------------------
+
+    SKIGEN_PARAMS((degree, degree_, int), (include_bias, include_bias_, bool), (interaction_only, interaction_only_, bool))
 
     /// @brief Compute the powers matrix for later transformation.
     ///

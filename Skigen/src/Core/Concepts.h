@@ -65,6 +65,60 @@ concept ClassifierLike = EstimatorLike<T> &&
         { t.score(X, y) } -> std::same_as<typename T::ScalarType>;
     };
 
+// ---------------------------------------------------------------------------
+// Online-learning concepts: estimators that accept new batches of data via
+// `partial_fit` and update their state in place rather than refitting from
+// scratch. Required contract: subsequent calls produce fitted attributes
+// equivalent (within FP tolerance) to a single `fit` over the concatenated
+// batches.
+// ---------------------------------------------------------------------------
+
+template <typename T>
+concept IncrementalUnsupervised = EstimatorLike<T> &&
+    requires(T t, const typename T::MatrixType& X) {
+        { t.partial_fit(X) } -> std::same_as<T&>;
+    };
+
+template <typename T>
+concept IncrementalSupervised = EstimatorLike<T> &&
+    requires(T t,
+             const typename T::MatrixType& X,
+             const typename T::VectorType& y) {
+        { t.partial_fit(X, y) } -> std::same_as<T&>;
+    };
+
+template <typename T>
+concept IncrementalLike =
+    IncrementalUnsupervised<T> || IncrementalSupervised<T>;
+
+// ---------------------------------------------------------------------------
+// MultiOutputRegressor concept — regressors that expose a multi-target
+// API: `fit_multi(X, Y)` accepts a (n_samples × n_targets) response matrix
+// and `predict_multi(X)` returns the matching prediction matrix.
+// ---------------------------------------------------------------------------
+
+template <typename T>
+concept MultiOutputRegressorLike = EstimatorLike<T> &&
+    requires(T t,
+             const typename T::MatrixType& X,
+             const typename T::MatrixType& Y) {
+        { t.fit_multi(X, Y) } -> std::same_as<T&>;
+        { t.predict_multi(X) } -> std::same_as<typename T::MatrixType>;
+        { t.n_targets() } -> std::convertible_to<int>;
+    };
+
+// ---------------------------------------------------------------------------
+// ParametrizedLike — estimators that have registered their hyperparameters
+// with the SKIGEN_PARAMS(...) reflection layer, exposing the
+// `set_param` / `get_params` API used by hyperparameter-search drivers.
+// ---------------------------------------------------------------------------
+
+template <typename T>
+concept ParametrizedLike = EstimatorLike<T> &&
+    requires(T t, const T ct) {
+        { ct.get_params_impl() };
+    };
+
 } // namespace Skigen
 
 #endif // SKIGEN_CORE_CONCEPTS_H

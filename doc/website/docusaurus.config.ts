@@ -149,6 +149,13 @@ const config: Config = {
                         { label: 'How to Cite', to: '/docs/cite' },
                     ],
                 },
+                {
+                    title: 'SkigenPlot',
+                    items: [
+                        { label: 'Documentation', href: 'https://skigen-project.github.io/skigen-plot/' },
+                        { label: 'GitHub', href: 'https://github.com/skigen-project/skigen-plot' },
+                    ],
+                },
             ],
             copyright: `Copyright © ${new Date().getFullYear()} Skigen Contributors.`,
         },

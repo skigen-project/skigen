@@ -141,6 +141,122 @@ void test_tts_inconsistent_lengths() {
 }
 
 // ===================================================================
+// ParameterGrid Tests
+// ===================================================================
+
+void test_parameter_grid_size() {
+    Skigen::ParameterGrid grid(Skigen::ParameterGrid::Grid{
+        {"alpha", {Skigen::ParameterValue(0.1), Skigen::ParameterValue(1.0)}},
+        {"fit_intercept", {Skigen::ParameterValue(true), Skigen::ParameterValue(false)}}
+    });
+    ASSERT_TRUE(grid.size() == 4);
+}
+
+void test_parameter_grid_iteration() {
+    Skigen::ParameterGrid grid(Skigen::ParameterGrid::Grid{
+        {"alpha", {Skigen::ParameterValue(0.1), Skigen::ParameterValue(1.0)}},
+    });
+    int count = 0;
+    for (auto params : grid) {
+        (void)params;
+        ++count;
+    }
+    ASSERT_TRUE(count == 2);
+}
+
+void test_parameter_grid_index() {
+    Skigen::ParameterGrid grid(Skigen::ParameterGrid::Grid{
+        {"alpha", {Skigen::ParameterValue(0.1), Skigen::ParameterValue(1.0)}},
+    });
+    auto p0 = grid[0];
+    ASSERT_NEAR(std::get<double>(p0.at("alpha")), 0.1, 1e-10);
+    auto p1 = grid[1];
+    ASSERT_NEAR(std::get<double>(p1.at("alpha")), 1.0, 1e-10);
+}
+
+// ===================================================================
+// GridSearchCV Tests
+// ===================================================================
+
+void test_grid_search_cv_basic() {
+    Eigen::MatrixXd X(50, 2);
+    Eigen::VectorXd y(50);
+    for (int i = 0; i < 50; ++i) {
+        X(i, 0) = static_cast<double>(i) / 50.0;
+        X(i, 1) = static_cast<double>(i) / 25.0;
+        y(i) = 2.0 * X(i, 0) + 0.5 * X(i, 1) + 0.1;
+    }
+
+    Skigen::Ridge<double> est;
+    Skigen::ParameterGrid grid(Skigen::ParameterGrid::Grid{
+        {"alpha", {Skigen::ParameterValue(0.01),
+                   Skigen::ParameterValue(1.0),
+                   Skigen::ParameterValue(100.0)}}
+    });
+
+    Skigen::GridSearchCV<Skigen::Ridge<double>> gs(est, grid, 3);
+    gs.fit(X, y);
+
+    ASSERT_TRUE(gs.best_score() > 0.0);
+    ASSERT_TRUE(gs.cv_results_params().size() == 3);
+    ASSERT_TRUE(gs.cv_results_mean_score().size() == 3);
+
+    auto yh = gs.predict(X);
+    ASSERT_TRUE(yh.size() == 50);
+}
+
+void test_grid_search_cv_best_params() {
+    Eigen::MatrixXd X(60, 1);
+    Eigen::VectorXd y(60);
+    for (int i = 0; i < 60; ++i) {
+        X(i, 0) = static_cast<double>(i);
+        y(i) = 3.0 * X(i, 0) + 1.0;
+    }
+
+    Skigen::Ridge<double> est;
+    Skigen::ParameterGrid grid(Skigen::ParameterGrid::Grid{
+        {"alpha", {Skigen::ParameterValue(0.001),
+                   Skigen::ParameterValue(1000.0)}}
+    });
+
+    Skigen::GridSearchCV<Skigen::Ridge<double>> gs(est, grid, 3);
+    gs.fit(X, y);
+
+    auto bp = gs.best_params();
+    double best_alpha = std::get<double>(bp.at("alpha"));
+    ASSERT_NEAR(best_alpha, 0.001, 1e-10);
+}
+
+// ===================================================================
+// RandomizedSearchCV Tests
+// ===================================================================
+
+void test_randomized_search_cv_basic() {
+    Eigen::MatrixXd X(50, 2);
+    Eigen::VectorXd y(50);
+    for (int i = 0; i < 50; ++i) {
+        X(i, 0) = static_cast<double>(i) / 50.0;
+        X(i, 1) = static_cast<double>(i) / 25.0;
+        y(i) = 2.0 * X(i, 0) + 0.5 * X(i, 1);
+    }
+
+    Skigen::Ridge<double> est;
+    Skigen::ParameterGrid dist(Skigen::ParameterGrid::Grid{
+        {"alpha", {Skigen::ParameterValue(0.01),
+                   Skigen::ParameterValue(0.1),
+                   Skigen::ParameterValue(1.0),
+                   Skigen::ParameterValue(10.0)}}
+    });
+
+    Skigen::RandomizedSearchCV<Skigen::Ridge<double>> rs(
+        est, dist, 3, 3, true, 42);
+    rs.fit(X, y);
+
+    ASSERT_TRUE(rs.best_score() > 0.0);
+    ASSERT_TRUE(rs.cv_results_params().size() == 3);
+}
+
+// ===================================================================
 
 int main() {
     std::cout << "=== TrainTestSplit Tests ===\n";
@@ -149,6 +265,18 @@ int main() {
     run_test("tts_deterministic", test_tts_deterministic);
     run_test("tts_invalid_size", test_tts_invalid_size);
     run_test("tts_inconsistent_lengths", test_tts_inconsistent_lengths);
+
+    std::cout << "\n=== ParameterGrid Tests ===\n";
+    run_test("parameter_grid_size", test_parameter_grid_size);
+    run_test("parameter_grid_iteration", test_parameter_grid_iteration);
+    run_test("parameter_grid_index", test_parameter_grid_index);
+
+    std::cout << "\n=== GridSearchCV Tests ===\n";
+    run_test("grid_search_cv_basic", test_grid_search_cv_basic);
+    run_test("grid_search_cv_best_params", test_grid_search_cv_best_params);
+
+    std::cout << "\n=== RandomizedSearchCV Tests ===\n";
+    run_test("randomized_search_cv_basic", test_randomized_search_cv_basic);
 
     std::cout << "\n" << g_passed << " passed, " << g_failed << " failed.\n";
     return g_failed > 0 ? 1 : 0;

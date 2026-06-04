@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 The Skigen Contributors
+//
+// Skigen/FeatureSelection — Feature selection transformers.
+//
+// Usage:
+//   #include <Skigen/FeatureSelection>
+
+#ifndef SKIGEN_FEATURE_SELECTION
+#define SKIGEN_FEATURE_SELECTION
+
+#include "Core"
+#include "src/FeatureSelection/ScoreFunctions.h"
+#include "src/FeatureSelection/VarianceThreshold.h"
+#include "src/FeatureSelection/SelectKBest.h"
+#include "src/FeatureSelection/SelectFromModel.h"
+#include "src/FeatureSelection/RFE.h"
+
+#endif  // SKIGEN_FEATURE_SELECTION

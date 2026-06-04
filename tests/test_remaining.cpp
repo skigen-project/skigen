@@ -5,6 +5,8 @@
 
 #include <cmath>
 #include <iostream>
+#include <optional>
+#include <random>
 #include <sstream>
 #include <string>
 #include <functional>
@@ -193,6 +195,189 @@ void test_lasso_score() {
     ASSERT_TRUE(r2 > 0.99);
 }
 
+void test_lasso_sparse_matches_dense_no_intercept() {
+    // Match the dense fit on a small sparse-friendly matrix with
+    // fit_intercept=false. Use a slightly larger dataset to make CD
+    // converge stably.
+    Eigen::MatrixXd Xd(20, 5);
+    Xd.setZero();
+    // Sparse pattern: each row has 2-3 nonzeros.
+    Xd(0, 0) = 1; Xd(0, 2) = 2;
+    Xd(1, 1) = 3; Xd(1, 3) = 1;
+    Xd(2, 0) = 4; Xd(2, 4) = 1;
+    Xd(3, 2) = 5; Xd(3, 4) = 2;
+    Xd(4, 1) = 1; Xd(4, 3) = 3;
+    Xd(5, 0) = 2; Xd(5, 2) = 1;
+    Xd(6, 4) = 5;
+    Xd(7, 1) = 4;
+    Xd(8, 3) = 6;
+    Xd(9, 0) = 3; Xd(9, 1) = 2;
+    Xd(10, 2) = 7;
+    Xd(11, 4) = 3;
+    Xd(12, 0) = 1; Xd(12, 1) = 1; Xd(12, 2) = 1;
+    Xd(13, 3) = 2;
+    Xd(14, 4) = 4;
+    Xd(15, 1) = 5;
+    Xd(16, 0) = 2; Xd(16, 3) = 4;
+    Xd(17, 2) = 3;
+    Xd(18, 4) = 1;
+    Xd(19, 0) = 4; Xd(19, 1) = 1; Xd(19, 4) = 2;
+
+    Eigen::VectorXd w_true(5);
+    w_true << 1.5, -2.0, 0.5, 1.0, -0.8;
+    Eigen::VectorXd y = Xd * w_true;
+
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+
+    Skigen::Lasso<double> ld(0.01, /*fit_intercept=*/false, 5000, 1e-8);
+    Skigen::Lasso<double> ls(0.01, /*fit_intercept=*/false, 5000, 1e-8);
+    ld.fit(Xd, y);
+    ls.fit(Xs, y);
+
+    for (int j = 0; j < 5; ++j) {
+        ASSERT_NEAR(ld.coef()(j), ls.coef()(j), 1e-6);
+    }
+    ASSERT_NEAR(ls.intercept(), 0.0, 1e-12);
+}
+
+void test_lasso_sparse_matches_dense_with_intercept() {
+    Eigen::MatrixXd Xd(15, 4);
+    Xd.setZero();
+    // Sparse pattern with non-zero column means.
+    Xd(0, 0) = 1; Xd(0, 1) = 2;
+    Xd(1, 0) = 3; Xd(1, 2) = 1;
+    Xd(2, 1) = 4; Xd(2, 3) = 2;
+    Xd(3, 0) = 2; Xd(3, 3) = 3;
+    Xd(4, 2) = 5;
+    Xd(5, 1) = 1; Xd(5, 2) = 2;
+    Xd(6, 0) = 4; Xd(6, 1) = 1;
+    Xd(7, 3) = 6;
+    Xd(8, 0) = 1; Xd(8, 2) = 1;
+    Xd(9, 1) = 3; Xd(9, 3) = 1;
+    Xd(10, 0) = 5;
+    Xd(11, 2) = 4;
+    Xd(12, 1) = 2;
+    Xd(13, 0) = 1; Xd(13, 1) = 1; Xd(13, 3) = 2;
+    Xd(14, 2) = 3;
+
+    Eigen::VectorXd w_true(4);
+    w_true << 1.0, -1.5, 0.5, 0.8;
+    const double b_true = 2.5;
+    Eigen::VectorXd y = (Xd * w_true).array() + b_true;
+
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+
+    Skigen::Lasso<double> ld(0.01, /*fit_intercept=*/true, 5000, 1e-8);
+    Skigen::Lasso<double> ls(0.01, /*fit_intercept=*/true, 5000, 1e-8);
+    ld.fit(Xd, y);
+    ls.fit(Xs, y);
+
+    for (int j = 0; j < 4; ++j) {
+        ASSERT_NEAR(ld.coef()(j), ls.coef()(j), 1e-6);
+    }
+    ASSERT_NEAR(ld.intercept(), ls.intercept(), 1e-6);
+
+    // Predictions should agree (using dense X for both).
+    Eigen::VectorXd pd = ld.predict(Xd);
+    Eigen::VectorXd ps = ls.predict(Xd);
+    for (int i = 0; i < Xd.rows(); ++i) {
+        ASSERT_NEAR(pd(i), ps(i), 1e-6);
+    }
+}
+
+void test_lasso_sparse_empty_throws() {
+    Eigen::SparseMatrix<double> X(0, 0);
+    Eigen::VectorXd y(0);
+    Skigen::Lasso<double> l;
+    bool threw = false;
+    try { l.fit(X, y); }
+    catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
+void test_lasso_multi_target_recovers_two_outputs() {
+    // y0 = 2x + z, y1 = x − 2z; small alpha so we approach OLS.
+    constexpr int n = 40;
+    Eigen::MatrixXd X(n, 2);
+    Eigen::MatrixXd Y(n, 2);
+    for (int i = 0; i < n; ++i) {
+        X(i, 0) = static_cast<double>(i) / 4.0;
+        X(i, 1) = static_cast<double>(n - i) / 4.0;
+        Y(i, 0) = 2.0 * X(i, 0) +       X(i, 1);
+        Y(i, 1) =       X(i, 0) - 2.0 * X(i, 1);
+    }
+    Skigen::Lasso<double> l(/*alpha=*/1e-4, /*fit_intercept=*/false,
+                             5000, 1e-9);
+    l.fit_multi(X, Y);
+
+    ASSERT_TRUE(l.n_targets() == 2);
+    ASSERT_NEAR(l.coef_matrix()(0, 0),  2.0, 1e-3);
+    ASSERT_NEAR(l.coef_matrix()(0, 1),  1.0, 1e-3);
+    ASSERT_NEAR(l.coef_matrix()(1, 0),  1.0, 1e-3);
+    ASSERT_NEAR(l.coef_matrix()(1, 1), -2.0, 1e-3);
+
+    Eigen::MatrixXd Yp = l.predict_multi(X);
+    for (int i = 0; i < n; ++i) {
+        ASSERT_NEAR(Yp(i, 0), Y(i, 0), 1e-2);
+        ASSERT_NEAR(Yp(i, 1), Y(i, 1), 1e-2);
+    }
+}
+
+void test_lasso_multi_target_single_target_API_consistent() {
+    Eigen::MatrixXd X(4, 1); X << 0, 1, 2, 3;
+    Eigen::MatrixXd Y(4, 2);
+    Y.col(0) << 0.0, 2.0, 4.0, 6.0;
+    Y.col(1) << 5.0, 4.0, 3.0, 2.0;
+    Skigen::Lasso<double> l(1e-4, true, 2000, 1e-9);
+    l.fit_multi(X, Y);
+    // After fit_multi, single-target accessors mirror first target.
+    ASSERT_NEAR(l.coef()(0), l.coef_matrix()(0, 0), 1e-12);
+    ASSERT_NEAR(l.intercept(), l.intercept_vector()(0), 1e-12);
+}
+
+void test_elastic_net_multi_target_recovers_two_outputs() {
+    constexpr int n = 40;
+    Eigen::MatrixXd X(n, 2);
+    Eigen::MatrixXd Y(n, 2);
+    for (int i = 0; i < n; ++i) {
+        X(i, 0) = static_cast<double>(i) / 4.0;
+        X(i, 1) = static_cast<double>(n - i) / 4.0;
+        Y(i, 0) = 1.5 * X(i, 0) + 2.0 * X(i, 1);
+        Y(i, 1) =       X(i, 0) -       X(i, 1);
+    }
+    Skigen::ElasticNet<double> e(1e-4, 0.5, /*fit_intercept=*/false,
+                                  5000, 1e-9);
+    e.fit_multi(X, Y);
+    ASSERT_TRUE(e.n_targets() == 2);
+    ASSERT_NEAR(e.coef_matrix()(0, 0),  1.5, 5e-3);
+    ASSERT_NEAR(e.coef_matrix()(0, 1),  2.0, 5e-3);
+    ASSERT_NEAR(e.coef_matrix()(1, 0),  1.0, 5e-3);
+    ASSERT_NEAR(e.coef_matrix()(1, 1), -1.0, 5e-3);
+}
+
+void test_elastic_net_multi_target_l1_only_matches_lasso_per_target() {
+    // l1_ratio=1 ⇒ multi-target ElasticNet should match per-target Lasso.
+    constexpr int n = 30;
+    Eigen::MatrixXd X(n, 2);
+    Eigen::MatrixXd Y(n, 2);
+    for (int i = 0; i < n; ++i) {
+        X(i, 0) = static_cast<double>(i);
+        X(i, 1) = static_cast<double>(i % 5);
+        Y(i, 0) =  X(i, 0);
+        Y(i, 1) = -X(i, 1);
+    }
+    Skigen::ElasticNet<double> e(1e-3, 1.0, false, 5000, 1e-9);
+    e.fit_multi(X, Y);
+    Skigen::Lasso<double> l0(1e-3, false, 5000, 1e-9);
+    Skigen::Lasso<double> l1(1e-3, false, 5000, 1e-9);
+    Eigen::VectorXd y0 = Y.col(0); l0.fit(X, y0);
+    Eigen::VectorXd y1 = Y.col(1); l1.fit(X, y1);
+    for (int j = 0; j < 2; ++j) {
+        ASSERT_NEAR(e.coef_matrix()(0, j), l0.coef()(j), 1e-6);
+        ASSERT_NEAR(e.coef_matrix()(1, j), l1.coef()(j), 1e-6);
+    }
+}
+
 // ===================================================================
 // ElasticNet Tests
 // ===================================================================
@@ -222,6 +407,69 @@ void test_elastic_net_score() {
     en.fit(X, y);
     double r2 = en.score(X, y);
     ASSERT_TRUE(r2 > 0.99);
+}
+
+void test_elastic_net_sparse_matches_dense() {
+    Eigen::MatrixXd Xd(15, 4);
+    Xd.setZero();
+    Xd(0, 0) = 1; Xd(0, 1) = 2;
+    Xd(1, 0) = 3; Xd(1, 2) = 1;
+    Xd(2, 1) = 4; Xd(2, 3) = 2;
+    Xd(3, 0) = 2; Xd(3, 3) = 3;
+    Xd(4, 2) = 5;
+    Xd(5, 1) = 1; Xd(5, 2) = 2;
+    Xd(6, 0) = 4; Xd(6, 1) = 1;
+    Xd(7, 3) = 6;
+    Xd(8, 0) = 1; Xd(8, 2) = 1;
+    Xd(9, 1) = 3; Xd(9, 3) = 1;
+    Xd(10, 0) = 5;
+    Xd(11, 2) = 4;
+    Xd(12, 1) = 2;
+    Xd(13, 0) = 1; Xd(13, 1) = 1; Xd(13, 3) = 2;
+    Xd(14, 2) = 3;
+
+    Eigen::VectorXd w_true(4);
+    w_true << 1.0, -1.5, 0.5, 0.8;
+    const double b_true = 2.5;
+    Eigen::VectorXd y = (Xd * w_true).array() + b_true;
+
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+
+    Skigen::ElasticNet<double> ed(0.05, 0.5, /*fit_intercept=*/true, 5000, 1e-8);
+    Skigen::ElasticNet<double> es(0.05, 0.5, /*fit_intercept=*/true, 5000, 1e-8);
+    ed.fit(Xd, y);
+    es.fit(Xs, y);
+
+    for (int j = 0; j < 4; ++j) {
+        ASSERT_NEAR(ed.coef()(j), es.coef()(j), 1e-6);
+    }
+    ASSERT_NEAR(ed.intercept(), es.intercept(), 1e-6);
+}
+
+void test_elastic_net_sparse_l1_only_matches_lasso() {
+    // l1_ratio=1 ⇒ ElasticNet should match Lasso on sparse input.
+    Eigen::MatrixXd Xd(12, 3);
+    Xd.setZero();
+    Xd(0, 0) = 1; Xd(1, 1) = 2; Xd(2, 2) = 3;
+    Xd(3, 0) = 4; Xd(4, 1) = 1; Xd(5, 2) = 5;
+    Xd(6, 0) = 2; Xd(7, 1) = 4; Xd(8, 2) = 1;
+    Xd(9, 0) = 3; Xd(10, 1) = 2; Xd(11, 2) = 6;
+
+    Eigen::VectorXd w_true(3);
+    w_true << 0.5, 1.0, -0.7;
+    Eigen::VectorXd y = Xd * w_true;
+
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+
+    Skigen::Lasso<double> ls(0.01, /*fit_intercept=*/false, 5000, 1e-8);
+    Skigen::ElasticNet<double> es(0.01, /*l1_ratio=*/1.0,
+                                  /*fit_intercept=*/false, 5000, 1e-8);
+    ls.fit(Xs, y);
+    es.fit(Xs, y);
+
+    for (int j = 0; j < 3; ++j) {
+        ASSERT_NEAR(ls.coef()(j), es.coef()(j), 1e-6);
+    }
 }
 
 // ===================================================================
@@ -358,6 +606,105 @@ void test_sgd_regressor_predict() {
     ASSERT_NEAR(pred(0), 10.0, 1.5);
 }
 
+// -- SGD partial_fit ---------------------------------------------------
+
+void test_sgd_classifier_partial_fit_converges() {
+    // Two well-separated 2-D Gaussians; many partial_fit calls should
+    // approach the cold-start fit's accuracy.
+    constexpr int n = 200;
+    std::mt19937 rng(7);
+    std::normal_distribution<double> ns(0.0, 0.5);
+    Eigen::MatrixXd X(n, 2);
+    Eigen::VectorXi y(n);
+    for (int i = 0; i < n; ++i) {
+        const double cls = (i < n / 2) ? -1.5 : 1.5;
+        X(i, 0) = cls + ns(rng);
+        X(i, 1) = cls + ns(rng);
+        y(i)    = (cls > 0) ? 1 : 0;
+    }
+    Eigen::VectorXi classes(2); classes << 0, 1;
+
+    Skigen::SGDClassifier<double> sgd(
+        Skigen::SGDClassifier<double>::Loss::Hinge,
+        1e-4, 100, 1e-3, 0.01, 7);
+
+    // Stream the data in 5 mini-batches.
+    const int batch_size = n / 5;
+    for (int b = 0; b < 5; ++b) {
+        const int s = b * batch_size;
+        Eigen::MatrixXd Xb = X.middleRows(s, batch_size);
+        Eigen::VectorXi yb = y.segment(s, batch_size);
+        sgd.partial_fit(Xb, yb,
+            (b == 0) ? classes : Eigen::VectorXi());
+    }
+    auto preds = sgd.predict(X);
+    int correct = 0;
+    for (int i = 0; i < n; ++i) if (preds(i) == y(i)) ++correct;
+    const double acc = static_cast<double>(correct) / n;
+    ASSERT_TRUE(acc > 0.85);
+}
+
+void test_sgd_classifier_partial_fit_first_call_requires_classes() {
+    Skigen::SGDClassifier<double> sgd;
+    Eigen::MatrixXd X(3, 1); X << 0.0, 1.0, 2.0;
+    Eigen::VectorXi y(3);    y << 0, 1, 0;
+    Eigen::VectorXi empty(0);
+    bool threw = false;
+    try { sgd.partial_fit(X, y, empty); }
+    catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
+void test_sgd_classifier_partial_fit_feature_mismatch_throws() {
+    Skigen::SGDClassifier<double> sgd;
+    Eigen::MatrixXd X1(4, 2); X1 << 0,0, 0,1, 1,0, 1,1;
+    Eigen::VectorXi y1(4);   y1 << 0, 0, 1, 1;
+    Eigen::VectorXi classes(2); classes << 0, 1;
+    sgd.partial_fit(X1, y1, classes);
+
+    Eigen::MatrixXd X2(2, 3); X2.setOnes();
+    Eigen::VectorXi y2(2);   y2 << 0, 1;
+    bool threw = false;
+    try { sgd.partial_fit(X2, y2, Eigen::VectorXi()); }
+    catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
+void test_sgd_regressor_partial_fit_converges() {
+    constexpr int n = 200;
+    Eigen::MatrixXd X(n, 1);
+    Eigen::VectorXd y(n);
+    for (int i = 0; i < n; ++i) {
+        X(i, 0) = static_cast<double>(i) / 50.0;
+        y(i)    = 2.5 * X(i, 0) + 1.0;
+    }
+    Skigen::SGDRegressor<double> sgd(1e-5, 100, 1e-6, 0.01, 7);
+
+    // 4 batches of 50 samples each.
+    for (int b = 0; b < 4; ++b) {
+        const int s = b * 50;
+        sgd.partial_fit(X.middleRows(s, 50), y.segment(s, 50));
+    }
+    Eigen::MatrixXd Xt(2, 1); Xt << 5.0, 1.0;
+    Eigen::VectorXd yt = sgd.predict(Xt);
+    // 2.5*5 + 1 = 13.5; 2.5*1 + 1 = 3.5 — accept some SGD slop.
+    ASSERT_TRUE(std::abs(yt(0) - 13.5) < 2.0);
+    ASSERT_TRUE(std::abs(yt(1) - 3.5)  < 2.0);
+}
+
+void test_sgd_regressor_partial_fit_feature_mismatch_throws() {
+    Skigen::SGDRegressor<double> sgd;
+    Eigen::MatrixXd X1(4, 2); X1 << 1,2, 3,4, 5,6, 7,8;
+    Eigen::VectorXd y1(4); y1 << 1, 2, 3, 4;
+    sgd.partial_fit(X1, y1);
+    Eigen::MatrixXd X2(2, 3); X2.setOnes();
+    Eigen::VectorXd y2(2); y2 << 1, 2;
+    bool threw = false;
+    try { sgd.partial_fit(X2, y2); }
+    catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
 // ===================================================================
 // TruncatedSVD Tests
 // ===================================================================
@@ -409,6 +756,87 @@ void test_truncated_svd_variance_ratio() {
     ASSERT_NEAR(ratio_sum, 1.0, 1e-10);
 }
 
+void test_truncated_svd_sparse_matches_dense() {
+    // Construct a low-rank-ish dense matrix and compare:
+    //  - dense .fit/.transform output (in absolute value)
+    //  - sparse .fit/.transform output (in absolute value)
+    // Random-SVD only guarantees the column space up to sign; we compare
+    // |U S| reconstructions and singular values.
+    Eigen::MatrixXd Xd(20, 8);
+    std::mt19937_64 rng(7);
+    std::normal_distribution<double> ns(0.0, 1.0);
+    for (int i = 0; i < 20; ++i) {
+        for (int j = 0; j < 8; ++j) {
+            // Rank-3 signal + small noise.
+            Xd(i, j) = ns(rng) * 0.05;
+        }
+    }
+    // Inject a rank-3 structure: rows = factor * basis.
+    Eigen::MatrixXd basis(3, 8);
+    for (int r = 0; r < 3; ++r)
+        for (int c = 0; c < 8; ++c) basis(r, c) = ns(rng);
+    for (int i = 0; i < 20; ++i) {
+        Eigen::Vector3d f;
+        f << ns(rng), ns(rng), ns(rng);
+        Xd.row(i).noalias() += (f.transpose() * basis);
+    }
+
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+
+    Skigen::TruncatedSVD<double> svd_dense(3);
+    svd_dense.fit(Xd);
+
+    Skigen::TruncatedSVD<double> svd_sparse(3);
+    svd_sparse.fit(Xs, std::optional<uint64_t>(123),
+                   /*n_oversamples=*/10, /*n_iter=*/7);
+
+    // Singular values should agree to within the randomised-SVD tolerance.
+    auto sd = svd_dense.singular_values();
+    auto ss = svd_sparse.singular_values();
+    ASSERT_TRUE(sd.size() == 3);
+    ASSERT_TRUE(ss.size() == 3);
+    for (int i = 0; i < 3; ++i) {
+        ASSERT_NEAR(sd(i), ss(i), 5e-2);
+    }
+}
+
+void test_truncated_svd_sparse_transform_shape() {
+    Eigen::SparseMatrix<double> X(10, 5);
+    X.insert(0, 0) = 1.0;
+    X.insert(1, 1) = 2.0;
+    X.insert(2, 2) = 3.0;
+    X.insert(3, 3) = 4.0;
+    X.insert(4, 4) = 5.0;
+    for (int i = 5; i < 10; ++i) {
+        X.insert(i, i % 5) = static_cast<double>(i);
+    }
+    X.makeCompressed();
+
+    Skigen::TruncatedSVD<double> svd(2);
+    svd.fit(X, std::optional<uint64_t>(0));
+    Eigen::MatrixXd Y = svd.transform(X);
+    ASSERT_TRUE(Y.rows() == 10);
+    ASSERT_TRUE(Y.cols() == 2);
+}
+
+void test_truncated_svd_sparse_feature_count_check() {
+    Eigen::SparseMatrix<double> X1(8, 4);
+    for (int i = 0; i < 4; ++i) X1.insert(i, i) = 1.0;
+    X1.makeCompressed();
+
+    Skigen::TruncatedSVD<double> svd(2);
+    svd.fit(X1, std::optional<uint64_t>(0));
+
+    Eigen::SparseMatrix<double> X_bad(8, 5);
+    X_bad.insert(0, 0) = 1.0;
+    X_bad.makeCompressed();
+
+    bool threw = false;
+    try { (void)svd.transform(X_bad); }
+    catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
 // ===================================================================
 // MiniBatchKMeans Tests
 // ===================================================================
@@ -444,6 +872,68 @@ void test_mini_batch_kmeans_predict() {
 
     auto labels = mbk.predict(X_new);
     ASSERT_TRUE(labels(0) != labels(1));
+}
+
+void test_mini_batch_kmeans_partial_fit_separates_clusters() {
+    Eigen::MatrixXd X(8, 2);
+    X << 0, 0,  0, 1,  1, 0,  1, 1,
+        10,10, 10,11, 11,10, 11,11;
+
+    Skigen::MiniBatchKMeans<double> mbk(/*n_clusters=*/2);
+    mbk.partial_fit(X.topRows(4));     // first batch initialises with k-means++
+    mbk.partial_fit(X.bottomRows(4));  // second batch updates centers
+
+    // Centers should separate the two clusters at (~0.5, ~0.5) and (~10.5, ~10.5).
+    Eigen::MatrixXd centers = mbk.cluster_centers();
+    // Identify which row is which cluster by looking at first coordinate.
+    int low_row = centers(0, 0) < centers(1, 0) ? 0 : 1;
+    int hi_row  = 1 - low_row;
+    ASSERT_TRUE(centers(low_row, 0) < 5.0);
+    ASSERT_TRUE(centers(hi_row,  0) > 5.0);
+}
+
+void test_mini_batch_kmeans_partial_fit_first_call_too_small_throws() {
+    Eigen::MatrixXd X(2, 2); X << 1, 2, 3, 4;
+    Skigen::MiniBatchKMeans<double> mbk(/*n_clusters=*/3);
+    bool threw = false;
+    try { mbk.partial_fit(X); }
+    catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
+void test_mini_batch_kmeans_partial_fit_feature_mismatch_throws() {
+    Eigen::MatrixXd X1(4, 2); X1 << 0,0, 0,1, 10,10, 10,11;
+    Eigen::MatrixXd X2(2, 3); X2.setOnes();
+    Skigen::MiniBatchKMeans<double> mbk(2);
+    mbk.partial_fit(X1);
+    bool threw = false;
+    try { mbk.partial_fit(X2); }
+    catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
+void test_mini_batch_kmeans_sparse_partial_fit_separates_clusters() {
+    Eigen::MatrixXd Xd(8, 4);
+    Xd.setZero();
+    Xd(0, 0) = 10; Xd(0, 1) = 10;
+    Xd(1, 0) = 11; Xd(1, 1) = 9;
+    Xd(2, 0) = 9;  Xd(2, 1) = 11;
+    Xd(3, 0) = 10; Xd(3, 1) = 10;
+    Xd(4, 2) = 10; Xd(4, 3) = 10;
+    Xd(5, 2) = 11; Xd(5, 3) = 9;
+    Xd(6, 2) = 9;  Xd(6, 3) = 11;
+    Xd(7, 2) = 10; Xd(7, 3) = 10;
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+
+    Skigen::MiniBatchKMeans<double> mbk(2);
+    mbk.partial_fit(Xs);
+
+    // Centroids should be near (~10, ~10, 0, 0) and (0, 0, ~10, ~10).
+    Eigen::MatrixXd centers = mbk.cluster_centers();
+    int hi_left = (centers(0, 0) > centers(1, 0)) ? 0 : 1;
+    int hi_right = 1 - hi_left;
+    ASSERT_TRUE(centers(hi_left, 0) > 5.0);
+    ASSERT_TRUE(centers(hi_right, 2) > 5.0);
 }
 
 // ===================================================================
@@ -521,6 +1011,179 @@ void test_pipeline_not_fitted() {
 }
 
 // ===================================================================
+// BayesianRidge / ARDRegression Tests
+// ===================================================================
+
+static Eigen::MatrixXd make_linear_dataset(int n, int p,
+                                           const Eigen::VectorXd& true_w,
+                                           Eigen::VectorXd& y_out,
+                                           double noise_std = 0.05,
+                                           unsigned seed = 0) {
+    std::mt19937 rng(seed);
+    std::normal_distribution<double> nx(0.0, 1.0);
+    std::normal_distribution<double> nn(0.0, noise_std);
+    Eigen::MatrixXd X(n, p);
+    y_out.resize(n);
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < p; ++j) X(i, j) = nx(rng);
+        y_out(i) = X.row(i).dot(true_w) + nn(rng);
+    }
+    return X;
+}
+
+void test_bayesian_ridge_recovers_coefs() {
+    Eigen::VectorXd w(3);
+    w << 2.0, -1.0, 3.0;
+    Eigen::VectorXd y;
+    Eigen::MatrixXd X = make_linear_dataset(200, 3, w, y, 0.05, 1);
+
+    Skigen::BayesianRidge<double> br;
+    br.fit(X, y);
+    const auto& c = br.coef();
+    ASSERT_TRUE(c.size() == 3);
+    ASSERT_NEAR(c(0), 2.0, 0.1);
+    ASSERT_NEAR(c(1), -1.0, 0.1);
+    ASSERT_NEAR(c(2), 3.0, 0.1);
+    ASSERT_TRUE(br.alpha() > 0.0);
+    ASSERT_TRUE(br.lambda_() > 0.0);
+    ASSERT_TRUE(br.n_iter() >= 1);
+}
+
+void test_bayesian_ridge_predict_with_std() {
+    Eigen::VectorXd w(2);
+    w << 1.5, -2.0;
+    Eigen::VectorXd y;
+    Eigen::MatrixXd X = make_linear_dataset(100, 2, w, y, 0.1, 2);
+
+    Skigen::BayesianRidge<double> br;
+    br.fit(X, y);
+
+    Eigen::MatrixXd X_test = X.topRows(10);
+    auto [m, s] = br.predict(X_test, Skigen::with_std);
+    ASSERT_TRUE(m.size() == 10);
+    ASSERT_TRUE(s.size() == 10);
+    for (Eigen::Index i = 0; i < s.size(); ++i) {
+        ASSERT_TRUE(s(i) > 0.0);
+    }
+}
+
+void test_bayesian_ridge_compute_score() {
+    Eigen::VectorXd w(2);
+    w << 1.0, -1.0;
+    Eigen::VectorXd y;
+    Eigen::MatrixXd X = make_linear_dataset(80, 2, w, y, 0.1, 3);
+
+    Skigen::BayesianRidge<double> br(
+        300, 1e-3, 1e-6, 1e-6, 1e-6, 1e-6,
+        std::nullopt, std::nullopt, /*compute_score=*/true);
+    br.fit(X, y);
+    const auto& sc = br.scores();
+    ASSERT_TRUE(sc.size() >= 2);
+    // Final value should not be much smaller than the initial one.
+    ASSERT_TRUE(sc(sc.size() - 1) >= sc(0) - 1e-6);
+}
+
+void test_bayesian_ridge_not_fitted() {
+    Skigen::BayesianRidge<double> br;
+    Eigen::MatrixXd X(2, 2);
+    X << 1, 2, 3, 4;
+    ASSERT_THROW(br.predict(X), std::runtime_error);
+    ASSERT_THROW(br.coef(), std::runtime_error);
+    ASSERT_THROW(br.predict(X, Skigen::with_std), std::runtime_error);
+}
+
+void test_bayesian_ridge_feature_mismatch() {
+    Eigen::VectorXd w(3);
+    w << 1.0, 2.0, 3.0;
+    Eigen::VectorXd y;
+    Eigen::MatrixXd X = make_linear_dataset(50, 3, w, y, 0.1, 4);
+    Skigen::BayesianRidge<double> br;
+    br.fit(X, y);
+    Eigen::MatrixXd X_bad(5, 2);
+    X_bad.setRandom();
+    ASSERT_THROW(br.predict(X_bad), std::invalid_argument);
+}
+
+void test_ard_prunes_noise_features() {
+    // Only feature 0 carries signal; features 1..4 are independent noise.
+    constexpr int n = 200;
+    std::mt19937 rng(11);
+    std::normal_distribution<double> nx(0.0, 1.0);
+    std::normal_distribution<double> nn(0.0, 0.05);
+    Eigen::MatrixXd X(n, 5);
+    Eigen::VectorXd y(n);
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < 5; ++j) X(i, j) = nx(rng);
+        y(i) = 2.5 * X(i, 0) + nn(rng);
+    }
+
+    Skigen::ARDRegression<double> ard;
+    ard.fit(X, y);
+
+    const auto& c = ard.coef();
+    const auto& lam = ard.lambda_();
+    ASSERT_NEAR(c(0), 2.5, 0.1);
+    for (int j = 1; j < 5; ++j) {
+        ASSERT_TRUE(std::abs(c(j)) < 0.1);
+        ASSERT_TRUE(lam(j) > ard.threshold_lambda());
+    }
+}
+
+void test_ard_lambda_shape() {
+    Eigen::VectorXd w(4);
+    w << 1.0, -0.5, 2.0, 0.0;
+    Eigen::VectorXd y;
+    Eigen::MatrixXd X = make_linear_dataset(100, 4, w, y, 0.1, 5);
+    Skigen::ARDRegression<double> ard;
+    ard.fit(X, y);
+    ASSERT_TRUE(ard.lambda_().size() == 4);
+    ASSERT_TRUE(ard.coef().size() == 4);
+}
+
+void test_ard_predict_score_no_pruning() {
+    // All features informative → ARD should produce a usable predictor
+    // and behave similarly to BayesianRidge.
+    Eigen::VectorXd w(3);
+    w << 1.0, -1.0, 0.5;
+    Eigen::VectorXd y;
+    Eigen::MatrixXd X = make_linear_dataset(150, 3, w, y, 0.1, 6);
+
+    Skigen::ARDRegression<double> ard;
+    Skigen::BayesianRidge<double> br;
+    ard.fit(X, y);
+    br.fit(X, y);
+
+    double r2_ard = ard.score(X, y);
+    double r2_br = br.score(X, y);
+    ASSERT_TRUE(r2_ard > 0.9);
+    ASSERT_TRUE(r2_br > 0.9);
+    ASSERT_TRUE(std::abs(r2_ard - r2_br) < 0.05);
+
+    auto [m, s] = ard.predict(X.topRows(5), Skigen::with_std);
+    ASSERT_TRUE(m.size() == 5 && s.size() == 5);
+    for (Eigen::Index i = 0; i < s.size(); ++i) {
+        ASSERT_TRUE(s(i) > 0.0);
+    }
+}
+
+void test_ard_not_fitted_and_feature_mismatch() {
+    Skigen::ARDRegression<double> ard;
+    Eigen::MatrixXd X(3, 2);
+    X << 1, 2, 3, 4, 5, 6;
+    ASSERT_THROW(ard.predict(X), std::runtime_error);
+
+    Eigen::VectorXd w(2);
+    w << 1.0, -1.0;
+    Eigen::VectorXd y;
+    Eigen::MatrixXd Xtr = make_linear_dataset(40, 2, w, y, 0.1, 7);
+    ard.fit(Xtr, y);
+
+    Eigen::MatrixXd X_bad(3, 5);
+    X_bad.setRandom();
+    ASSERT_THROW(ard.predict(X_bad), std::invalid_argument);
+}
+
+// ===================================================================
 
 int main() {
     std::cout << "=== PolynomialFeatures Tests ===\n";
@@ -534,10 +1197,26 @@ int main() {
     run_test("lasso_sparsity", test_lasso_sparsity);
     run_test("lasso_predict", test_lasso_predict);
     run_test("lasso_score", test_lasso_score);
+    run_test("lasso_sparse_matches_dense_no_intercept",
+             test_lasso_sparse_matches_dense_no_intercept);
+    run_test("lasso_sparse_matches_dense_with_intercept",
+             test_lasso_sparse_matches_dense_with_intercept);
+    run_test("lasso_sparse_empty_throws",
+             test_lasso_sparse_empty_throws);
+    run_test("lasso_multi_target_recovers_two_outputs",
+             test_lasso_multi_target_recovers_two_outputs);
+    run_test("lasso_multi_target_single_target_API_consistent",
+             test_lasso_multi_target_single_target_API_consistent);
+    run_test("elastic_net_multi_target_recovers_two_outputs",
+             test_elastic_net_multi_target_recovers_two_outputs);
+    run_test("elastic_net_multi_target_l1_only_matches_lasso_per_target",
+             test_elastic_net_multi_target_l1_only_matches_lasso_per_target);
 
     std::cout << "\n=== ElasticNet Tests ===\n";
     run_test("elastic_net_basic", test_elastic_net_basic);
     run_test("elastic_net_score", test_elastic_net_score);
+    run_test("elastic_net_sparse_matches_dense",      test_elastic_net_sparse_matches_dense);
+    run_test("elastic_net_sparse_l1_only_matches_lasso", test_elastic_net_sparse_l1_only_matches_lasso);
 
     std::cout << "\n=== LogisticRegression Tests ===\n";
     run_test("logreg_binary", test_logreg_binary);
@@ -552,15 +1231,36 @@ int main() {
     std::cout << "\n=== SGDRegressor Tests ===\n";
     run_test("sgd_regressor_basic", test_sgd_regressor_basic);
     run_test("sgd_regressor_predict", test_sgd_regressor_predict);
+    run_test("sgd_classifier_partial_fit_converges",
+             test_sgd_classifier_partial_fit_converges);
+    run_test("sgd_classifier_partial_fit_first_call_requires_classes",
+             test_sgd_classifier_partial_fit_first_call_requires_classes);
+    run_test("sgd_classifier_partial_fit_feature_mismatch_throws",
+             test_sgd_classifier_partial_fit_feature_mismatch_throws);
+    run_test("sgd_regressor_partial_fit_converges",
+             test_sgd_regressor_partial_fit_converges);
+    run_test("sgd_regressor_partial_fit_feature_mismatch_throws",
+             test_sgd_regressor_partial_fit_feature_mismatch_throws);
 
     std::cout << "\n=== TruncatedSVD Tests ===\n";
     run_test("truncated_svd_basic", test_truncated_svd_basic);
     run_test("truncated_svd_transform", test_truncated_svd_transform);
     run_test("truncated_svd_variance_ratio", test_truncated_svd_variance_ratio);
+    run_test("truncated_svd_sparse_matches_dense",        test_truncated_svd_sparse_matches_dense);
+    run_test("truncated_svd_sparse_transform_shape",      test_truncated_svd_sparse_transform_shape);
+    run_test("truncated_svd_sparse_feature_count_check",  test_truncated_svd_sparse_feature_count_check);
 
     std::cout << "\n=== MiniBatchKMeans Tests ===\n";
     run_test("mini_batch_kmeans_basic", test_mini_batch_kmeans_basic);
     run_test("mini_batch_kmeans_predict", test_mini_batch_kmeans_predict);
+    run_test("mini_batch_kmeans_partial_fit_separates_clusters",
+             test_mini_batch_kmeans_partial_fit_separates_clusters);
+    run_test("mini_batch_kmeans_partial_fit_first_call_too_small_throws",
+             test_mini_batch_kmeans_partial_fit_first_call_too_small_throws);
+    run_test("mini_batch_kmeans_partial_fit_feature_mismatch_throws",
+             test_mini_batch_kmeans_partial_fit_feature_mismatch_throws);
+    run_test("mini_batch_kmeans_sparse_partial_fit_separates_clusters",
+             test_mini_batch_kmeans_sparse_partial_fit_separates_clusters);
 
     std::cout << "\n=== CrossValidation Tests ===\n";
     run_test("cross_val_score", test_cross_val_score);
@@ -569,6 +1269,19 @@ int main() {
     run_test("pipeline_basic", test_pipeline_basic);
     run_test("pipeline_score", test_pipeline_score);
     run_test("pipeline_not_fitted", test_pipeline_not_fitted);
+
+    std::cout << "\n=== BayesianRidge Tests ===\n";
+    run_test("bayesian_ridge_recovers_coefs", test_bayesian_ridge_recovers_coefs);
+    run_test("bayesian_ridge_predict_with_std", test_bayesian_ridge_predict_with_std);
+    run_test("bayesian_ridge_compute_score", test_bayesian_ridge_compute_score);
+    run_test("bayesian_ridge_not_fitted", test_bayesian_ridge_not_fitted);
+    run_test("bayesian_ridge_feature_mismatch", test_bayesian_ridge_feature_mismatch);
+
+    std::cout << "\n=== ARDRegression Tests ===\n";
+    run_test("ard_prunes_noise_features", test_ard_prunes_noise_features);
+    run_test("ard_lambda_shape", test_ard_lambda_shape);
+    run_test("ard_predict_score_no_pruning", test_ard_predict_score_no_pruning);
+    run_test("ard_not_fitted_and_feature_mismatch", test_ard_not_fitted_and_feature_mismatch);
 
     std::cout << "\n" << g_passed << " passed, " << g_failed << " failed.\n";
     return g_failed > 0 ? 1 : 0;

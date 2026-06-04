@@ -1,0 +1,311 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 The Skigen Contributors
+
+#ifndef SKIGEN_MANIFOLD_LOCALLY_LINEAR_EMBEDDING_H
+#define SKIGEN_MANIFOLD_LOCALLY_LINEAR_EMBEDDING_H
+
+#include "../Core/Base.h"
+#include "../Core/Validation.h"
+
+#include <Eigen/Core>
+#include <Eigen/Eigenvalues>
+#include <algorithm>
+#include <cmath>
+#include <numeric>
+#include <vector>
+
+namespace Skigen {
+
+/// @addtogroup Algo_Manifold
+/// @{
+
+/// @brief Locally Linear Embedding (LLE).
+///
+/// Nonlinear dimensionality reduction that preserves local neighborhood
+/// structure. Each point is reconstructed as a weighted linear combination
+/// of its K nearest neighbors; the embedding is then found by minimising
+/// the same reconstruction error in the low-dimensional space.
+///
+/// Mirrors
+/// [sklearn.manifold.LocallyLinearEmbedding](https://scikit-learn.org/stable/modules/generated/sklearn.manifold.LocallyLinearEmbedding.html).
+///
+/// ### Parameters (constructor)
+///
+/// | Parameter | Type | Default | Description |
+/// |-----------|------|---------|-------------|
+/// | `n_components` | `int` | `2` | Number of dimensions in the embedding. |
+/// | `n_neighbors` | `int` | `5` | Number of nearest neighbors per point. |
+/// | `reg` | `Scalar` | `1e-3` | Regularisation for the local covariance solve. |
+/// | `max_iter` | `int` | `100` | (Reserved) maximum iterations for eigen solver. |
+/// | `tol` | `Scalar` | `1e-6` | (Reserved) convergence tolerance. |
+///
+/// ### Attributes (after fitting)
+///
+/// | Accessor | Type | Description |
+/// |----------|------|-------------|
+/// | `embedding()` | `const MatrixType&` | Embedding vectors (n_samples x n_components). |
+/// | `reconstruction_error()` | `Scalar` | Sum of squared reconstruction residuals. |
+///
+/// ### Algorithm — standard method
+///
+/// 1. Find K nearest neighbors for each point (brute-force Euclidean).
+/// 2. Compute reconstruction weights W by solving the constrained
+///    least-squares problem for each point so that the sum of weights
+///    is one and only neighbors contribute.
+/// 3. Construct the alignment matrix M = (I - W)^T (I - W).
+/// 4. Eigendecompose M and take the bottom eigenvectors (excluding
+///    the trivial zero-eigenvalue eigenvector) as the embedding.
+///
+/// ### Limitations relative to scikit-learn
+///
+/// Only the standard LLE method is implemented. The following
+/// scikit-learn parameters are not supported: `method` (only
+/// `"standard"`), `eigen_solver`, `hessian_tol`, `modified_tol`,
+/// `neighbors_algorithm`, `n_jobs`.
+///
+/// ### Examples
+///
+/// @snippet locally_linear_embedding.cpp example_lle
+template <typename Scalar = double>
+class LocallyLinearEmbedding
+    : public Transformer<LocallyLinearEmbedding<Scalar>, Scalar> {
+public:
+    using Base = Transformer<LocallyLinearEmbedding<Scalar>, Scalar>;
+    using typename Base::MatrixType;
+    using typename Base::VectorType;
+    using typename Base::RowVectorType;
+    using typename Base::IndexType;
+
+    /// @brief Construct a Locally Linear Embedding estimator.
+    ///
+    /// @param n_components Number of embedding dimensions (default `2`).
+    /// @param n_neighbors Number of nearest neighbors (default `5`).
+    /// @param reg Regularisation added to the local covariance matrix
+    ///   (default `1e-3`).
+    /// @param max_iter Reserved for iterative eigen solvers (default `100`).
+    /// @param tol Convergence tolerance (default `1e-6`).
+    explicit LocallyLinearEmbedding(int n_components = 2,
+                                   int n_neighbors = 5,
+                                   Scalar reg = Scalar{1e-3},
+                                   int max_iter = 100,
+                                   Scalar tol = Scalar{1e-6})
+        : n_components_(n_components)
+        , n_neighbors_(n_neighbors)
+        , reg_(reg)
+        , max_iter_(max_iter)
+        , tol_(tol) {}
+
+    // -- Accessors ----------------------------------------------------------
+
+    /// @brief Embedding vectors of shape (n_samples, n_components).
+    /// @throws std::runtime_error if the model has not been fitted.
+    [[nodiscard]] const MatrixType& embedding() const {
+        this->check_is_fitted();
+        return embedding_;
+    }
+
+    /// @brief Sum of squared reconstruction residuals.
+    /// @throws std::runtime_error if the model has not been fitted.
+    [[nodiscard]] Scalar reconstruction_error() const {
+        this->check_is_fitted();
+        return reconstruction_error_;
+    }
+
+    SKIGEN_PARAMS(
+        (n_components, n_components_, int),
+        (n_neighbors,  n_neighbors_,  int),
+        (reg,          reg_,          double),
+        (max_iter,     max_iter_,     int),
+        (tol,          tol_,          double))
+
+    // -- Implementation (called by CRTP base) --------------------------------
+
+    /// @brief Fit the LLE model: compute an embedding of X.
+    ///
+    /// @param X Input data of shape (n_samples, n_features).
+    /// @return Reference to the fitted transformer (`*this`).
+    LocallyLinearEmbedding& fit_impl(
+        const Eigen::Ref<const MatrixType>& X) {
+        internal::check_non_empty(X);
+
+        this->n_features_in_ = X.cols();
+        const Eigen::Index n = X.rows();
+        const Eigen::Index K = static_cast<Eigen::Index>(n_neighbors_);
+
+        if (K >= n) {
+            throw std::invalid_argument(
+                "n_neighbors (" + std::to_string(n_neighbors_) +
+                ") must be less than n_samples (" +
+                std::to_string(n) + ").");
+        }
+        if (n_components_ > n - 1) {
+            throw std::invalid_argument(
+                "n_components (" + std::to_string(n_components_) +
+                ") must be less than n_samples (" +
+                std::to_string(n) + ").");
+        }
+
+        // --- Step 1: Pairwise distances and K nearest neighbors ---
+        MatrixType D = pairwise_squared_distances(X);
+        // neighbors(i, k) is the index of the k-th nearest neighbor of i.
+        Eigen::Matrix<Eigen::Index, Eigen::Dynamic, Eigen::Dynamic>
+            neighbors(n, K);
+        find_k_nearest(D, neighbors, n, K);
+
+        // --- Step 2: Compute reconstruction weights W ---
+        MatrixType W = MatrixType::Zero(n, n);
+        compute_reconstruction_weights(X, neighbors, W, n, K);
+
+        // --- Step 3-4: M = (I - W)^T (I - W), eigendecompose ---
+        MatrixType IW = MatrixType::Identity(n, n) - W;
+        MatrixType M = IW.transpose() * IW;
+
+        // Symmetrise M to guard against floating-point asymmetry.
+        M = (M + M.transpose()) / Scalar{2};
+
+        Eigen::SelfAdjointEigenSolver<MatrixType> eig(M);
+        if (eig.info() != Eigen::Success) {
+            throw std::runtime_error(
+                "LocallyLinearEmbedding: eigendecomposition failed.");
+        }
+
+        // Eigenvalues are sorted in ascending order by Eigen.
+        // Skip the first eigenvector (trivial, eigenvalue ~ 0) and
+        // take the next n_components eigenvectors.
+        embedding_ = eig.eigenvectors().block(
+            0, 1, n, static_cast<Eigen::Index>(n_components_));
+
+        // Reconstruction error: sum of the n_components smallest
+        // non-trivial eigenvalues.
+        reconstruction_error_ = Scalar{0};
+        for (int k = 1; k <= n_components_; ++k) {
+            reconstruction_error_ += eig.eigenvalues()(k);
+        }
+
+        this->fitted_ = true;
+        return *this;
+    }
+
+    /// @brief Return the stored embedding (same as fit result).
+    ///
+    /// Because standard LLE has no out-of-sample extension, `transform`
+    /// returns the embedding computed during `fit`. X is expected to
+    /// be the same data that was used for fitting.
+    ///
+    /// @param X Data matrix (must match the training data shape).
+    /// @return The embedding of shape (n_samples, n_components).
+    [[nodiscard]] MatrixType transform_impl(
+        const Eigen::Ref<const MatrixType>& X) const {
+        (void)X;
+        return embedding_;
+    }
+
+private:
+    int n_components_;
+    int n_neighbors_;
+    Scalar reg_;
+    int max_iter_;
+    Scalar tol_;
+
+    MatrixType embedding_;
+    Scalar reconstruction_error_ = Scalar{0};
+
+    // -- Helpers ------------------------------------------------------------
+
+    /// @brief Compute the n x n matrix of pairwise squared Euclidean distances.
+    static MatrixType pairwise_squared_distances(
+        const Eigen::Ref<const MatrixType>& X) {
+        const Eigen::Index n = X.rows();
+        VectorType sq_norms = X.rowwise().squaredNorm();
+        MatrixType D = sq_norms.replicate(1, n)
+                       + sq_norms.transpose().replicate(n, 1)
+                       - Scalar{2} * (X * X.transpose());
+        D = D.cwiseMax(Scalar{0});
+        return D;
+    }
+
+    /// @brief Find K nearest neighbors for each point using brute-force
+    ///   selection on the precomputed distance matrix.
+    static void find_k_nearest(
+        const MatrixType& D,
+        Eigen::Matrix<Eigen::Index, Eigen::Dynamic, Eigen::Dynamic>& neighbors,
+        Eigen::Index n, Eigen::Index K) {
+        // For each row, partial-sort indices by distance.
+        std::vector<Eigen::Index> indices(static_cast<std::size_t>(n));
+        for (Eigen::Index i = 0; i < n; ++i) {
+            std::iota(indices.begin(), indices.end(), Eigen::Index{0});
+            // Put the K+1 smallest-distance indices in front (includes self).
+            std::nth_element(
+                indices.begin(),
+                indices.begin() + K + 1,
+                indices.end(),
+                [&](Eigen::Index a, Eigen::Index b) {
+                    return D(i, a) < D(i, b);
+                });
+            // Sort the first K+1 so self (distance 0) comes first.
+            std::sort(indices.begin(), indices.begin() + K + 1,
+                      [&](Eigen::Index a, Eigen::Index b) {
+                          return D(i, a) < D(i, b);
+                      });
+            // Fill neighbors, skipping self.
+            Eigen::Index count = 0;
+            for (Eigen::Index j = 0; j <= K && count < K; ++j) {
+                if (indices[static_cast<std::size_t>(j)] != i) {
+                    neighbors(i, count++) =
+                        indices[static_cast<std::size_t>(j)];
+                }
+            }
+        }
+    }
+
+    /// @brief Compute reconstruction weights for each point from its
+    ///   K nearest neighbors.
+    ///
+    /// Solves the constrained least-squares problem
+    ///   min ||x_i - sum_j w_j x_{nb_j}||^2  s.t. sum_j w_j = 1
+    /// via the local covariance matrix with Tikhonov regularisation.
+    void compute_reconstruction_weights(
+        const Eigen::Ref<const MatrixType>& X,
+        const Eigen::Matrix<Eigen::Index, Eigen::Dynamic, Eigen::Dynamic>&
+            neighbors,
+        MatrixType& W,
+        Eigen::Index n,
+        Eigen::Index K) const {
+        VectorType ones = VectorType::Ones(K);
+
+        for (Eigen::Index i = 0; i < n; ++i) {
+            // Z(k, d) = x_{nb_k} - x_i for each neighbor k.
+            MatrixType Z(K, X.cols());
+            for (Eigen::Index k = 0; k < K; ++k) {
+                Z.row(k) = X.row(neighbors(i, k)) - X.row(i);
+            }
+
+            // Local covariance C = Z Z^T (K x K).
+            MatrixType C = Z * Z.transpose();
+
+            // Regularise: C += reg * trace(C) / K * I.
+            Scalar trace_C = C.trace();
+            C += reg_ * (trace_C / static_cast<Scalar>(K)) *
+                 MatrixType::Identity(K, K);
+
+            // Solve C w = 1, then normalise so sum(w) = 1.
+            VectorType w = C.ldlt().solve(ones);
+            Scalar w_sum = w.sum();
+            if (std::abs(w_sum) < Scalar{1e-30}) {
+                w.setConstant(Scalar{1} / static_cast<Scalar>(K));
+            } else {
+                w /= w_sum;
+            }
+
+            for (Eigen::Index k = 0; k < K; ++k) {
+                W(i, neighbors(i, k)) = w(k);
+            }
+        }
+    }
+};
+
+/// @}
+
+} // namespace Skigen
+
+#endif // SKIGEN_MANIFOLD_LOCALLY_LINEAR_EMBEDDING_H

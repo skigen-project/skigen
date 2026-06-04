@@ -15,3 +15,11 @@ target_compile_options(bench_preprocessing PRIVATE ${SKIGEN_WARNING_FLAGS})
 add_executable(bench_float_vs_double bench_float_vs_double.cpp)
 target_link_libraries(bench_float_vs_double PRIVATE Skigen::Skigen)
 target_compile_options(bench_float_vs_double PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_executable(bench_ensembles bench_ensembles.cpp)
+target_link_libraries(bench_ensembles PRIVATE Skigen::Skigen)
+target_compile_options(bench_ensembles PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_executable(bench_mlp bench_mlp.cpp)
+target_link_libraries(bench_mlp PRIVATE Skigen::Skigen)
+target_compile_options(bench_mlp PRIVATE ${SKIGEN_WARNING_FLAGS})

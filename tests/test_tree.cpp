@@ -166,6 +166,134 @@ void test_dtr_not_fitted() {
     ASSERT_THROW(dt.predict(X), std::runtime_error);
 }
 
+void test_dtr_multi_target_recovers_two_outputs() {
+    // Two simple step-function targets; per-target trees should recover
+    // each one exactly given enough samples per leaf.
+    constexpr int n = 30;
+    Eigen::MatrixXd X(n, 1);
+    Eigen::MatrixXd Y(n, 2);
+    for (int i = 0; i < n; ++i) {
+        X(i, 0) = static_cast<double>(i);
+        // Target 0: piecewise constant in two halves.
+        Y(i, 0) = (i < n / 2) ? 1.0 : 5.0;
+        // Target 1: piecewise constant in three thirds.
+        if      (i < n / 3)        Y(i, 1) = -2.0;
+        else if (i < 2 * n / 3)    Y(i, 1) =  3.0;
+        else                       Y(i, 1) =  7.0;
+    }
+
+    Skigen::DecisionTreeRegressor<double> dt(/*max_depth=*/-1, 2,
+                                             0, 0.0,
+                                             std::optional<uint64_t>(7));
+    dt.fit_multi(X, Y);
+
+    ASSERT_TRUE(dt.n_targets() == 2);
+    Eigen::MatrixXd Yp = dt.predict_multi(X);
+    ASSERT_TRUE(Yp.rows() == n);
+    ASSERT_TRUE(Yp.cols() == 2);
+    for (int i = 0; i < n; ++i) {
+        ASSERT_NEAR(Yp(i, 0), Y(i, 0), 1e-9);
+        ASSERT_NEAR(Yp(i, 1), Y(i, 1), 1e-9);
+    }
+}
+
+void test_dtr_single_target_API_after_fit_multi_consistent() {
+    Eigen::MatrixXd X(8, 1);
+    Eigen::MatrixXd Y(8, 2);
+    for (int i = 0; i < 8; ++i) {
+        X(i, 0) = i;
+        Y(i, 0) = i * 2.0;
+        Y(i, 1) = -3.0 * i;
+    }
+    Skigen::DecisionTreeRegressor<double> dt(-1, 2, 0, 0.0,
+                                             std::optional<uint64_t>(0));
+    dt.fit_multi(X, Y);
+
+    // Single-target predict() should match the first target column of
+    // predict_multi().
+    Eigen::VectorXd v = dt.predict(X);
+    Eigen::MatrixXd m = dt.predict_multi(X);
+    ASSERT_TRUE(v.size() == m.rows());
+    for (int i = 0; i < v.size(); ++i) {
+        ASSERT_NEAR(v(i), m(i, 0), 1e-12);
+    }
+}
+
+void test_dtr_predict_multi_after_single_target_fit() {
+    Eigen::MatrixXd X(4, 1); X << 0, 1, 2, 3;
+    Eigen::VectorXd y(4); y << 0.0, 2.0, 4.0, 6.0;
+    Skigen::DecisionTreeRegressor<double> dt;
+    dt.fit(X, y);
+    ASSERT_TRUE(dt.n_targets() == 1);
+    Eigen::MatrixXd m = dt.predict_multi(X);
+    ASSERT_TRUE(m.rows() == 4);
+    ASSERT_TRUE(m.cols() == 1);
+    Eigen::VectorXd v = dt.predict(X);
+    for (int i = 0; i < 4; ++i) ASSERT_NEAR(m(i, 0), v(i), 1e-12);
+}
+
+void test_dtr_multi_target_dim_mismatch_throws() {
+    Eigen::MatrixXd X(4, 1); X << 0, 1, 2, 3;
+    Eigen::MatrixXd Y(5, 2); Y.setOnes();
+    Skigen::DecisionTreeRegressor<double> dt;
+    ASSERT_THROW(dt.fit_multi(X, Y), std::invalid_argument);
+}
+
+// -- Sparse fit overloads (densify-and-fit) -----------------------------
+
+void test_dtc_sparse_fit_predict_matches_dense() {
+    Eigen::MatrixXd Xd(8, 2);
+    Xd << 0, 0,  0, 1,  1, 0,  1, 1,
+          0, 5,  0, 6,  1, 5,  1, 6;
+    Eigen::VectorXi y(8); y << 0, 0, 0, 0, 1, 1, 1, 1;
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+
+    Skigen::DecisionTreeClassifier<double> dt_d, dt_s;
+    dt_d.fit(Xd, y);
+    dt_s.fit(Xs, y);
+
+    auto pd = dt_d.predict(Xd);
+    auto ps = dt_s.predict(Xs);
+    for (int i = 0; i < 8; ++i) ASSERT_TRUE(pd(i) == ps(i));
+}
+
+void test_dtr_sparse_fit_predict_matches_dense() {
+    Eigen::MatrixXd Xd(10, 1);
+    for (int i = 0; i < 10; ++i) Xd(i, 0) = i;
+    Eigen::VectorXd y(10);
+    y << 1, 1, 1, 1, 1, 5, 5, 5, 5, 5;
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+
+    Skigen::DecisionTreeRegressor<double> dt_d, dt_s;
+    dt_d.fit(Xd, y);
+    dt_s.fit(Xs, y);
+
+    auto pd = dt_d.predict(Xd);
+    auto ps = dt_s.predict(Xs);
+    for (int i = 0; i < 10; ++i) ASSERT_NEAR(pd(i), ps(i), 1e-12);
+}
+
+void test_dt_sparse_feature_count_check() {
+    Eigen::MatrixXd Xd(4, 2); Xd << 0, 0, 1, 1, 0, 1, 1, 0;
+    Eigen::VectorXi y(4); y << 0, 1, 0, 1;
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+
+    Skigen::DecisionTreeClassifier<double> dt;
+    dt.fit(Xs, y);
+
+    Eigen::SparseMatrix<double> Xbad(2, 3);
+    Xbad.insert(0, 0) = 1.0;
+    Xbad.makeCompressed();
+    ASSERT_THROW(dt.predict(Xbad), std::invalid_argument);
+}
+
+void test_dt_sparse_empty_throws() {
+    Eigen::SparseMatrix<double> X(0, 0);
+    Eigen::VectorXi y(0);
+    Skigen::DecisionTreeClassifier<double> dt;
+    ASSERT_THROW(dt.fit(X, y), std::invalid_argument);
+}
+
 // ===================================================================
 
 int main() {
@@ -179,6 +307,22 @@ int main() {
     run_test("dtr_basic", test_dtr_basic);
     run_test("dtr_score", test_dtr_score);
     run_test("dtr_not_fitted", test_dtr_not_fitted);
+    run_test("dtr_multi_target_recovers_two_outputs",
+             test_dtr_multi_target_recovers_two_outputs);
+    run_test("dtr_single_target_API_after_fit_multi_consistent",
+             test_dtr_single_target_API_after_fit_multi_consistent);
+    run_test("dtr_predict_multi_after_single_target_fit",
+             test_dtr_predict_multi_after_single_target_fit);
+    run_test("dtr_multi_target_dim_mismatch_throws",
+             test_dtr_multi_target_dim_mismatch_throws);
+    run_test("dtc_sparse_fit_predict_matches_dense",
+             test_dtc_sparse_fit_predict_matches_dense);
+    run_test("dtr_sparse_fit_predict_matches_dense",
+             test_dtr_sparse_fit_predict_matches_dense);
+    run_test("dt_sparse_feature_count_check",
+             test_dt_sparse_feature_count_check);
+    run_test("dt_sparse_empty_throws",
+             test_dt_sparse_empty_throws);
 
     std::cout << "\n" << g_passed << " passed, " << g_failed << " failed.\n";
     return g_failed > 0 ? 1 : 0;

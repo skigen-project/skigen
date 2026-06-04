@@ -70,6 +70,62 @@
       "sidebar_label": "Skigen::Covariance",
       "test": "tests/test_covariance.cpp",
       "benchmark": null
+    },
+    "NaiveBayes": {
+      "include": "Skigen/NaiveBayes",
+      "dir_slug": "naive-bayes",
+      "sidebar_label": "Skigen::NaiveBayes",
+      "test": "tests/test_naive_bayes.cpp",
+      "benchmark": null
+    },
+    "FeatureSelection": {
+      "include": "Skigen/FeatureSelection",
+      "dir_slug": "feature-selection",
+      "sidebar_label": "Skigen::FeatureSelection",
+      "test": "tests/test_feature_selection.cpp",
+      "benchmark": null
+    },
+    "Isotonic": {
+      "include": "Skigen/Isotonic",
+      "dir_slug": "isotonic",
+      "sidebar_label": "Skigen::Isotonic",
+      "test": "tests/test_isotonic.cpp",
+      "benchmark": null
+    },
+    "Calibration": {
+      "include": "Skigen/Calibration",
+      "dir_slug": "calibration",
+      "sidebar_label": "Skigen::Calibration",
+      "test": "tests/test_calibration.cpp",
+      "benchmark": null
+    },
+    "Ensemble": {
+      "include": "Skigen/Ensemble",
+      "dir_slug": "ensemble",
+      "sidebar_label": "Skigen::Ensemble",
+      "test": "tests/test_ensemble.cpp",
+      "benchmark": "benchmarks/bench_ensembles.cpp"
+    },
+    "SVM": {
+      "include": "Skigen/SVM",
+      "dir_slug": "svm",
+      "sidebar_label": "Skigen::SVM",
+      "test": "tests/test_svm.cpp",
+      "benchmark": null
+    },
+    "NeuralNetwork": {
+      "include": "Skigen/NeuralNetwork",
+      "dir_slug": "neural-network",
+      "sidebar_label": "Skigen::NeuralNetwork",
+      "test": "tests/test_neural_network.cpp",
+      "benchmark": "benchmarks/bench_mlp.cpp"
+    },
+    "Manifold": {
+      "include": "Skigen/Manifold",
+      "dir_slug": "manifold",
+      "sidebar_label": "Skigen::Manifold",
+      "test": "tests/test_manifold.cpp",
+      "benchmark": null
     }
   },
   "classes": [
@@ -380,6 +436,323 @@
       "example": "examples/neighbors/local_outlier_factor.cpp",
       "example_snippet": "example_lof",
       "sidebar_position": 3
+    },
+    {
+      "name": "BayesianRidge",
+      "module": "LinearModel",
+      "documented": false,
+      "sklearn": "sklearn.linear_model.BayesianRidge",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.BayesianRidge.html",
+      "example": "examples/linear_model/bayesian_ridge.cpp",
+      "sidebar_position": 8
+    },
+    {
+      "name": "ARDRegression",
+      "module": "LinearModel",
+      "documented": false,
+      "sklearn": "sklearn.linear_model.ARDRegression",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.ARDRegression.html",
+      "example": "examples/linear_model/ard_regression.cpp",
+      "sidebar_position": 9
+    },
+    {
+      "name": "GaussianNB",
+      "module": "NaiveBayes",
+      "documented": false,
+      "sklearn": "sklearn.naive_bayes.GaussianNB",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.GaussianNB.html",
+      "example": "examples/naive_bayes/gaussian_nb.cpp",
+      "sidebar_position": 1
+    },
+    {
+      "name": "MultinomialNB",
+      "module": "NaiveBayes",
+      "documented": false,
+      "sklearn": "sklearn.naive_bayes.MultinomialNB",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.MultinomialNB.html",
+      "example": "examples/naive_bayes/multinomial_nb.cpp",
+      "sidebar_position": 2
+    },
+    {
+      "name": "BernoulliNB",
+      "module": "NaiveBayes",
+      "documented": false,
+      "sklearn": "sklearn.naive_bayes.BernoulliNB",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.BernoulliNB.html",
+      "example": "examples/naive_bayes/bernoulli_nb.cpp",
+      "sidebar_position": 3
+    },
+    {
+      "name": "VarianceThreshold",
+      "module": "FeatureSelection",
+      "documented": false,
+      "sklearn": "sklearn.feature_selection.VarianceThreshold",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.feature_selection.VarianceThreshold.html",
+      "example": "examples/feature_selection/variance_threshold.cpp",
+      "sidebar_position": 1
+    },
+    {
+      "name": "SelectKBest",
+      "module": "FeatureSelection",
+      "documented": false,
+      "sklearn": "sklearn.feature_selection.SelectKBest",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.feature_selection.SelectKBest.html",
+      "example": "examples/feature_selection/select_k_best.cpp",
+      "sidebar_position": 2
+    },
+    {
+      "name": "SelectFromModel",
+      "module": "FeatureSelection",
+      "documented": false,
+      "sklearn": "sklearn.feature_selection.SelectFromModel",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.feature_selection.SelectFromModel.html",
+      "example": "examples/feature_selection/select_from_model.cpp",
+      "sidebar_position": 3
+    },
+    {
+      "name": "RFE",
+      "module": "FeatureSelection",
+      "documented": false,
+      "sklearn": "sklearn.feature_selection.RFE",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.feature_selection.RFE.html",
+      "example": "examples/feature_selection/rfe.cpp",
+      "sidebar_position": 4
+    },
+    {
+      "name": "IsotonicRegression",
+      "module": "Isotonic",
+      "documented": false,
+      "sklearn": "sklearn.isotonic.IsotonicRegression",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.isotonic.IsotonicRegression.html",
+      "example": "examples/isotonic/isotonic_regression.cpp",
+      "sidebar_position": 1
+    },
+    {
+      "name": "CalibratedClassifierCV",
+      "module": "Calibration",
+      "documented": false,
+      "sklearn": "sklearn.calibration.CalibratedClassifierCV",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.calibration.CalibratedClassifierCV.html",
+      "example": "examples/calibration/calibrated_classifier_cv.cpp",
+      "sidebar_position": 1
+    },
+    {
+      "name": "RandomForestClassifier",
+      "module": "Ensemble",
+      "documented": false,
+      "sklearn": "sklearn.ensemble.RandomForestClassifier",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html",
+      "example": "examples/ensemble/random_forest_classifier.cpp",
+      "sidebar_position": 1
+    },
+    {
+      "name": "RandomForestRegressor",
+      "module": "Ensemble",
+      "documented": false,
+      "sklearn": "sklearn.ensemble.RandomForestRegressor",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestRegressor.html",
+      "example": "examples/ensemble/random_forest_regressor.cpp",
+      "sidebar_position": 2
+    },
+    {
+      "name": "GradientBoostingRegressor",
+      "module": "Ensemble",
+      "documented": false,
+      "sklearn": "sklearn.ensemble.GradientBoostingRegressor",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.GradientBoostingRegressor.html",
+      "example": "examples/ensemble/gradient_boosting_regressor.cpp",
+      "sidebar_position": 3
+    },
+    {
+      "name": "GradientBoostingClassifier",
+      "module": "Ensemble",
+      "documented": false,
+      "sklearn": "sklearn.ensemble.GradientBoostingClassifier",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.GradientBoostingClassifier.html",
+      "example": "examples/ensemble/gradient_boosting_classifier.cpp",
+      "sidebar_position": 4
+    },
+    {
+      "name": "HistGradientBoostingRegressor",
+      "module": "Ensemble",
+      "documented": false,
+      "sklearn": "sklearn.ensemble.HistGradientBoostingRegressor",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.HistGradientBoostingRegressor.html",
+      "example": "examples/ensemble/hist_gradient_boosting_regressor.cpp",
+      "sidebar_position": 5
+    },
+    {
+      "name": "HistGradientBoostingClassifier",
+      "module": "Ensemble",
+      "documented": false,
+      "sklearn": "sklearn.ensemble.HistGradientBoostingClassifier",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.HistGradientBoostingClassifier.html",
+      "example": "examples/ensemble/hist_gradient_boosting_classifier.cpp",
+      "sidebar_position": 6
+    },
+    {
+      "name": "LinearSVC",
+      "module": "SVM",
+      "documented": false,
+      "sklearn": "sklearn.svm.LinearSVC",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.svm.LinearSVC.html",
+      "example": "examples/svm/linear_svc.cpp",
+      "sidebar_position": 1
+    },
+    {
+      "name": "LinearSVR",
+      "module": "SVM",
+      "documented": false,
+      "sklearn": "sklearn.svm.LinearSVR",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.svm.LinearSVR.html",
+      "sidebar_position": 2
+    },
+    {
+      "name": "SVC",
+      "module": "SVM",
+      "documented": false,
+      "sklearn": "sklearn.svm.SVC",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.svm.SVC.html",
+      "example": "examples/svm/svc.cpp",
+      "sidebar_position": 3
+    },
+    {
+      "name": "SVR",
+      "module": "SVM",
+      "documented": false,
+      "sklearn": "sklearn.svm.SVR",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.svm.SVR.html",
+      "sidebar_position": 4
+    },
+    {
+      "name": "NuSVC",
+      "module": "SVM",
+      "documented": false,
+      "sklearn": "sklearn.svm.NuSVC",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.svm.NuSVC.html",
+      "sidebar_position": 5
+    },
+    {
+      "name": "NuSVR",
+      "module": "SVM",
+      "documented": false,
+      "sklearn": "sklearn.svm.NuSVR",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.svm.NuSVR.html",
+      "sidebar_position": 6
+    },
+    {
+      "name": "OneClassSVM",
+      "module": "SVM",
+      "documented": false,
+      "sklearn": "sklearn.svm.OneClassSVM",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.svm.OneClassSVM.html",
+      "sidebar_position": 7
+    },
+    {
+      "name": "MLPRegressor",
+      "module": "NeuralNetwork",
+      "documented": false,
+      "sklearn": "sklearn.neural_network.MLPRegressor",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPRegressor.html",
+      "example": "examples/neural_network/mlp_regressor.cpp",
+      "sidebar_position": 1
+    },
+    {
+      "name": "MLPClassifier",
+      "module": "NeuralNetwork",
+      "documented": false,
+      "sklearn": "sklearn.neural_network.MLPClassifier",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPClassifier.html",
+      "example": "examples/neural_network/mlp_classifier.cpp",
+      "sidebar_position": 2
+    },
+    {
+      "name": "TrainTestSplit",
+      "module": "ModelSelection",
+      "documented": false,
+      "sklearn": "sklearn.model_selection.train_test_split",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.train_test_split.html",
+      "sidebar_position": 1
+    },
+    {
+      "name": "CrossValidation",
+      "module": "ModelSelection",
+      "documented": false,
+      "sklearn": "sklearn.model_selection.cross_val_score",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.cross_val_score.html",
+      "sidebar_position": 2
+    },
+    {
+      "name": "ParameterGrid",
+      "module": "ModelSelection",
+      "documented": false,
+      "sklearn": "sklearn.model_selection.ParameterGrid",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.ParameterGrid.html",
+      "sidebar_position": 3
+    },
+    {
+      "name": "GridSearchCV",
+      "module": "ModelSelection",
+      "documented": false,
+      "sklearn": "sklearn.model_selection.GridSearchCV",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.GridSearchCV.html",
+      "sidebar_position": 4
+    },
+    {
+      "name": "RandomizedSearchCV",
+      "module": "ModelSelection",
+      "documented": false,
+      "sklearn": "sklearn.model_selection.RandomizedSearchCV",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.RandomizedSearchCV.html",
+      "sidebar_position": 5
+    },
+    {
+      "name": "MDS",
+      "module": "Manifold",
+      "documented": false,
+      "sklearn": "sklearn.manifold.MDS",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.manifold.MDS.html",
+      "sidebar_position": 1
+    },
+    {
+      "name": "Isomap",
+      "module": "Manifold",
+      "documented": false,
+      "sklearn": "sklearn.manifold.Isomap",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.manifold.Isomap.html",
+      "sidebar_position": 2
+    },
+    {
+      "name": "TSNE",
+      "module": "Manifold",
+      "documented": false,
+      "sklearn": "sklearn.manifold.TSNE",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.manifold.TSNE.html",
+      "sidebar_position": 3
+    },
+    {
+      "name": "LocallyLinearEmbedding",
+      "module": "Manifold",
+      "documented": false,
+      "sklearn": "sklearn.manifold.LocallyLinearEmbedding",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.manifold.LocallyLinearEmbedding.html",
+      "sidebar_position": 4
+    },
+    {
+      "name": "SpectralEmbedding",
+      "module": "Manifold",
+      "documented": false,
+      "sklearn": "sklearn.manifold.SpectralEmbedding",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.manifold.SpectralEmbedding.html",
+      "sidebar_position": 5
+    },
+    {
+      "name": "UMAP",
+      "module": "Manifold",
+      "documented": false,
+      "sklearn": "umap.UMAP",
+      "sklearn_url": "https://umap-learn.readthedocs.io/en/latest/",
+      "sidebar_position": 6
     }
   ]
 }

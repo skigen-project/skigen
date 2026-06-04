@@ -9,6 +9,7 @@
 
 #include <Eigen/Core>
 #include <Eigen/SVD>
+#include <Eigen/SparseCore>
 #include <algorithm>
 #include <cmath>
 
@@ -50,11 +51,13 @@ namespace Skigen {
 ///
 /// - Skigen::TruncatedSVD — SVD without centering (suitable for sparse data).
 ///
-/// @note **scikit-learn parity gaps:** The following sklearn constructor
-///   parameters are not yet supported: `copy`, `whiten`, `svd_solver`
+/// ### Limitations relative to scikit-learn
+///
+/// The following scikit-learn constructor
+///   parameters are not honoured: `copy`, `whiten`, `svd_solver`
 ///   (only full SVD via JacobiSVD), `tol`, `iterated_power`, `n_oversamples`,
 ///   `power_iteration_normalizer`, `random_state`.
-///   The following sklearn fitted attributes are not yet exposed:
+///   The following sklearn fitted attributes are not exposed:
 ///   `noise_variance_`, `n_samples_`, `n_features_in_`, `feature_names_in_`.
 ///
 /// ### Examples
@@ -69,6 +72,7 @@ public:
     using typename Base::VectorType;
     using typename Base::RowVectorType;
     using typename Base::IndexType;
+    using Base::fit;
 
     /// @brief Construct a PCA estimator.
     ///
@@ -106,6 +110,8 @@ public:
     [[nodiscard]] const RowVectorType& mean() const {
         this->check_is_fitted(); return mean_;
     }
+
+    SKIGEN_PARAMS((n_components, n_components_, int))
 
     // -- Implementation (called by CRTP base) --------------------------------
 
@@ -154,6 +160,15 @@ public:
 
         this->fitted_ = true;
         return *this;
+    }
+
+    /// @brief Fit from a sparse design matrix (densifies internally).
+    template <int Options, typename StorageIndex>
+    PCA& fit(const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X) {
+        if (X.rows() == 0 || X.cols() == 0)
+            throw std::invalid_argument("PCA.fit: empty sparse matrix.");
+        MatrixType Xd = MatrixType(X);
+        return fit_impl(Xd);
     }
 
     /// @brief Apply dimensionality reduction to X.

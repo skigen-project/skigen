@@ -57,10 +57,12 @@ namespace Skigen {
 /// - Skigen::RobustScaler — Scale using statistics robust to outliers.
 /// - Skigen::MaxAbsScaler — Scale each feature by its maximum absolute value.
 ///
-/// @note **scikit-learn parity gaps:** The following sklearn constructor
-///   parameters are not yet supported: `copy`.
-///   `partial_fit()` is not yet implemented.
-///   The following sklearn fitted attributes are not yet exposed:
+/// ### Limitations relative to scikit-learn
+///
+/// The following scikit-learn constructor
+///   parameters are not honoured: `copy`.
+///   `partial_fit()` is supported via Chan's online algorithm (sklearn parity).
+///   The following sklearn fitted attributes are not exposed:
 ///   `n_features_in_`, `feature_names_in_`.
 ///
 /// ### Examples
@@ -121,6 +123,10 @@ public:
         return n_samples_seen_;
     }
 
+    // -- Parameter reflection ---------------------------------------------------
+
+    SKIGEN_PARAMS((with_mean, with_mean_, bool), (with_std, with_std_, bool))
+
     // -- Implementation (called by CRTP base) --------------------------------
 
     /// @brief Compute the mean and std to be used for later scaling.
@@ -145,12 +151,72 @@ public:
             scale_ = RowVectorType::Ones(X.cols());
         }
 
-        if (!with_mean_) {
-            // Keep computed mean for variance, but zero it for transform
-            mean_.setZero();
+        // Track sum of squared deviations so partial_fit can extend the
+        // statistics using a Welford / Chan combined update without losing
+        // numerical precision.
+        if (with_std_) {
+            M2_ = var_ * static_cast<Scalar>(X.rows());
+        } else {
+            M2_ = RowVectorType::Zero(X.cols());
         }
 
+        // mean_ stores the true sample mean even when `with_mean_=false`,
+        // matching sklearn's StandardScaler.mean_ attribute. transform()
+        // branches on `with_mean_` to decide whether to subtract it.
         this->fitted_ = true;
+        return *this;
+    }
+
+    /// @brief Online update of the mean and variance using Chan's parallel
+    ///   algorithm (a numerically-stable Welford variant).
+    ///
+    /// `partial_fit(X1).partial_fit(X2)` produces the same fitted attributes
+    /// (within floating-point tolerance) as `fit([X1; X2])`, matching
+    /// sklearn's `StandardScaler.partial_fit` contract.
+    ///
+    /// @param X Batch of training data, shape (n_samples_batch, n_features).
+    ///   The feature count must match the first batch.
+    /// @return Reference to the fitted transformer (`*this`).
+    /// @throws std::invalid_argument if the feature count differs from the
+    ///   first batch, or if X is empty.
+    StandardScaler& partial_fit(const Eigen::Ref<const MatrixType>& X) {
+        internal::check_non_empty(X);
+
+        if (!this->fitted_) {
+            return fit_impl(X);
+        }
+
+        if (X.cols() != this->n_features_in_) {
+            throw std::invalid_argument(
+                "X has " + std::to_string(X.cols()) + " features, but "
+                "partial_fit was previously called with " +
+                std::to_string(this->n_features_in_) + " features.");
+        }
+
+        const Scalar n_old = static_cast<Scalar>(n_samples_seen_);
+        const Scalar n_batch = static_cast<Scalar>(X.rows());
+        const Scalar n_new = n_old + n_batch;
+
+        const RowVectorType batch_mean = X.colwise().mean();
+        const RowVectorType delta = batch_mean - mean_;
+
+        // mean_new = mean_old + delta * (n_batch / n_new) — Chan's update
+        mean_ = (mean_.array() +
+                 delta.array() * (n_batch / n_new)).matrix();
+
+        if (with_std_) {
+            const RowVectorType batch_var =
+                internal::colwise_variance<Scalar>(X, batch_mean);
+            const RowVectorType batch_M2 = batch_var * n_batch;
+            const Scalar mix = n_old * n_batch / n_new;
+            M2_ = (M2_.array() + batch_M2.array() +
+                   delta.array().square() * mix).matrix();
+            var_ = M2_ / n_new;
+            scale_ = var_.array().sqrt();
+            internal::handle_zeros_in_scale(scale_);
+        }
+
+        n_samples_seen_ = static_cast<IndexType>(n_new);
         return *this;
     }
 
@@ -228,6 +294,7 @@ private:
     RowVectorType mean_;
     RowVectorType var_;
     RowVectorType scale_;
+    RowVectorType M2_;          ///< Running sum of squared deviations for partial_fit.
     IndexType n_samples_seen_ = 0;
 };
 

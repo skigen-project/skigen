@@ -92,8 +92,10 @@ Eigen::MatrixXi kneighbors_indices(
 /// @f$O(n \cdot m)@f$ per query where @f$n@f$ is the number of
 /// training samples and @f$m@f$ is the number of features.
 ///
-/// @note **scikit-learn parity gaps:** The following sklearn constructor
-///   parameters are not yet supported: `weights`, `algorithm`
+/// ### Limitations relative to scikit-learn
+///
+/// The following scikit-learn constructor
+///   parameters are not honoured: `weights`, `algorithm`
 ///   (only brute-force), `leaf_size`, `p`, `metric`, `metric_params`,
 ///   `n_jobs`.
 ///
@@ -121,6 +123,8 @@ public:
 
     /// @brief Number of neighbors.
     [[nodiscard]] int n_neighbors() const noexcept { return n_neighbors_; }
+
+    SKIGEN_PARAMS((n_neighbors, n_neighbors_, int))
 
     // -- Implementation (called by CRTP base) --------------------------------
 
@@ -201,9 +205,9 @@ private:
 /// | `is_fitted()` | `bool` | Whether the estimator has been fitted. |
 /// | `n_features_in()` | `IndexType` | Number of features seen during fit. |
 ///
-/// @note **scikit-learn parity gaps:** Same as KNeighborsClassifier —
+/// ### Limitations relative to scikit-learn Same as KNeighborsClassifier —
 ///   `weights`, `algorithm`, `leaf_size`, `p`, `metric`, etc.
-///   are not yet supported.
+///   are not honoured.
 ///
 /// ### Examples
 ///
@@ -229,6 +233,8 @@ public:
     /// @brief Number of neighbors.
     [[nodiscard]] int n_neighbors() const noexcept { return n_neighbors_; }
 
+    SKIGEN_PARAMS((n_neighbors, n_neighbors_, int))
+
     // -- Implementation (called by CRTP base) --------------------------------
 
     /// @brief Fit the k-nearest neighbors regressor from the training set.
@@ -246,6 +252,10 @@ public:
 
         X_train_ = X;
         y_train_ = y;
+        // Invalidate any prior multi-target state.
+        Y_train_.resize(0, 0);
+        y_train_matrix_view_.resize(0, 0);
+        n_targets_ = 1;
         this->n_features_in_ = X.cols();
         this->fitted_ = true;
         return *this;
@@ -279,10 +289,88 @@ public:
         return Scalar{1} - ss_res / ss_tot;
     }
 
+    // -- Multi-target regression ------------------------------
+
+    /// @brief Fit on multi-target Y (shape n × n_targets).
+    ///
+    /// Stores X and Y; prediction averages neighbour rows of `Y_train_`
+    /// per target. Single-target API is unchanged — `predict()` keeps
+    /// returning a 1-D vector reflecting the first target column when
+    /// `fit_multi` was used.
+    KNeighborsRegressor& fit_multi(
+        const Eigen::Ref<const MatrixType>& X,
+        const Eigen::Ref<const MatrixType>& Y) {
+        internal::check_non_empty(X);
+        if (X.rows() != Y.rows()) {
+            throw std::invalid_argument(
+                "fit_multi: X has " + std::to_string(X.rows()) +
+                " rows but Y has " + std::to_string(Y.rows()) + ".");
+        }
+        if (Y.cols() < 1) {
+            throw std::invalid_argument(
+                "fit_multi: Y must have at least 1 target column.");
+        }
+        if (X.rows() < n_neighbors_) {
+            throw std::invalid_argument(
+                "n_samples (" + std::to_string(X.rows()) +
+                ") must be >= n_neighbors (" +
+                std::to_string(n_neighbors_) + ").");
+        }
+        X_train_ = X;
+        Y_train_ = Y;
+        y_train_ = Y.col(0);                  // mirror first target
+        n_targets_ = static_cast<int>(Y.cols());
+        this->n_features_in_ = X.cols();
+        this->fitted_ = true;
+        return *this;
+    }
+
+    /// @brief Predict (n_samples × n_targets) — mean of neighbour rows
+    ///   from `Y_train_` per target.
+    [[nodiscard]] MatrixType predict_multi(
+        const Eigen::Ref<const MatrixType>& X) const {
+        this->check_is_fitted();
+        this->validate_feature_count(X);
+        auto idx = internal::kneighbors_indices<Scalar>(
+            X_train_, X, n_neighbors_);
+        // If Y_train_ is empty (single-target fit was used), synthesise a
+        // 1-column matrix from y_train_.
+        const MatrixType& Yref =
+            (Y_train_.size() == 0) ? lazy_y_matrix() : Y_train_;
+        const Eigen::Index t = Yref.cols();
+        MatrixType out = MatrixType::Zero(X.rows(), t);
+        for (Eigen::Index i = 0; i < X.rows(); ++i) {
+            for (int ki = 0; ki < n_neighbors_; ++ki) {
+                out.row(i) += Yref.row(idx(i, ki));
+            }
+            out.row(i) /= static_cast<Scalar>(n_neighbors_);
+        }
+        return out;
+    }
+
+    [[nodiscard]] int n_targets() const {
+        this->check_is_fitted();
+        return Y_train_.size() == 0 ? 1 : n_targets_;
+    }
+
 private:
     int n_neighbors_;
     MatrixType X_train_;
     VectorType y_train_;
+
+    // Multi-target storage. When `fit_multi` was used, Y_train_ is
+    // (n_samples × n_targets); otherwise empty.
+    MatrixType Y_train_;
+    int        n_targets_ = 1;
+    mutable MatrixType y_train_matrix_view_;
+
+    const MatrixType& lazy_y_matrix() const {
+        if (y_train_matrix_view_.size() == 0) {
+            y_train_matrix_view_.resize(y_train_.size(), 1);
+            y_train_matrix_view_.col(0) = y_train_;
+        }
+        return y_train_matrix_view_;
+    }
 };
 
 /// @}

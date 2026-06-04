@@ -46,10 +46,12 @@ namespace Skigen {
 /// - Skigen::StandardScaler — Standardize to zero mean and unit variance.
 /// - Skigen::MinMaxScaler — Scale features to a given range.
 ///
-/// @note **scikit-learn parity gaps:** The following sklearn constructor
-///   parameters are not yet supported: `copy`.
-///   `partial_fit()` is not yet implemented.
-///   The following sklearn fitted attributes are not yet exposed:
+/// ### Limitations relative to scikit-learn
+///
+/// The following scikit-learn constructor
+///   parameters are not honoured: `copy`.
+///   `partial_fit()` is not implemented.
+///   The following sklearn fitted attributes are not exposed:
 ///   `n_features_in_`, `feature_names_in_`.
 ///
 /// ### Examples
@@ -91,6 +93,10 @@ public:
         this->check_is_fitted(); return n_samples_seen_;
     }
 
+    // -- Parameter reflection ---------------------------------------------------
+
+    SKIGEN_PARAMS((clip, clip_, bool))
+
     // -- Implementation (called by CRTP base) --------------------------------
 
     /// @brief Compute per-feature maximum absolute value for later scaling.
@@ -108,6 +114,37 @@ public:
         internal::handle_zeros_in_scale(scale_);
 
         this->fitted_ = true;
+        return *this;
+    }
+
+    /// @brief Online update of `max_abs_` by extending the running per-feature
+    ///   maximum-absolute-value with a new batch.
+    ///
+    /// Matches sklearn's `MaxAbsScaler.partial_fit` contract.
+    ///
+    /// @param X Batch of training data, shape (n_samples_batch, n_features).
+    /// @return Reference to the fitted transformer (`*this`).
+    /// @throws std::invalid_argument on feature-count mismatch or empty X.
+    MaxAbsScaler& partial_fit(const Eigen::Ref<const MatrixType>& X) {
+        internal::check_non_empty(X);
+
+        if (!this->fitted_) {
+            return fit_impl(X);
+        }
+
+        if (X.cols() != this->n_features_in_) {
+            throw std::invalid_argument(
+                "X has " + std::to_string(X.cols()) + " features, but "
+                "partial_fit was previously called with " +
+                std::to_string(this->n_features_in_) + " features.");
+        }
+
+        const RowVectorType batch_max_abs = X.cwiseAbs().colwise().maxCoeff();
+        max_abs_ = max_abs_.cwiseMax(batch_max_abs);
+        scale_ = max_abs_;
+        internal::handle_zeros_in_scale(scale_);
+
+        n_samples_seen_ += X.rows();
         return *this;
     }
 

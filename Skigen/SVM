@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 The Skigen Contributors
+//
+// Skigen/SVM — Linear and kernel Support Vector Machines.
+//
+// Usage:
+//   #include <Skigen/SVM>
+
+#ifndef SKIGEN_SVM
+#define SKIGEN_SVM
+
+#include "Core"
+#include "src/SVM/Detail/Kernels.h"
+#include "src/SVM/Detail/SMO.h"
+#include "src/SVM/LinearSVC.h"
+#include "src/SVM/LinearSVR.h"
+#include "src/SVM/SVC.h"
+#include "src/SVM/SVR.h"
+#include "src/SVM/NuSVC.h"
+#include "src/SVM/NuSVR.h"
+#include "src/SVM/OneClassSVM.h"
+
+#endif // SKIGEN_SVM

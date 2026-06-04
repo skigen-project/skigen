@@ -58,8 +58,8 @@ namespace Skigen {
 /// mne-cpp convention of (n_features, n_samples). The data is centered
 /// internally unless `assume_centered` is set.
 ///
-/// @note **scikit-learn parity gaps:** `store_precision`, `block_size`
-///   are not yet supported.
+/// ### Limitations relative to scikit-learn `store_precision`, `block_size`
+///   are not honoured.
 ///
 /// ### Examples
 ///
@@ -101,6 +101,8 @@ public:
         this->check_is_fitted();
         return location_;
     }
+
+    SKIGEN_PARAMS((assume_centered, assume_centered_, bool))
 
     // -- fit ----------------------------------------------------------------
 

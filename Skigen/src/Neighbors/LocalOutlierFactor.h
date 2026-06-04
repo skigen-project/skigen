@@ -76,7 +76,7 @@ namespace Skigen {
 /// giving @f$O(n^2 m + n^2 \log k)@f$ time complexity where @f$n@f$ is
 /// the number of samples and @f$m@f$ is the number of features.
 ///
-/// @note **scikit-learn parity gaps:** `algorithm`, `leaf_size`,
+/// ### Limitations relative to scikit-learn `algorithm`, `leaf_size`,
 ///   `metric`, `metric_params`, `p`, `n_jobs`, `novelty` are not yet
 ///   supported.
 ///
@@ -130,6 +130,9 @@ public:
         this->check_is_fitted();
         return offset_;
     }
+
+    SKIGEN_PARAMS((n_neighbors, n_neighbors_, int),
+                  (contamination, contamination_, double))
 
     // -- fit / predict -------------------------------------------------------
 

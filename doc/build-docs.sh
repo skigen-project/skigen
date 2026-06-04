@@ -12,15 +12,14 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-echo "=== [1/2] Running Doxygen ==="
+echo "=== [1/2] Running Doxygen (Skigen) ==="
 doxygen Doxyfile
 
-echo "=== [2/2] Running doxygen2mdx.py ==="
+echo "=== [2/2] Running doxygen2mdx.py (Skigen) ==="
 python3 doxygen2mdx.py \
     --xml-dir doxygen_output/xml \
     --out-dir website/docs/api \
     --generate-sidebars
 
 echo "=== Done ==="
-echo "Output: website/docs/api/"
 echo "Run 'cd website && npm run build' to build the full site."

@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 The Skigen Contributors
+
+#ifndef SKIGEN_NAIVE_BAYES
+#define SKIGEN_NAIVE_BAYES
+
+#include "src/NaiveBayes/GaussianNB.h"
+#include "src/NaiveBayes/MultinomialNB.h"
+#include "src/NaiveBayes/BernoulliNB.h"
+
+#endif // SKIGEN_NAIVE_BAYES

@@ -6,5 +6,8 @@
 
 #include "src/ModelSelection/TrainTestSplit.h"
 #include "src/ModelSelection/CrossValidation.h"
+#include "src/ModelSelection/ParameterGrid.h"
+#include "src/ModelSelection/GridSearchCV.h"
+#include "src/ModelSelection/RandomizedSearchCV.h"
 
 #endif // SKIGEN_MODEL_SELECTION

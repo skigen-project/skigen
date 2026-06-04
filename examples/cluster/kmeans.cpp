@@ -1,15 +1,29 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 The Skigen Contributors
 
-// kmeans.cpp — KMeans and MiniBatchKMeans clustering
+// kmeans.cpp — KMeans and MiniBatchKMeans clustering.
+//
+// Build modes
+//   ex_kmeans (default)            — minimal headless run; prints results.
+//   ex_kmeans (with SKIGEN_WITH_PLOT=ON)
+//     • run with no args           — opens an interactive plot window
+//                                    (theme toggle in the overlay).
+//     • run with an output stem    — renders <stem>_dark.png and
+//                                    <stem>_light.png and exits.
+
 #include <Skigen/Cluster>
 #include <Eigen/Core>
 #include <iostream>
 #include <iomanip>
 #include <random>
 
-int main() {
-    // Generate 3-cluster data in 2D
+#ifdef SKIGEN_EXAMPLE_WITH_PLOT
+#include <skigen/plot/figure.h>
+#endif
+
+namespace {
+
+auto makeClusters() -> Eigen::MatrixXd {
     constexpr int n_per = 60;
     constexpr int n = n_per * 3;
 
@@ -17,25 +31,24 @@ int main() {
     std::normal_distribution<double> noise(0.0, 0.5);
 
     Eigen::MatrixXd X(n, 2);
+    const double cx[3] = {-4.0, 4.0, 0.0};
+    const double cy[3] = { 0.0, 0.0, 5.0};
+    for (int c = 0; c < 3; ++c) {
+        for (int i = 0; i < n_per; ++i) {
+            X(c * n_per + i, 0) = cx[c] + noise(rng);
+            X(c * n_per + i, 1) = cy[c] + noise(rng);
+        }
+    }
+    return X;
+}
 
-    // Cluster A: centered at (-4, 0)
-    for (int i = 0; i < n_per; ++i) {
-        X(i, 0) = -4.0 + noise(rng);
-        X(i, 1) = 0.0 + noise(rng);
-    }
-    // Cluster B: centered at (4, 0)
-    for (int i = 0; i < n_per; ++i) {
-        X(n_per + i, 0) = 4.0 + noise(rng);
-        X(n_per + i, 1) = 0.0 + noise(rng);
-    }
-    // Cluster C: centered at (0, 5)
-    for (int i = 0; i < n_per; ++i) {
-        X(2 * n_per + i, 0) = 0.0 + noise(rng);
-        X(2 * n_per + i, 1) = 5.0 + noise(rng);
-    }
+} // namespace
+
+int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
+    const Eigen::MatrixXd X = makeClusters();
 
     std::cout << std::fixed << std::setprecision(4);
-    std::cout << "Data: " << n << " samples, 2 features, 3 clusters\n\n";
+    std::cout << "Data: " << X.rows() << " samples, 2 features, 3 clusters\n\n";
 
     //! [example_kmeans]
     // KMeans
@@ -66,5 +79,20 @@ int main() {
     std::cout << "Centers:\n" << mbk.cluster_centers() << "\n";
     //! [example_mini_batch_kmeans]
 
+#ifdef SKIGEN_EXAMPLE_WITH_PLOT
+    //! [example_kmeans_plot]
+    Skigen::Plot::Figure fig;
+    fig.title("KMeans Clustering")
+       .caption("Three Gaussian clusters recovered by Skigen::KMeans, visualized with SkigenPlot")
+       .xlabel("feature 1")
+       .ylabel("feature 2")
+       .scatter(X, km.predict(X))
+       .scatter(km.cluster_centers(), km.predict(km.cluster_centers()),
+                {.pointSize = 18.0f, .hollow = true});
+
+    return argc > 1 ? (fig.saveThemed(argv[1]) ? 0 : 1) : fig.show();
+    //! [example_kmeans_plot]
+#else
     return 0;
+#endif
 }

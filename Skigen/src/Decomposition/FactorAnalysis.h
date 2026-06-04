@@ -57,8 +57,8 @@ namespace Skigen {
 /// | `log_likelihood()` | `Scalar` | Final log-likelihood. |
 /// | `n_iter()` | `int` | Number of EM iterations run. |
 ///
-/// @note **scikit-learn parity gaps:** `svd_method`, `rotation`,
-///   `random_state` are not yet supported.
+/// ### Limitations relative to scikit-learn `svd_method`, `rotation`,
+///   `random_state` are not honoured.
 ///
 /// ### Examples
 ///
@@ -121,6 +121,10 @@ public:
         this->check_is_fitted();
         return n_iter_;
     }
+
+    SKIGEN_PARAMS((n_components, n_components_, int),
+                  (max_iter, max_iter_, int),
+                  (tol, tol_, double))
 
     // -- fit ----------------------------------------------------------------
 

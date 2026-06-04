@@ -4,11 +4,13 @@
 #ifndef SKIGEN_CORE_BASE_H
 #define SKIGEN_CORE_BASE_H
 
+#include "Params.h"
 #include "Traits.h"
 
 #include <Eigen/Core>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 
 namespace Skigen {
 
@@ -27,6 +29,30 @@ public:
 
     [[nodiscard]] bool is_fitted() const noexcept { return fitted_; }
     [[nodiscard]] IndexType n_features_in() const noexcept { return n_features_in_; }
+
+    // Hyperparameter reflection — CRTP-dispatched into `set_param_impl` /
+    // `get_params_impl` defined by each derived estimator, typically via
+    // the SKIGEN_PARAMS(...) macro in <Skigen/src/Core/Params.h>.
+    // Estimators that don't register any parameters get the default
+    // behaviour: `set_param` throws `UnknownParameter` for any name and
+    // `get_params` returns an empty dict.
+
+    void set_param(std::string_view name, const ParameterValue& v) {
+        if constexpr (
+            requires(Derived& d) { d.set_param_impl(name, v); }) {
+            static_cast<Derived*>(this)->set_param_impl(name, v);
+        } else {
+            throw UnknownParameter(name);
+        }
+    }
+    [[nodiscard]] ParameterDict get_params() const {
+        if constexpr (
+            requires(const Derived& d) { d.get_params_impl(); }) {
+            return static_cast<const Derived*>(this)->get_params_impl();
+        } else {
+            return ParameterDict{};
+        }
+    }
 
 protected:
     bool fitted_ = false;

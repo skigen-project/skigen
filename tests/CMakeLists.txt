@@ -85,6 +85,18 @@ target_compile_options(skigen_test_tree PRIVATE ${SKIGEN_WARNING_FLAGS})
 add_test(NAME skigen_test_tree COMMAND skigen_test_tree)
 
 # ---------------------------------------------------------------------------
+# Ensemble tests (RandomForestClassifier, RandomForestRegressor)
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_ensemble
+    test_ensemble.cpp
+)
+
+target_link_libraries(skigen_test_ensemble PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_ensemble PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_test(NAME skigen_test_ensemble COMMAND skigen_test_ensemble)
+
+# ---------------------------------------------------------------------------
 # Model selection tests (TrainTestSplit)
 # ---------------------------------------------------------------------------
 add_executable(skigen_test_model_selection
@@ -132,3 +144,87 @@ target_link_libraries(skigen_test_covariance PRIVATE Skigen::Skigen)
 target_compile_options(skigen_test_covariance PRIVATE ${SKIGEN_WARNING_FLAGS})
 
 add_test(NAME skigen_test_covariance COMMAND skigen_test_covariance)
+
+# ---------------------------------------------------------------------------
+# Naive Bayes tests (GaussianNB, MultinomialNB, BernoulliNB)
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_naive_bayes
+    test_naive_bayes.cpp
+)
+
+target_link_libraries(skigen_test_naive_bayes PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_naive_bayes PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_test(NAME skigen_test_naive_bayes COMMAND skigen_test_naive_bayes)
+
+# ---------------------------------------------------------------------------
+# Feature selection tests (VarianceThreshold, SelectKBest, SelectFromModel, RFE)
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_feature_selection
+    test_feature_selection.cpp
+)
+
+target_link_libraries(skigen_test_feature_selection PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_feature_selection PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_test(NAME skigen_test_feature_selection COMMAND skigen_test_feature_selection)
+
+# ---------------------------------------------------------------------------
+# Isotonic tests (IsotonicRegression — PAVA)
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_isotonic
+    test_isotonic.cpp
+)
+
+target_link_libraries(skigen_test_isotonic PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_isotonic PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_test(NAME skigen_test_isotonic COMMAND skigen_test_isotonic)
+
+# ---------------------------------------------------------------------------
+# Calibration tests (CalibratedClassifierCV: sigmoid + isotonic)
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_calibration
+    test_calibration.cpp
+)
+
+target_link_libraries(skigen_test_calibration PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_calibration PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_test(NAME skigen_test_calibration COMMAND skigen_test_calibration)
+
+# ---------------------------------------------------------------------------
+# Core-infrastructure tests (SparseSupport helpers + new concepts) — Phase A
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_core_infra
+    test_core_infra.cpp
+)
+
+target_link_libraries(skigen_test_core_infra PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_core_infra PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_test(NAME skigen_test_core_infra COMMAND skigen_test_core_infra)
+
+# ---------------------------------------------------------------------------
+# SVM tests (LinearSVC, LinearSVR, SVC, SVR + parity-gap stubs)
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_svm test_svm.cpp)
+target_link_libraries(skigen_test_svm PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_svm PRIVATE ${SKIGEN_WARNING_FLAGS})
+add_test(NAME skigen_test_svm COMMAND skigen_test_svm)
+
+# ---------------------------------------------------------------------------
+# NeuralNetwork tests (MLPRegressor, MLPClassifier)
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_neural_network test_neural_network.cpp)
+target_link_libraries(skigen_test_neural_network PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_neural_network PRIVATE ${SKIGEN_WARNING_FLAGS})
+add_test(NAME skigen_test_neural_network COMMAND skigen_test_neural_network)
+
+# ---------------------------------------------------------------------------
+# Manifold tests (MDS, Isomap, TSNE, LLE, SpectralEmbedding, UMAP)
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_manifold test_manifold.cpp)
+target_link_libraries(skigen_test_manifold PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_manifold PRIVATE ${SKIGEN_WARNING_FLAGS})
+add_test(NAME skigen_test_manifold COMMAND skigen_test_manifold)

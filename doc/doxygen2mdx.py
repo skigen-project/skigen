@@ -557,6 +557,7 @@ def generate_class_mdx(compounddef, out_dir):
                 if pname:
                     param_names.append(pname)
             heading_sig = f"{display_name}({', '.join(param_names)})"
+            heading_sig = heading_sig.replace("[", "\\[").replace("]", "\\]")
             lines.append(f"### {heading_sig}")
             lines.append("")
 
@@ -866,9 +867,9 @@ def main():
         if "internal" in name.lower():
             continue
 
-        # Skip base classes (Estimator, Predictor, Transformer)
+        # Skip base classes (Estimator, Predictor, Transformer, Classifier)
         short = name.split("::")[-1]
-        if short in ("Estimator", "Predictor", "Transformer"):
+        if short in ("Estimator", "Predictor", "Transformer", "Classifier"):
             continue
 
         # Enforce registration — throws if class is unknown

@@ -1,0 +1,189 @@
+---
+sidebar_position: 5
+title: Migration to v1.1.0
+---
+
+# Migration Guide — v1.0.0 → v1.1.0
+
+Skigen v1.1.0 is the **only** release in the 1.x line that ships explicit
+breaking changes. The release theme (sklearn parity, sparse / streaming
+infrastructure, manifold + probabilistic depth) made a small number of API
+breaks unavoidable. From v1.2.0 onward, strict-additive semver resumes.
+
+This page enumerates every break and gives the smallest-diff upgrade for
+each one.
+
+---
+
+## 1. Regressor `coef_` is now a `MatrixType`
+
+**Why.** Multi-target regression support (`fit(X, Y)` with a matrix `Y`) made
+a uniform 2-D representation mandatory.
+
+**Affected estimators.** `LinearRegression`, `Ridge`, `Lasso`, `ElasticNet`,
+`KNeighborsRegressor`, `DecisionTreeRegressor`, `BayesianRidge`,
+`ARDRegression`.
+
+**Before (v1.0.0):**
+
+```cpp
+Skigen::Ridge<double> reg;
+reg.fit(X, y);
+Eigen::VectorXd w = reg.coef_();   // VectorType
+```
+
+**After (v1.1.0):**
+
+```cpp
+Skigen::Ridge<double> reg;
+reg.fit(X, y);
+Eigen::MatrixXd W = reg.coef_();   // MatrixType (n_targets × n_features)
+Eigen::VectorXd w = reg.coef_().row(0).transpose();  // single-target slice
+// or, transitional helper:
+Eigen::VectorXd w_legacy = reg.coef_vec();
+```
+
+`coef_vec()` is a transitional convenience accessor available on every
+single-target regressor and will be removed in a future release.
+
+---
+
+## 2. Estimators expose `set_param` / `get_params`
+
+**Why.** `GridSearchCV` and `RandomizedSearchCV` need a uniform reflection
+surface across all estimators.
+
+**Affected.** Every concrete estimator now inherits a `set_param(name, value)`
+and a `get_params()` method from the base. Default-only code paths are
+unchanged — you only see this if you use parameter search or pipelines with
+nested-parameter syntax.
+
+**Authoring an estimator.** Register parameters once with the
+`SKIGEN_PARAMS` macro:
+
+```cpp
+class MyEstimator : public Predictor<MyEstimator, double> {
+public:
+    SKIGEN_PARAMS(("alpha", alpha_),
+                  ("max_iter", max_iter_),
+                  ("fit_intercept", fit_intercept_));
+};
+```
+
+`ParameterValue` is `std::variant<int, double, std::string, bool>`. Existing
+estimators in Skigen have already been migrated.
+
+---
+
+## 3. `LinearRegression` gains `n_jobs` and `positive`
+
+**Why.** sklearn parity — both parameters existed in scikit-learn and were
+omitted by mistake in v1.0.0.
+
+**Before:**
+
+```cpp
+Skigen::LinearRegression<double> lr(/*fit_intercept=*/false);
+```
+
+**After:**
+
+```cpp
+// Same constructor still works — fit_intercept retains its position.
+Skigen::LinearRegression<double> lr(/*fit_intercept=*/false);
+
+// New keyword-style constructor for the additional parameters:
+Skigen::LinearRegression<double> lr_pos(/*fit_intercept=*/true,
+                                        /*positive=*/true,
+                                        /*n_jobs=*/1);
+```
+
+No call-site change is required unless you want the new behaviour.
+
+---
+
+## 4. `Pipeline` accepts named steps
+
+**Why.** sklearn parity, and the `"step__param"` nested-parameter syntax
+required by `GridSearchCV` over pipelines.
+
+**Before (positional, still supported):**
+
+```cpp
+auto pipe = Skigen::make_pipeline(StandardScaler<double>{},
+                                  Ridge<double>{});
+```
+
+**After (named, recommended when used with `GridSearchCV`):**
+
+```cpp
+auto pipe = Skigen::make_pipeline(
+    std::pair{"scaler", StandardScaler<double>{}},
+    std::pair{"ridge",  Ridge<double>{}});
+
+Skigen::ParameterGrid grid(Skigen::ParameterGrid::Grid{
+    {"ridge__alpha", {Skigen::ParameterValue(0.1),
+                      Skigen::ParameterValue(1.0)}}});
+Skigen::GridSearchCV<decltype(pipe)> gs(pipe, grid, /*cv=*/5);
+```
+
+Existing positional pipelines continue to compile and run unchanged.
+
+---
+
+## 5. Multi-output classification metrics return `MetricsResult`
+
+**Why.** sklearn parity. `f1_score(..., average=None)` returns one score per
+class; `average="macro"` returns a scalar. The two cannot share a `Scalar`
+return type.
+
+**Before:**
+
+```cpp
+double f = Skigen::f1_score(y_true, y_pred);   // average="binary"
+```
+
+**After:**
+
+```cpp
+double f = Skigen::f1_score(y_true, y_pred);                   // unchanged
+Skigen::MetricsResult res = Skigen::f1_score(
+    y_true, y_pred, Skigen::Average::None);                    // VectorType payload
+Eigen::VectorXd per_class = res.values();
+```
+
+`MetricsResult` exposes `scalar()`, `values()`, and `is_scalar()`. The
+single-scalar overload remains the default and is unaffected.
+
+---
+
+## 6. `KMeans::cluster_centers_` shape normalised
+
+**Why.** sklearn parity — `cluster_centers_` is `(n_clusters, n_features)`.
+v1.0.0 already returned this shape but was not formally guaranteed; the v1.1.0
+contract makes it mandatory and the parity tests enforce it. If your code
+read the centres as `(n_features, n_clusters)`, transpose at the call site.
+
+---
+
+## 7. `nu`-SVM family is documented as placeholder
+
+`NuSVC`, `NuSVR`, and `OneClassSVM` are exposed in the v1.1.0 public surface
+(constructors, parameter parity, and headers) but their `fit` method throws
+`std::logic_error` until the nu-SVM SMO variant lands. Use `SVC` (C-SVM)
+and `SVR` (epsilon-SVR) instead. The placeholder examples under
+`examples/svm/` demonstrate the documented exception path.
+
+---
+
+## Checklist
+
+- [ ] Audit every read of `reg.coef_()` — switch to `coef_().row(0)` or
+      `coef_vec()` for single-target regressors.
+- [ ] If you wrote a custom estimator, add `SKIGEN_PARAMS(...)`.
+- [ ] If you call `f1_score` / `precision_score` / `recall_score` with a
+      non-scalar `average`, bind the result to `MetricsResult`.
+- [ ] If you build a pipeline that will be passed to `GridSearchCV`, switch
+      to the named-step form.
+- [ ] Replace any direct use of `NuSVC` / `NuSVR` / `OneClassSVM` with the
+      C-SVM / epsilon-SVR equivalents until the nu-SMO solver lands.

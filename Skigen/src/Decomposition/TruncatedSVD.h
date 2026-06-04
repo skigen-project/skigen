@@ -7,9 +7,14 @@
 #include "../Core/Base.h"
 #include "../Core/Validation.h"
 
+#include <optional>
+
 #include <Eigen/Core>
+#include <Eigen/QR>
 #include <Eigen/SVD>
+#include <Eigen/SparseCore>
 #include <algorithm>
+#include <random>
 
 namespace Skigen {
 
@@ -49,11 +54,13 @@ namespace Skigen {
 ///
 /// - Skigen::PCA — PCA with centering (not suitable for sparse data).
 ///
-/// @note **scikit-learn parity gaps:** The following sklearn constructor
-///   parameters are not yet supported: `algorithm` (only full SVD),
+/// ### Limitations relative to scikit-learn
+///
+/// The following scikit-learn constructor
+///   parameters are not honoured: `algorithm` (only full SVD),
 ///   `n_iter`, `n_oversamples`, `power_iteration_normalizer`, `random_state`,
 ///   `tol`.
-///   The following sklearn fitted attributes are not yet exposed:
+///   The following sklearn fitted attributes are not exposed:
 ///   `n_features_in_`, `feature_names_in_`.
 ///
 /// ### Examples
@@ -68,6 +75,13 @@ public:
     using typename Base::VectorType;
     using typename Base::RowVectorType;
     using typename Base::IndexType;
+
+    // Make the dense base-class fit/transform overloads visible alongside
+    // the sparse overloads added below.
+    using Base::fit;
+    using Base::transform;
+    using Base::fit_transform;
+    using Base::inverse_transform;
 
     /// @brief Construct a TruncatedSVD estimator.
     ///
@@ -100,6 +114,8 @@ public:
         this->check_is_fitted(); return singular_values_;
     }
 
+    SKIGEN_PARAMS((n_components, n_components_, int))
+
     /// @brief Fit the model on training data X (no centering).
     ///
     /// @param X Training data of shape (n_samples, n_features).
@@ -130,6 +146,121 @@ public:
 
         this->fitted_ = true;
         return *this;
+    }
+
+    // -- Sparse-aware overloads --------------------------------
+
+    /// @brief Fit the model on a sparse matrix without densifying.
+    ///
+    /// Uses Halko-Martinsson-Tropp randomised SVD: draws a random Gaussian
+    /// projection of width `n_components + n_oversamples`, runs `n_iter`
+    /// power iterations with QR re-orthogonalisation for stability, then
+    /// performs a small dense SVD on the projected matrix. All matrix
+    /// products with `X` operate directly on the sparse representation
+    /// — the input is never materialised as dense.
+    ///
+    /// Mirrors sklearn's `TruncatedSVD(algorithm="randomized")` with the
+    /// defaults `n_oversamples=10`, `n_iter=5`,
+    /// `power_iteration_normalizer="QR"`. Random state is consumed from
+    /// `random_state` (defaults to a non-deterministic seed).
+    template <int Options, typename StorageIndex>
+    TruncatedSVD& fit(
+        const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X,
+        std::optional<uint64_t> random_state = std::nullopt,
+        int n_oversamples = 10,
+        int n_iter = 5) {
+        if (X.rows() == 0 || X.cols() == 0) {
+            throw std::invalid_argument(
+                "TruncatedSVD.fit: empty sparse matrix.");
+        }
+        this->n_features_in_ = X.cols();
+        const Eigen::Index n = X.rows();
+        const Eigen::Index p = X.cols();
+        n_components_actual_ = std::min(n_components_, std::min(n, p));
+
+        // Convert to a column-major sparse view for efficient X^T y, X y.
+        using ColSparse =
+            Eigen::SparseMatrix<Scalar, Eigen::ColMajor, StorageIndex>;
+        const ColSparse Xc = X;
+
+        const Eigen::Index k = n_components_actual_ +
+                               static_cast<Eigen::Index>(n_oversamples);
+        const Eigen::Index k_eff = std::min(k, std::min(n, p));
+
+        // Random Gaussian test matrix Ω of shape (p, k_eff).
+        std::mt19937_64 rng(random_state.value_or(
+            static_cast<uint64_t>(std::random_device{}())));
+        std::normal_distribution<Scalar> dist(Scalar{0}, Scalar{1});
+
+        MatrixType Omega(p, k_eff);
+        for (Eigen::Index j = 0; j < k_eff; ++j) {
+            for (Eigen::Index i = 0; i < p; ++i) {
+                Omega(i, j) = dist(rng);
+            }
+        }
+
+        // Y = X * Ω, with QR-stabilised power iterations.
+        MatrixType Y = Xc * Omega;
+        for (int q = 0; q < n_iter; ++q) {
+            Eigen::HouseholderQR<MatrixType> qr_y(Y);
+            MatrixType Q = qr_y.householderQ() * MatrixType::Identity(n, k_eff);
+            // Z = X^T * Q ; Y = X * Z
+            MatrixType Z = Xc.transpose() * Q;
+            Eigen::HouseholderQR<MatrixType> qr_z(Z);
+            MatrixType Qz = qr_z.householderQ() * MatrixType::Identity(p, k_eff);
+            Y = Xc * Qz;
+        }
+
+        // Final orthonormal basis Q for the column space of Y.
+        Eigen::HouseholderQR<MatrixType> qr_final(Y);
+        MatrixType Q = qr_final.householderQ() * MatrixType::Identity(n, k_eff);
+
+        // B = Q^T * X — small dense matrix of shape (k_eff, p).
+        MatrixType B = Q.transpose() * Xc;
+
+        Eigen::JacobiSVD<MatrixType> svd(
+            B, Eigen::ComputeThinU | Eigen::ComputeThinV);
+
+        // Truncate to n_components.
+        components_ =
+            svd.matrixV().leftCols(n_components_actual_).transpose();
+        singular_values_ = svd.singularValues().head(n_components_actual_);
+
+        const Scalar denom = static_cast<Scalar>(n - 1);
+        explained_variance_ =
+            (singular_values_.array().square() / denom).matrix();
+
+        // Total variance: sum over all singular values of B (which captures
+        // the captured-subspace energy). For sparse-randomised SVD we use
+        // sum(B singular values²) as a proxy for the subspace's variance,
+        // matching sklearn's randomised path.
+        const Scalar total_var =
+            (svd.singularValues().array().square() / denom).sum();
+        if (total_var > Scalar{0}) {
+            explained_variance_ratio_ = explained_variance_ / total_var;
+        } else {
+            explained_variance_ratio_ = VectorType::Zero(n_components_actual_);
+        }
+
+        this->fitted_ = true;
+        return *this;
+    }
+
+    /// @brief Apply the fitted dimensionality reduction to a sparse matrix
+    ///   without densifying. Returns a dense matrix of shape
+    ///   (n_samples, n_components) (sklearn parity — the output is always
+    ///   dense because it is low-rank).
+    template <int Options, typename StorageIndex>
+    [[nodiscard]] MatrixType transform(
+        const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X) const {
+        this->check_is_fitted();
+        if (X.cols() != this->n_features_in_) {
+            throw std::invalid_argument(
+                "X has " + std::to_string(X.cols()) +
+                " features, but TruncatedSVD was fitted with " +
+                std::to_string(this->n_features_in_) + " features.");
+        }
+        return X * components_.transpose();
     }
 
     /// @brief Apply dimensionality reduction to X.

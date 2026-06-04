@@ -155,6 +155,58 @@ void test_knn_regressor_not_fitted() {
     ASSERT_THROW(knn.predict(X), std::runtime_error);
 }
 
+void test_knn_regressor_multi_target_basic() {
+    // 6 training points with two correlated targets.
+    Eigen::MatrixXd X(6, 1);
+    X << 1, 2, 3, 7, 8, 9;
+    Eigen::MatrixXd Y(6, 2);
+    Y << 1, 10, 2, 20, 3, 30, 7, 70, 8, 80, 9, 90;
+
+    Skigen::KNeighborsRegressor<double> knn(/*n_neighbors=*/3);
+    knn.fit_multi(X, Y);
+
+    ASSERT_TRUE(knn.n_targets() == 2);
+
+    Eigen::MatrixXd Q(2, 1);
+    Q << 2.0, 8.0;
+    Eigen::MatrixXd Yp = knn.predict_multi(Q);
+    ASSERT_TRUE(Yp.rows() == 2);
+    ASSERT_TRUE(Yp.cols() == 2);
+    // Mean of the 3 closest training rows for each query.
+    // Q=2 → neighbours {1,2,3} → target0 mean=2, target1 mean=20.
+    // Q=8 → neighbours {7,8,9} → target0 mean=8, target1 mean=80.
+    ASSERT_NEAR(Yp(0, 0), 2.0, 1e-12);
+    ASSERT_NEAR(Yp(0, 1), 20.0, 1e-12);
+    ASSERT_NEAR(Yp(1, 0), 8.0, 1e-12);
+    ASSERT_NEAR(Yp(1, 1), 80.0, 1e-12);
+}
+
+void test_knn_regressor_predict_multi_after_single_target_fit() {
+    // After single-target fit, predict_multi() should still work and
+    // return a 1-column matrix matching the 1-D predict() output.
+    Eigen::MatrixXd X(4, 1); X << 1, 2, 3, 4;
+    Eigen::VectorXd y(4); y << 2, 4, 6, 8;
+    Skigen::KNeighborsRegressor<double> knn(2);
+    knn.fit(X, y);
+    ASSERT_TRUE(knn.n_targets() == 1);
+    Eigen::MatrixXd Q(1, 1); Q << 2.5;
+    Eigen::VectorXd v = knn.predict(Q);
+    Eigen::MatrixXd m = knn.predict_multi(Q);
+    ASSERT_TRUE(m.rows() == 1);
+    ASSERT_TRUE(m.cols() == 1);
+    ASSERT_NEAR(m(0, 0), v(0), 1e-12);
+}
+
+void test_knn_regressor_multi_target_dim_mismatch_throws() {
+    Eigen::MatrixXd X(4, 1); X << 1, 2, 3, 4;
+    Eigen::MatrixXd Y(5, 2); Y.setOnes();
+    Skigen::KNeighborsRegressor<double> knn;
+    bool threw = false;
+    try { knn.fit_multi(X, Y); }
+    catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
 // ===================================================================
 // LocalOutlierFactor Tests
 // ===================================================================
@@ -266,6 +318,12 @@ int main() {
     run_test("knn_regressor_basic", test_knn_regressor_basic);
     run_test("knn_regressor_score", test_knn_regressor_score);
     run_test("knn_regressor_not_fitted", test_knn_regressor_not_fitted);
+    run_test("knn_regressor_multi_target_basic",
+             test_knn_regressor_multi_target_basic);
+    run_test("knn_regressor_predict_multi_after_single_target_fit",
+             test_knn_regressor_predict_multi_after_single_target_fit);
+    run_test("knn_regressor_multi_target_dim_mismatch_throws",
+             test_knn_regressor_multi_target_dim_mismatch_throws);
 
     std::cout << "\n=== LocalOutlierFactor Tests ===\n";
     run_test("lof_basic_outlier", test_lof_basic_outlier);

@@ -1,10 +1,17 @@
 # Build directories
 build/
 build_*/
+build-*/
 cmake-build-*/
 
 # Eigen (checked out in-tree by CI)
 /eigen/
+
+# SkigenPlot (optional sibling dependency, checked out in-tree by CI)
+/skigen-plot/
+
+# Example plots are rendered on the fly (CI or local) — never committed
+doc/website/static/img/plots/
 
 # IDE
 .vscode/
@@ -24,6 +31,7 @@ doc/website/.docusaurus/
 
 # Generated API docs (Doxygen + doxygen2mdx.py)
 doc/doxygen_output/
+doxygen_output/
 doc/website/docs/api/
 
 # Compiled objects

@@ -16,5 +16,7 @@
 #include "src/LinearModel/ElasticNet.h"
 #include "src/LinearModel/LogisticRegression.h"
 #include "src/LinearModel/SGD.h"
+#include "src/LinearModel/BayesianRidge.h"
+#include "src/LinearModel/ARDRegression.h"
 
 #endif // SKIGEN_LINEAR_MODEL

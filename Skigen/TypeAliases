@@ -21,7 +21,13 @@
 #include "Cluster"
 #include "Neighbors"
 #include "Tree"
+#include "Ensemble"
+#include "NaiveBayes"
 #include "Covariance"
+#include "FeatureSelection"
+#include "Isotonic"
+#include "SVM"
+#include "NeuralNetwork"
 
 namespace Skigen {
 
@@ -58,6 +64,10 @@ using SGDClassifierD    = SGDClassifier<double>;
 using SGDClassifierF    = SGDClassifier<float>;
 using SGDRegressorD     = SGDRegressor<double>;
 using SGDRegressorF     = SGDRegressor<float>;
+using BayesianRidgeD    = BayesianRidge<double>;
+using BayesianRidgeF    = BayesianRidge<float>;
+using ARDRegressionD    = ARDRegression<double>;
+using ARDRegressionF    = ARDRegression<float>;
 
 // ---------------------------------------------------------------------------
 // Decomposition
@@ -104,6 +114,76 @@ using DecisionTreeClassifierD = DecisionTreeClassifier<double>;
 using DecisionTreeClassifierF = DecisionTreeClassifier<float>;
 using DecisionTreeRegressorD  = DecisionTreeRegressor<double>;
 using DecisionTreeRegressorF  = DecisionTreeRegressor<float>;
+
+// ---------------------------------------------------------------------------
+// Ensemble
+// ---------------------------------------------------------------------------
+using RandomForestClassifierD = RandomForestClassifier<double>;
+using RandomForestClassifierF = RandomForestClassifier<float>;
+using RandomForestRegressorD  = RandomForestRegressor<double>;
+using RandomForestRegressorF  = RandomForestRegressor<float>;
+using GradientBoostingRegressorD  = GradientBoostingRegressor<double>;
+using GradientBoostingRegressorF  = GradientBoostingRegressor<float>;
+using GradientBoostingClassifierD = GradientBoostingClassifier<double>;
+using GradientBoostingClassifierF = GradientBoostingClassifier<float>;
+using HistGradientBoostingRegressorD = HistGradientBoostingRegressor<double>;
+using HistGradientBoostingRegressorF = HistGradientBoostingRegressor<float>;
+using HistGradientBoostingClassifierD = HistGradientBoostingClassifier<double>;
+using HistGradientBoostingClassifierF = HistGradientBoostingClassifier<float>;
+
+// ---------------------------------------------------------------------------
+// Naive Bayes
+// ---------------------------------------------------------------------------
+using GaussianNBD       = GaussianNB<double>;
+using GaussianNBF       = GaussianNB<float>;
+using MultinomialNBD    = MultinomialNB<double>;
+using MultinomialNBF    = MultinomialNB<float>;
+using BernoulliNBD      = BernoulliNB<double>;
+using BernoulliNBF      = BernoulliNB<float>;
+
+// ---------------------------------------------------------------------------
+// Feature Selection
+// ---------------------------------------------------------------------------
+using VarianceThresholdD = VarianceThreshold<double>;
+using VarianceThresholdF = VarianceThreshold<float>;
+using SelectKBestFClassifD     = SelectKBestFClassif<double>;
+using SelectKBestFClassifF     = SelectKBestFClassif<float>;
+using SelectKBestFRegressionD  = SelectKBestFRegression<double>;
+using SelectKBestFRegressionF  = SelectKBestFRegression<float>;
+using SelectKBestChi2D         = SelectKBestChi2<double>;
+using SelectKBestChi2F         = SelectKBestChi2<float>;
+
+// ---------------------------------------------------------------------------
+// Isotonic
+// ---------------------------------------------------------------------------
+using IsotonicRegressionD = IsotonicRegression<double>;
+using IsotonicRegressionF = IsotonicRegression<float>;
+
+// ---------------------------------------------------------------------------
+// SVM
+// ---------------------------------------------------------------------------
+using LinearSVCD     = LinearSVC<double>;
+using LinearSVCF     = LinearSVC<float>;
+using LinearSVRD     = LinearSVR<double>;
+using LinearSVRF     = LinearSVR<float>;
+using SVCD           = SVC<double>;
+using SVCF           = SVC<float>;
+using SVRD           = SVR<double>;
+using SVRF           = SVR<float>;
+using NuSVCD         = NuSVC<double>;
+using NuSVCF         = NuSVC<float>;
+using NuSVRD         = NuSVR<double>;
+using NuSVRF         = NuSVR<float>;
+using OneClassSVMD   = OneClassSVM<double>;
+using OneClassSVMF   = OneClassSVM<float>;
+
+// ---------------------------------------------------------------------------
+// Neural Network
+// ---------------------------------------------------------------------------
+using MLPRegressorD  = MLPRegressor<double>;
+using MLPRegressorF  = MLPRegressor<float>;
+using MLPClassifierD = MLPClassifier<double>;
+using MLPClassifierF = MLPClassifier<float>;
 
 } // namespace Skigen
 
