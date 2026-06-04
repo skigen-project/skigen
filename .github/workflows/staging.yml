@@ -173,11 +173,11 @@ jobs:
           echo "CMAKE_PREFIX_PATH=$RUNNER_TEMP/qt" >> "$GITHUB_ENV"
           echo "$RUNNER_TEMP/qt/bin" >> "$GITHUB_PATH"
 
-      - name: Install Vulkan runtime (lavapipe)
+      - name: Install runtime dependencies (Mesa EGL + Vulkan)
         run: |
           sudo apt-get install -y \
-            libgl1-mesa-dev libvulkan-dev \
-            mesa-vulkan-drivers
+            libegl1-mesa-dev libgles2-mesa-dev libgl1-mesa-dev \
+            libvulkan-dev mesa-vulkan-drivers
 
       - name: Build plot example
         run: |
@@ -190,8 +190,8 @@ jobs:
 
       - name: Render example plots
         env:
-          QT_QPA_PLATFORM: offscreen
-          QSG_RHI_BACKEND: vulkan
+          QT_QPA_PLATFORM: minimalegl
+          LIBGL_ALWAYS_SOFTWARE: 1
         run: |
           mkdir -p doc/website/static/img/plots
           ./build-plot/examples/ex_kmeans \
