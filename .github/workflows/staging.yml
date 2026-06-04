@@ -190,7 +190,10 @@ jobs:
 
       - name: Render example plots
         env:
-          QT_QPA_PLATFORM: minimalegl
+          QT_QPA_PLATFORM: eglfs
+          QT_QPA_EGLFS_INTEGRATION: eglfs_emu
+          QT_QPA_EGLFS_WIDTH: 1280
+          QT_QPA_EGLFS_HEIGHT: 720
           LIBGL_ALWAYS_SOFTWARE: 1
         run: |
           mkdir -p doc/website/static/img/plots
