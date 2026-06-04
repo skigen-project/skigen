@@ -155,8 +155,8 @@ jobs:
             --generate-sidebars
 
       # ── Render example plots on the fly ─────────────────────────────
-      # Build SkigenPlot + the ex_kmeans example and run it offscreen to
-      # produce fresh PNGs that the website consumes. Plots are NOT
+      # Build SkigenPlot + the ex_kmeans example and run it under xvfb
+      # to produce fresh PNGs that the website consumes. Plots are NOT
       # committed to the repo. Uses mne-cpp pre-built Qt 6.11.1 binaries.
       - name: Checkout Eigen
         uses: actions/checkout@v5
@@ -184,11 +184,14 @@ jobs:
           echo "CMAKE_PREFIX_PATH=$RUNNER_TEMP/qt" >> "$GITHUB_ENV"
           echo "$RUNNER_TEMP/qt/bin" >> "$GITHUB_PATH"
 
-      - name: Install runtime dependencies (Mesa EGL + Vulkan)
+      - name: Install runtime dependencies (xcb + Vulkan)
         run: |
           sudo apt-get install -y \
-            libegl1-mesa-dev libgles2-mesa-dev libgl1-mesa-dev \
-            libvulkan-dev mesa-vulkan-drivers
+            libxcb1 libxcb-glx0 libxcb-keysyms1 libxcb-image0 libxcb-shm0 \
+            libxcb-icccm4 libxcb-sync1 libxcb-xfixes0 libxcb-shape0 \
+            libxcb-randr0 libxcb-render-util0 libxcb-cursor0 \
+            libxkbcommon0 libxkbcommon-x11-0 libfontconfig1 \
+            libegl1 libgl1-mesa-dri libvulkan1 mesa-vulkan-drivers xvfb
 
       - name: Build plot example
         run: |
@@ -200,13 +203,9 @@ jobs:
           cmake --build build-plot --target ex_kmeans -j$(nproc)
 
       - name: Render example plots
-        env:
-          QT_QPA_PLATFORM: minimalegl
-          EGL_PLATFORM: surfaceless
-          LIBGL_ALWAYS_SOFTWARE: 1
         run: |
           mkdir -p doc/website/static/img/plots
-          ./build-plot/examples/ex_kmeans \
+          xvfb-run -a ./build-plot/examples/ex_kmeans \
             doc/website/static/img/plots
           ls -la doc/website/static/img/plots
 
