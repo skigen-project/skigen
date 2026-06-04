@@ -184,11 +184,11 @@ jobs:
           echo "CMAKE_PREFIX_PATH=$RUNNER_TEMP/qt" >> "$GITHUB_ENV"
           echo "$RUNNER_TEMP/qt/bin" >> "$GITHUB_PATH"
 
-      - name: Install Vulkan runtime (lavapipe) + xvfb
+      - name: Install Vulkan runtime (lavapipe)
         run: |
           sudo apt-get install -y \
             libgl1-mesa-dev libvulkan-dev \
-            mesa-vulkan-drivers xvfb
+            mesa-vulkan-drivers
 
       - name: Build plot example
         run: |
@@ -201,14 +201,13 @@ jobs:
 
       - name: Render example plots
         env:
-          # QRhiWidget needs a real windowing platform; xvfb-run provides
-          # an Xvfb display, so Qt picks the xcb plugin automatically.
+          QT_QPA_PLATFORM: offscreen
           QSG_RHI_BACKEND: vulkan
         run: |
           mkdir -p doc/website/static/img/plots
-          xvfb-run -a ./build-plot/examples/ex_kmeans \
+          ./build-plot/examples/ex_kmeans \
             doc/website/static/img/plots
-          ls -la doc/website/static/img/plots || true
+          ls -la doc/website/static/img/plots
 
       - name: Build (production)
         working-directory: doc/website
