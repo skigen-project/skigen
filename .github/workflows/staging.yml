@@ -173,14 +173,15 @@ jobs:
           echo "CMAKE_PREFIX_PATH=$RUNNER_TEMP/qt" >> "$GITHUB_ENV"
           echo "$RUNNER_TEMP/qt/bin" >> "$GITHUB_PATH"
 
-      - name: Install runtime dependencies (xcb + Vulkan)
+      - name: Install dependencies (OpenGL dev + xcb runtime + xvfb)
         run: |
           sudo apt-get install -y \
+            libgl1-mesa-dev libegl1-mesa-dev libgles2-mesa-dev \
             libxcb1 libxcb-glx0 libxcb-keysyms1 libxcb-image0 libxcb-shm0 \
             libxcb-icccm4 libxcb-sync1 libxcb-xfixes0 libxcb-shape0 \
             libxcb-randr0 libxcb-render-util0 libxcb-cursor0 \
             libxkbcommon0 libxkbcommon-x11-0 libfontconfig1 \
-            libegl1 libgl1-mesa-dri libvulkan1 mesa-vulkan-drivers xvfb
+            libgl1-mesa-dri libvulkan1 mesa-vulkan-drivers xvfb
 
       - name: Build plot example
         run: |
