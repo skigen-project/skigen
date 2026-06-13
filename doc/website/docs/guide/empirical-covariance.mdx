@@ -1,0 +1,54 @@
+---
+sidebar_position: 134
+title: EmpiricalCovariance
+---
+
+# EmpiricalCovariance
+
+The maximum-likelihood (sample) covariance estimator.
+
+## Algorithm
+
+Centres the data (unless `assume_centered`) and forms the 1/n scatter matrix. The maximum-likelihood normalisation matches scikit-learn.
+
+## Constructor
+
+```cpp
+Skigen::EmpiricalCovariance<Scalar> model(bool assume_centered = false);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `assume_centered` | `false` | Skip mean subtraction if data is already centred. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X)` | Estimate the covariance. |
+| `score(X)` | Gaussian log-likelihood of new data. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `covariance()` | Estimated p×p covariance. |
+| `location()` | Estimated mean. |
+
+## Example
+
+```cpp
+Skigen::EmpiricalCovariance<double> cov;
+cov.fit(X);
+auto C = cov.covariance();
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_covariance_reference.py` and the reference fixtures in `tests/parity/data/empirical_covariance/`, exercised by `tests/parity/parity_covariance.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [EmpiricalCovariance API Reference](/docs/api/covariance/empirical-covariance).
+:::

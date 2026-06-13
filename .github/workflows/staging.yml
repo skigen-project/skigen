@@ -144,7 +144,7 @@ jobs:
             --out-dir website/docs/api \
             --generate-sidebars
 
-      # ── Optional: render example plots on the fly ──────────────────────
+      # ── Render example plots on the fly ─────────────────────────────
       # See main.yml for the rationale. Plots are produced fresh on every
       # deploy and never committed to the repo.
       - name: Checkout Eigen
@@ -160,36 +160,44 @@ jobs:
           repository: skigen-project/skigen-plot
           path: skigen-plot
 
-      - name: Install Qt6 + Vulkan runtime (lavapipe)
+      - name: Download Qt6 (mne-cpp pre-built binaries)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download qt_binaries -R mne-tools/mne-cpp \
+            -p 'qt6_6111_dynamic_binaries_linux.tar.gz' -D /tmp
+          mkdir -p "$RUNNER_TEMP/qt"
+          tar xzf /tmp/qt6_6111_dynamic_binaries_linux.tar.gz -C "$RUNNER_TEMP/qt"
+          echo "QT_ROOT_DIR=$RUNNER_TEMP/qt" >> "$GITHUB_ENV"
+          echo "Qt6_DIR=$RUNNER_TEMP/qt/lib/cmake/Qt6" >> "$GITHUB_ENV"
+          echo "CMAKE_PREFIX_PATH=$RUNNER_TEMP/qt" >> "$GITHUB_ENV"
+          echo "$RUNNER_TEMP/qt/bin" >> "$GITHUB_PATH"
+
+      - name: Install dependencies (OpenGL/Vulkan dev + xcb + xvfb)
         run: |
           sudo apt-get install -y \
-            qt6-base-dev qt6-base-private-dev qt6-shadertools-dev \
-            libqt6opengl6-dev libgl1-mesa-dev libvulkan-dev \
-            mesa-vulkan-drivers xvfb
+            libgl1-mesa-dev libegl1-mesa-dev libgles2-mesa-dev \
+            libvulkan-dev libxkbcommon-dev libxkbcommon-x11-dev \
+            libxcb1 libxcb-glx0 libxcb-keysyms1 libxcb-image0 libxcb-shm0 \
+            libxcb-icccm4 libxcb-sync1 libxcb-xfixes0 libxcb-shape0 \
+            libxcb-randr0 libxcb-render-util0 libxcb-cursor0 \
+            libfontconfig1 libgl1-mesa-dri mesa-vulkan-drivers xvfb
 
       - name: Build plot example
-        id: render-build
-        continue-on-error: true
         run: |
           cmake -B build-plot \
             -DSKIGEN_BUILD_TESTS=OFF \
             -DSKIGEN_BUILD_EXAMPLES=ON \
             -DSKIGEN_WITH_PLOT=ON \
-            -DCMAKE_PREFIX_PATH=${{ github.workspace }}/skigen-plot
+            -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/qt;${{ github.workspace }}/skigen-plot"
           cmake --build build-plot --target ex_kmeans -j$(nproc)
 
       - name: Render example plots
-        if: steps.render-build.outcome == 'success'
-        continue-on-error: true
-        env:
-          # QRhiWidget needs a real windowing platform; xvfb-run provides
-          # an Xvfb display, so Qt picks the xcb plugin automatically.
-          QSG_RHI_BACKEND: vulkan
         run: |
           mkdir -p doc/website/static/img/plots
           xvfb-run -a ./build-plot/examples/ex_kmeans \
             doc/website/static/img/plots
-          ls -la doc/website/static/img/plots || true
+          ls -la doc/website/static/img/plots
 
       - name: Build (dev)
         working-directory: doc/website

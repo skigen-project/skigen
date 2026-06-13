@@ -1,0 +1,59 @@
+---
+sidebar_position: 105
+title: HistGradientBoostingRegressor
+---
+
+# HistGradientBoostingRegressor
+
+Histogram-based gradient boosting for regression — the fast, large-data GB path.
+
+## Algorithm
+
+Features are quantile-binned, then squared-error boosting proceeds on the binned representation with histogram split finding.
+
+## Constructor
+
+```cpp
+Skigen::HistGradientBoostingRegressor<Scalar> model(Scalar learning_rate = 0.1, int max_iter = 100, ...);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `learning_rate` | `0.1` | Shrinkage per iteration. |
+| `max_iter` | `100` | Number of iterations. |
+| `max_bins` | `255` | Bin resolution. |
+| `max_leaf_nodes` | `31` | Leaves per tree. |
+| `random_state` | `nullopt` | Seed. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Bin features, then boost. |
+| `predict(X)` | Boosted prediction. |
+| `score(X, y)` | R². |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `bin_edges()` | Per-feature quantile bin edges. |
+| `train_score()` | Per-iteration training MSE. |
+
+## Example
+
+```cpp
+Skigen::HistGradientBoostingRegressor<double> gb;
+gb.fit(X, y);
+auto preds = gb.predict(X_test);
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_ensemble_reference.py` and the reference fixtures in `tests/parity/data/hist_gradient_boosting_regressor/`, exercised by `tests/parity/parity_ensemble.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [HistGradientBoostingRegressor API Reference](/docs/api/ensemble/hist-gradient-boosting-regressor).
+:::

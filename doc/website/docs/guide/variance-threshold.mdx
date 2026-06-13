@@ -1,0 +1,53 @@
+---
+sidebar_position: 118
+title: VarianceThreshold
+---
+
+# VarianceThreshold
+
+An unsupervised filter that drops features whose variance falls below a threshold — a cheap first pass for constant or near-constant columns. Sparse-aware.
+
+## Algorithm
+
+Computes each feature's variance in a single pass and keeps those above `threshold`. No labels required.
+
+## Constructor
+
+```cpp
+Skigen::VarianceThreshold<Scalar> model(Scalar threshold = 0.0);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `threshold` | `0.0` | Minimum variance to retain a feature. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X)` | Compute per-feature variances. |
+| `transform(X)` | Drop low-variance columns. |
+| `get_support_mask()` | Boolean mask of retained features. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `variances()` | Per-feature variance. |
+
+## Example
+
+```cpp
+Skigen::VarianceThreshold<double> vt(0.0);
+auto X_reduced = vt.fit(X).transform(X);
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_feature_selection_reference.py` and the reference fixtures in `tests/parity/data/variance_threshold/`, exercised by `tests/parity/parity_feature_selection.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [VarianceThreshold API Reference](/docs/api/feature-selection/variance-threshold).
+:::

@@ -1,0 +1,4 @@
+{
+  "max_iter": 300,
+  "threshold_lambda": 10000.0
+}

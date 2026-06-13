@@ -1,0 +1,58 @@
+---
+sidebar_position: 103
+title: GradientBoostingRegressor
+---
+
+# GradientBoostingRegressor
+
+Stage-wise boosting of shallow regression trees against the squared-error gradient.
+
+## Algorithm
+
+Each stage fits a depth-bounded tree to the residuals of the current ensemble and adds it with a `learning_rate` shrinkage. Squared-error loss is supported in v1.1.0.
+
+## Constructor
+
+```cpp
+Skigen::GradientBoostingRegressor<Scalar> model(Loss = SquaredError, Scalar learning_rate = 0.1, int n_estimators = 100, ...);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `learning_rate` | `0.1` | Shrinkage per stage. |
+| `n_estimators` | `100` | Number of stages. |
+| `max_depth` | `3` | Tree depth. |
+| `subsample` | `1.0` | Row fraction per stage. |
+| `random_state` | `nullopt` | Seed. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Boost over the stages. |
+| `predict(X)` | Sum of shrunk stage predictions. |
+| `score(X, y)` | R². |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `train_score()` | Per-stage training MSE. |
+
+## Example
+
+```cpp
+Skigen::GradientBoostingRegressor<double> gb;
+gb.fit(X, y);
+auto preds = gb.predict(X_test);
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_ensemble_reference.py` and the reference fixtures in `tests/parity/data/gradient_boosting_regressor/`, exercised by `tests/parity/parity_ensemble.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [GradientBoostingRegressor API Reference](/docs/api/ensemble/gradient-boosting-regressor).
+:::

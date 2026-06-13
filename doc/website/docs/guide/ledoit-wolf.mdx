@@ -1,0 +1,54 @@
+---
+sidebar_position: 135
+title: LedoitWolf
+---
+
+# LedoitWolf
+
+Shrinkage covariance with the Ledoit-Wolf data-driven shrinkage intensity — better conditioned than the sample covariance, especially when p is comparable to n.
+
+## Algorithm
+
+Shrinks the sample covariance toward a scaled identity by the closed-form Ledoit-Wolf coefficient that minimises expected Frobenius error.
+
+## Constructor
+
+```cpp
+Skigen::LedoitWolf<Scalar> model(bool assume_centered = false);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `assume_centered` | `false` | Skip mean subtraction. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X)` | Estimate the shrunk covariance. |
+| `score(X)` | Gaussian log-likelihood. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `covariance()` | Shrunk covariance. |
+| `shrinkage()` | Estimated shrinkage intensity. |
+
+## Example
+
+```cpp
+Skigen::LedoitWolf<double> lw;
+lw.fit(X);
+auto C = lw.covariance();
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_covariance_reference.py` and the reference fixtures in `tests/parity/data/ledoit_wolf/`, exercised by `tests/parity/parity_covariance.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [LedoitWolf API Reference](/docs/api/covariance/ledoit-wolf).
+:::

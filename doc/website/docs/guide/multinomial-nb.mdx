@@ -1,0 +1,59 @@
+---
+sidebar_position: 107
+title: MultinomialNB
+---
+
+# MultinomialNB
+
+Multinomial Naive Bayes for count features — the classic bag-of-words text classifier. Sparse-aware.
+
+## Algorithm
+
+Per-class feature log-probabilities are the Laplace/Lidstone-smoothed relative frequencies of each feature within the class. Prediction sums `X · feature_log_prob + class_log_prior`. Accepts `Eigen::SparseMatrix` directly and supports `partial_fit`.
+
+## Constructor
+
+```cpp
+Skigen::MultinomialNB<Scalar> model(Scalar alpha = 1.0, bool fit_prior = true, VectorType class_prior = {});
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `alpha` | `1.0` | Additive (Laplace/Lidstone) smoothing. |
+| `fit_prior` | `true` | Learn class priors from data. |
+| `class_prior` | `empty` | Optional fixed priors. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Accumulate class/feature counts. |
+| `partial_fit(X, y, classes)` | Incremental update. |
+| `predict(X)` | MAP class labels. |
+| `predict_proba(X)` | Class posteriors. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `feature_log_prob()` | Smoothed log P(feature | class). |
+| `class_log_prior()` | Log class priors. |
+| `feature_count()` | Accumulated per-class feature counts. |
+
+## Example
+
+```cpp
+Skigen::MultinomialNB<double> nb;
+nb.fit(X_counts, y);
+auto preds = nb.predict(X_test);
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_naive_bayes_reference.py` and the reference fixtures in `tests/parity/data/multinomial_nb/`, exercised by `tests/parity/parity_naive_bayes.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [MultinomialNB API Reference](/docs/api/naive-bayes/multinomial-nb).
+:::

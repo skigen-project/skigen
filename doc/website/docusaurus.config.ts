@@ -6,7 +6,7 @@ import rehypeKatex from 'rehype-katex';
 
 const siteEnv = process.env.SKIGEN_SITE_ENV || 'stable';
 const isDev = siteEnv === 'dev';
-const versionLabel = isDev ? 'dev (latest)' : 'v1.0.0';
+const versionLabel = isDev ? 'dev (latest)' : 'v1.1.0';
 
 const config: Config = {
     title: 'Skigen',
@@ -108,7 +108,7 @@ const config: Config = {
                     position: 'right',
                     items: [
                         {
-                            label: 'v1.0.0 (stable)',
+                            label: 'v1.1.0 (stable)',
                             href: 'https://skigen-project.github.io/',
                         },
                         {

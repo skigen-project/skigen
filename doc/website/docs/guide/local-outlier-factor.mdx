@@ -1,0 +1,55 @@
+---
+sidebar_position: 138
+title: LocalOutlierFactor
+---
+
+# LocalOutlierFactor
+
+A density-based anomaly score: each point is compared to the local density of its neighbours, flagging those in relatively sparse regions as outliers.
+
+## Algorithm
+
+Computes the local reachability density of each point and the ratio to its neighbours' densities (the local outlier factor). Scores far below 1 indicate inliers; large scores indicate outliers. Exposed as the negated factor to match scikit-learn's convention.
+
+## Constructor
+
+```cpp
+Skigen::LocalOutlierFactor<Scalar> model(int n_neighbors = 20, Scalar contamination = -1);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `n_neighbors` | `20` | Neighbours used for the density estimate. |
+| `contamination` | `-1` | Expected outlier fraction; `-1` disables automatic thresholding. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X)` | Score every training point. |
+| `fit_predict_labels(X)` | Inlier/outlier labels. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `negative_outlier_factor()` | Negated LOF scores (lower = more anomalous). |
+| `n_neighbors_used()` | Effective neighbour count. |
+
+## Example
+
+```cpp
+Skigen::LocalOutlierFactor<double> lof(20);
+lof.fit(X);
+auto scores = lof.negative_outlier_factor();
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_neighbors_reference.py` and the reference fixtures in `tests/parity/data/local_outlier_factor/`, exercised by `tests/parity/parity_neighbors.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [LocalOutlierFactor API Reference](/docs/api/neighbors/local-outlier-factor).
+:::

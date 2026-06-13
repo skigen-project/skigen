@@ -1,0 +1,54 @@
+---
+sidebar_position: 136
+title: OAS
+---
+
+# OAS
+
+Oracle Approximating Shrinkage covariance — a shrinkage estimator whose intensity targets the oracle under Gaussian assumptions, often improving on Ledoit-Wolf for Gaussian data.
+
+## Algorithm
+
+Uses the OAS closed-form shrinkage coefficient (the scikit-learn-corrected formula) to shrink the sample covariance toward a scaled identity.
+
+## Constructor
+
+```cpp
+Skigen::OAS<Scalar> model(bool assume_centered = false);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `assume_centered` | `false` | Skip mean subtraction. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X)` | Estimate the shrunk covariance. |
+| `score(X)` | Gaussian log-likelihood. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `covariance()` | Shrunk covariance. |
+| `shrinkage()` | OAS shrinkage intensity. |
+
+## Example
+
+```cpp
+Skigen::OAS<double> oas;
+oas.fit(X);
+auto C = oas.covariance();
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_covariance_reference.py` and the reference fixtures in `tests/parity/data/oas/`, exercised by `tests/parity/parity_covariance.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [OAS API Reference](/docs/api/covariance/oas).
+:::

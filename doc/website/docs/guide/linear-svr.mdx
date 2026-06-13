@@ -1,0 +1,58 @@
+---
+sidebar_position: 110
+title: LinearSVR
+---
+
+# LinearSVR
+
+Linear support-vector regression with an epsilon-insensitive loss solved in the primal.
+
+## Algorithm
+
+Errors within `epsilon` of the target incur no penalty; outside the tube the loss is linear (or squared). The learning rate is scaled by a Lipschitz bound for stable convergence.
+
+## Constructor
+
+```cpp
+Skigen::LinearSVR<Scalar> model(Scalar C = 1.0, Scalar epsilon = 0.0, Loss = EpsilonInsensitive, ...);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `C` | `1.0` | Inverse regularisation strength. |
+| `epsilon` | `0.0` | Width of the insensitive tube. |
+| `max_iter` | `1000` | Optimiser iterations. |
+| `fit_intercept` | `true` | Learn a bias term. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Optimise the epsilon-insensitive objective. |
+| `predict(X)` | Real-valued predictions. |
+| `score(X, y)` | R². |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `coef()` | Weight vector. |
+| `intercept()` | Bias term. |
+
+## Example
+
+```cpp
+Skigen::LinearSVR<double> svr(1.0);
+svr.fit(X, y);
+auto preds = svr.predict(X_test);
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_svm_reference.py` and the reference fixtures in `tests/parity/data/linear_svr/`, exercised by `tests/parity/parity_svm.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [LinearSVR API Reference](/docs/api/svm/linear-svr).
+:::

@@ -1,0 +1,60 @@
+---
+sidebar_position: 101
+title: RandomForestRegressor
+---
+
+# RandomForestRegressor
+
+A bagged ensemble of regression trees whose predictions are averaged. Trades a small bias increase for a large variance reduction relative to a single deep tree.
+
+## Algorithm
+
+Identical bootstrap + feature-subspace scheme as the classifier, but each tree minimises squared error and the ensemble prediction is the mean of the per-tree outputs.
+
+## Constructor
+
+```cpp
+Skigen::RandomForestRegressor<Scalar> model(int n_estimators = 100, CriterionReg = MSE, std::optional<int> max_depth = nullopt, ...);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `n_estimators` | `100` | Number of trees. |
+| `max_features` | `OneThird` | Candidate features per split. |
+| `bootstrap` | `true` | Sample with replacement per tree. |
+| `oob_score` | `false` | Expose an out-of-bag R² estimate. |
+| `n_jobs` | `1` | Trees fitted in parallel. |
+| `random_state` | `nullopt` | Seed. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Grow the forest. |
+| `predict(X)` | Mean of per-tree predictions. |
+| `score(X, y)` | R² coefficient of determination. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `feature_importances()` | Mean impurity decrease per feature. |
+| `oob_score()` | Out-of-bag R² (when enabled). |
+
+## Example
+
+```cpp
+Skigen::RandomForestRegressor<double> rf(100);
+rf.fit(X, y);
+auto preds = rf.predict(X_test);
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_ensemble_reference.py` and the reference fixtures in `tests/parity/data/random_forest_regressor/`, exercised by `tests/parity/parity_ensemble.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [RandomForestRegressor API Reference](/docs/api/ensemble/random-forest-regressor).
+:::

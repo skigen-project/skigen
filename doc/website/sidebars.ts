@@ -27,6 +27,8 @@ const sidebars: SidebarsConfig = {
                 'guide/lasso',
                 'guide/elastic-net',
                 'guide/sgd',
+                'guide/bayesian-ridge',
+                'guide/ard-regression',
             ],
         },
         {
@@ -35,6 +37,7 @@ const sidebars: SidebarsConfig = {
             items: [
                 'guide/pca',
                 'guide/truncated-svd',
+                'guide/factor-analysis',
             ],
         },
         {
@@ -50,6 +53,88 @@ const sidebars: SidebarsConfig = {
             items: [
                 'guide/decision-tree',
                 'guide/kneighbors',
+                'guide/local-outlier-factor',
+            ],
+        },
+        {
+            type: 'category',
+            label: 'Ensembles',
+            items: [
+                'guide/random-forest-classifier',
+                'guide/random-forest-regressor',
+                'guide/gradient-boosting-classifier',
+                'guide/gradient-boosting-regressor',
+                'guide/hist-gradient-boosting-classifier',
+                'guide/hist-gradient-boosting-regressor',
+            ],
+        },
+        {
+            type: 'category',
+            label: 'Naive Bayes',
+            items: [
+                'guide/gaussian-nb',
+                'guide/multinomial-nb',
+                'guide/bernoulli-nb',
+            ],
+        },
+        {
+            type: 'category',
+            label: 'Support Vector Machines',
+            items: [
+                'guide/linear-svc',
+                'guide/linear-svr',
+                'guide/svc',
+                'guide/svr',
+                'guide/nu-svc',
+                'guide/nu-svr',
+                'guide/one-class-svm',
+            ],
+        },
+        {
+            type: 'category',
+            label: 'Neural Networks',
+            items: [
+                'guide/mlp-classifier',
+                'guide/mlp-regressor',
+            ],
+        },
+        {
+            type: 'category',
+            label: 'Feature Selection',
+            items: [
+                'guide/variance-threshold',
+                'guide/select-k-best',
+                'guide/select-from-model',
+                'guide/rfe',
+            ],
+        },
+        {
+            type: 'category',
+            label: 'Calibration & Isotonic',
+            items: [
+                'guide/calibrated-classifier-cv',
+                'guide/isotonic-regression',
+            ],
+        },
+        {
+            type: 'category',
+            label: 'Covariance',
+            items: [
+                'guide/empirical-covariance',
+                'guide/ledoit-wolf',
+                'guide/oas',
+            ],
+        },
+        {
+            type: 'category',
+            label: 'Manifold Learning',
+            items: [
+                'guide/isomap',
+                'guide/mds',
+                'guide/locally-linear-embedding',
+                'guide/spectral-embedding',
+                'guide/tsne',
+                'guide/umap',
             ],
         },
         {
@@ -58,6 +143,8 @@ const sidebars: SidebarsConfig = {
             items: [
                 'guide/pipeline',
                 'guide/model-selection',
+                'guide/grid-search-cv',
+                'guide/randomized-search-cv',
                 'guide/metrics',
             ],
         },

@@ -1,0 +1,55 @@
+---
+sidebar_position: 121
+title: RFE
+---
+
+# RFE
+
+Recursive Feature Elimination: repeatedly fit an estimator and discard the weakest feature until the target count remains.
+
+## Algorithm
+
+At each round the base estimator is refit on the surviving features and the one with the smallest absolute weight/importance is removed, yielding a ranking of all features.
+
+## Constructor
+
+```cpp
+Skigen::RFE<Estimator> model(Estimator est, int n_features_to_select);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `estimator` | `—` | Estimator exposing weights/importances. |
+| `n_features_to_select` | `—` | Number of features to keep. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Run the elimination loop. |
+| `transform(X)` | Project onto the selected features. |
+| `get_support_mask()` | Boolean mask of selected features. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `ranking()` | Elimination rank of each feature (1 = kept). |
+
+## Example
+
+```cpp
+Skigen::RFE rfe(Skigen::Ridge<double>(0.1), 3);
+rfe.fit(X, y);
+auto X_sel = rfe.transform(X);
+```
+
+:::note Verified by unit tests
+Covered by the module's CTest suite under `tests/`.
+:::
+
+:::tip API Reference
+For full signatures see the [RFE API Reference](/docs/api/feature-selection/rfe).
+:::

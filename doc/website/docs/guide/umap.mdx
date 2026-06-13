@@ -1,0 +1,54 @@
+---
+sidebar_position: 129
+title: UMAP
+---
+
+# UMAP
+
+Uniform Manifold Approximation and Projection: a fast non-linear embedding that preserves both local and some global structure. An independent C++ port (BSD-3 attribution in the source header).
+
+## Algorithm
+
+Builds a fuzzy topological representation of the data via local fuzzy simplicial sets, then optimises a low-dimensional layout by stochastic gradient descent on the cross-entropy between the two fuzzy structures.
+
+## Constructor
+
+```cpp
+Skigen::UMAP<Scalar> model(int n_components = 2, int n_neighbors = 15, Scalar min_dist = 0.1, Scalar spread = 1.0, int n_epochs = 0, int negative_sample_rate = 5, uint64_t random_state = 0);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `n_components` | `2` | Embedding dimensionality. |
+| `n_neighbors` | `15` | Local neighbourhood size. |
+| `min_dist` | `0.1` | Minimum spacing in the embedding. |
+| `spread` | `1.0` | Scale of embedded points. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit_transform(X)` | Return the embedding. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `n_iter()` | Optimisation epochs run. |
+
+## Example
+
+```cpp
+Skigen::UMAP<double> umap(2, 15);
+auto Y = umap.fit_transform(X);
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_manifold_reference.py` and the reference fixtures in `tests/parity/data/umap/`, exercised by `tests/parity/parity_manifold.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [UMAP API Reference](/docs/api/manifold/umap).
+:::

@@ -1,0 +1,57 @@
+---
+sidebar_position: 112
+title: SVR
+---
+
+# SVR
+
+Kernel epsilon-support-vector regression using the same SMO solver and kernels as `SVC`.
+
+## Algorithm
+
+Fits the epsilon-insensitive dual with a kernel of choice; only samples outside the epsilon tube become support vectors.
+
+## Constructor
+
+```cpp
+Skigen::SVR<Scalar> model(Scalar C = 1.0, Kernel = RBF, Scalar epsilon = 0.1, ...);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `C` | `1.0` | Penalty strength. |
+| `kernel` | `RBF` | Kernel policy. |
+| `epsilon` | `0.1` | Insensitive-tube width. |
+| `gamma` | `scale` | Kernel coefficient. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Solve the epsilon-SVR dual. |
+| `predict(X)` | Real-valued predictions. |
+| `score(X, y)` | R². |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `n_support()` | Number of support vectors. |
+
+## Example
+
+```cpp
+Skigen::SVR<double> svr;
+svr.fit(X, y);
+auto preds = svr.predict(X_test);
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_svm_reference.py` and the reference fixtures in `tests/parity/data/svr/`, exercised by `tests/parity/parity_svm.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [SVR API Reference](/docs/api/svm/svr).
+:::

@@ -1,0 +1,60 @@
+---
+sidebar_position: 111
+title: SVC
+---
+
+# SVC
+
+Kernel support-vector classifier built on a libsvm-style SMO solver, supporting linear, RBF, polynomial and sigmoid kernels.
+
+## Algorithm
+
+Sequential Minimal Optimization solves the dual quadratic program, selecting working pairs and updating their Lagrange multipliers until the KKT conditions hold. Multiclass uses one-vs-one voting. With `probability=true`, Platt scaling calibrates the margins into probabilities via internal cross-validation.
+
+## Constructor
+
+```cpp
+Skigen::SVC<Scalar> model(Scalar C = 1.0, Kernel = RBF, int degree = 3, Scalar gamma = scale, ...);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `C` | `1.0` | Penalty on margin violations. |
+| `kernel` | `RBF` | `Linear`, `RBF`, `Poly` or `Sigmoid`. |
+| `degree` | `3` | Polynomial-kernel degree. |
+| `gamma` | `scale` | Kernel coefficient. |
+| `probability` | `false` | Enable Platt-scaled probabilities. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Solve the dual via SMO. |
+| `predict(X)` | Class labels. |
+| `decision_function(X)` | Margins (OvO for multiclass). |
+| `predict_proba(X)` | Requires `probability=true`. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `n_support()` | Support vectors per class. |
+| `n_classes()` | Number of classes. |
+
+## Example
+
+```cpp
+Skigen::SVC<double> svc(1.0, Skigen::SVC<double>::Kernel::RBF);
+svc.fit(X, y);
+auto preds = svc.predict(X_test);
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_svm_reference.py` and the reference fixtures in `tests/parity/data/svc/`, exercised by `tests/parity/parity_svm.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [SVC API Reference](/docs/api/svm/svc).
+:::

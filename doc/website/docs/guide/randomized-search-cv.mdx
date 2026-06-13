@@ -1,0 +1,59 @@
+---
+sidebar_position: 133
+title: RandomizedSearchCV
+---
+
+# RandomizedSearchCV
+
+Cross-validated search over random samples from parameter distributions — a budgeted alternative to exhaustive grid search.
+
+## Algorithm
+
+Draws `n_iter` parameter combinations from the supplied distributions and evaluates each by K-fold cross-validation, refitting the best on the full data.
+
+## Constructor
+
+```cpp
+Skigen::RandomizedSearchCV<Estimator> model(Estimator est, ParameterGrid distributions, int n_iter = 10, int cv = 5, bool refit = true, uint64_t random_state = nullopt);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `estimator` | `—` | Estimator to tune. |
+| `param_distributions` | `—` | Distributions to sample. |
+| `n_iter` | `10` | Number of sampled configurations. |
+| `cv` | `5` | Cross-validation folds. |
+| `random_state` | `nullopt` | Seed for sampling. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Sample, search, and refit the best. |
+| `predict(X)` | Predict with the best estimator. |
+| `best_params()` | Best sampled parameters. |
+| `best_score()` | Best mean CV score. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `best_score()` | Best mean cross-validation score. |
+| `cv_results_params()` | Sampled parameter sets. |
+
+## Example
+
+```cpp
+Skigen::RandomizedSearchCV<Skigen::Ridge<double>> rs(Skigen::Ridge<double>(), dist, 10, 5);
+rs.fit(X, y);
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_model_selection_reference.py` and the reference fixtures in `tests/parity/data/randomized_search_cv/`, exercised by `tests/parity/parity_model_selection.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [RandomizedSearchCV API Reference](/docs/api/model-selection/randomized-search-cv).
+:::

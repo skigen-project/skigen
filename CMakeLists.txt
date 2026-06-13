@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 project(skigen
-    VERSION 1.0.0
+    VERSION 1.1.0
     LANGUAGES CXX
     DESCRIPTION "Energy-efficient header-only ML library built on Eigen"
 )
@@ -43,6 +43,12 @@ add_library(Skigen::Skigen ALIAS Skigen)
 
 target_link_libraries(Skigen INTERFACE Eigen3::Eigen)
 target_compile_features(Skigen INTERFACE cxx_std_23)
+
+# GridSearchCV dispatches grid points across threads with std::async, which
+# needs the platform thread library (pthread on Linux). Header-only consumers
+# that never instantiate the parallel path still link this harmlessly.
+find_package(Threads REQUIRED)
+target_link_libraries(Skigen INTERFACE Threads::Threads)
 
 # The SKIGEN_PARAMS reflection macro feeds parenthesised tuples to a
 # variadic FOR_EACH expansion. MSVC's traditional preprocessor splits

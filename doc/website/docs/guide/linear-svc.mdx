@@ -1,0 +1,59 @@
+---
+sidebar_position: 109
+title: LinearSVC
+---
+
+# LinearSVC
+
+Linear support-vector classifier trained with coordinate-descent / sub-gradient updates on the (squared) hinge loss. Scales to many samples and is sparse-aware.
+
+## Algorithm
+
+Minimises a regularised hinge objective directly in the primal. Multiclass uses one-vs-rest. Unlike kernel `SVC`, no support-vector set is materialised — only the weight vector and intercept.
+
+## Constructor
+
+```cpp
+Skigen::LinearSVC<Scalar> model(Scalar C = 1.0, Loss = SquaredHinge, Penalty = L2, ...);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `C` | `1.0` | Inverse regularisation strength. |
+| `loss` | `SquaredHinge` | `Hinge` or `SquaredHinge`. |
+| `max_iter` | `1000` | Optimiser iterations. |
+| `fit_intercept` | `true` | Learn a bias term. |
+| `random_state` | `nullopt` | Seed. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Optimise the primal objective. |
+| `predict(X)` | Class labels. |
+| `decision_function(X)` | Signed margins. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `coef()` | Weight vector(s). |
+| `intercept()` | Bias term(s). |
+
+## Example
+
+```cpp
+Skigen::LinearSVC<double> svc(1.0);
+svc.fit(X, y);
+auto preds = svc.predict(X_test);
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_svm_reference.py` and the reference fixtures in `tests/parity/data/linear_svc/`, exercised by `tests/parity/parity_svm.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [LinearSVC API Reference](/docs/api/svm/linear-svc).
+:::

@@ -4,8 +4,12 @@
 #ifndef SKIGEN_PIPELINE_PIPELINE_H
 #define SKIGEN_PIPELINE_PIPELINE_H
 
+#include "../Core/Params.h"
+
 #include <Eigen/Core>
 #include <stdexcept>
+#include <string>
+#include <string_view>
 #include <tuple>
 #include <utility>
 
@@ -138,7 +142,63 @@ public:
     /// @return `true` if `fit()` has been called successfully.
     [[nodiscard]] bool is_fitted() const noexcept { return fitted_; }
 
+    /// @brief Route a `"<step_index>__<param>"` setting to the addressed step.
+    ///
+    /// Enables hyperparameter search over pipeline steps: a `GridSearchCV`
+    /// parameter grid keyed by e.g. `"1__alpha"` updates `alpha` on step 1.
+    /// The pipeline is an index-addressed tuple of steps, so the step prefix
+    /// is the numeric index (sklearn addresses steps by name; Skigen's
+    /// compile-time tuple has no names).
+    void set_param(std::string_view name, const ParameterValue& value) {
+        const auto sep = name.find("__");
+        if (sep == std::string_view::npos) {
+            throw std::invalid_argument(
+                "Pipeline::set_param: expected '<step_index>__<param>', got '" +
+                std::string(name) + "'");
+        }
+        const std::string index_str(name.substr(0, sep));
+        std::size_t index = 0;
+        try {
+            std::size_t consumed = 0;
+            index = static_cast<std::size_t>(std::stoul(index_str, &consumed));
+            if (consumed != index_str.size()) throw std::invalid_argument("");
+        } catch (const std::exception&) {
+            throw std::invalid_argument(
+                "Pipeline::set_param: step prefix '" + index_str +
+                "' is not a numeric index");
+        }
+        const std::string_view param = name.substr(sep + 2);
+        const bool routed = route_set_param(
+            index, param, value, std::index_sequence_for<Steps...>{});
+        if (!routed) {
+            throw std::out_of_range(
+                "Pipeline::set_param: step index out of range");
+        }
+    }
+
 private:
+    template <std::size_t I>
+    bool route_set_param_single(std::size_t index, std::string_view param,
+                                const ParameterValue& value) {
+        if (index != I) return false;
+        auto& step = std::get<I>(steps_);
+        if constexpr (requires { step.set_param(param, value); }) {
+            step.set_param(param, value);
+        } else {
+            throw std::invalid_argument(
+                "Pipeline::set_param: step " + std::to_string(I) +
+                " does not expose set_param");
+        }
+        return true;
+    }
+
+    template <std::size_t... Is>
+    bool route_set_param(std::size_t index, std::string_view param,
+                         const ParameterValue& value,
+                         std::index_sequence<Is...>) {
+        return (route_set_param_single<Is>(index, param, value) || ...);
+    }
+
     std::tuple<Steps...> steps_;
     bool fitted_ = false;
 

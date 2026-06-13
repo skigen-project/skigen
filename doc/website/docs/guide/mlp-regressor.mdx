@@ -1,0 +1,61 @@
+---
+sidebar_position: 117
+title: MLPRegressor
+---
+
+# MLPRegressor
+
+A dense feed-forward neural network for regression with a linear output layer, trained with mini-batch Adam (or SGD).
+
+## Algorithm
+
+Minimises squared error with L2 weight decay. Multi-target regression is available through `fit_multi` / `predict_multi`.
+
+## Constructor
+
+```cpp
+Skigen::MLPRegressor<Scalar> model(std::vector<int> hidden_layer_sizes = {100}, Activation = ReLU, Solver = Adam, ...);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `hidden_layer_sizes` | `{100}` | Units per hidden layer. |
+| `activation` | `ReLU` | Hidden activation. |
+| `solver` | `Adam` | `Adam` or `SGD`. |
+| `alpha` | `1e-4` | L2 regularisation. |
+| `learning_rate_init` | `1e-3` | Initial step size. |
+| `max_iter` | `200` | Maximum epochs. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Train on a single target. |
+| `fit_multi(X, Y)` | Train on multiple targets. |
+| `predict(X)` | Real-valued predictions. |
+| `score(X, y)` | R². |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `coefs()` | Per-layer weights. |
+| `intercepts()` | Per-layer biases. |
+
+## Example
+
+```cpp
+Skigen::MLPRegressor<double> mlp({64});
+mlp.fit(X, y);
+auto preds = mlp.predict(X_test);
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_neural_network_reference.py` and the reference fixtures in `tests/parity/data/mlp_regressor/`, exercised by `tests/parity/parity_neural_network.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [MLPRegressor API Reference](/docs/api/neural-network/mlpregressor).
+:::

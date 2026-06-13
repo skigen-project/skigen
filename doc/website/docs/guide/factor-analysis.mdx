@@ -1,0 +1,58 @@
+---
+sidebar_position: 137
+title: FactorAnalysis
+---
+
+# FactorAnalysis
+
+A latent linear-Gaussian model that explains observed features as a few common factors plus per-feature (heteroscedastic) noise — unlike PCA, which assumes isotropic noise.
+
+## Algorithm
+
+Loadings and noise variances are fit by expectation-maximisation. Loadings are identifiable only up to rotation, so downstream use should rely on the implied covariance or the transformed factors.
+
+## Constructor
+
+```cpp
+Skigen::FactorAnalysis<Scalar> model(int n_components = 0, int max_iter = 1000, Scalar tol = 1e-3);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `n_components` | `0` | Number of latent factors. |
+| `max_iter` | `1000` | EM iterations. |
+| `tol` | `1e-3` | Log-likelihood convergence tolerance. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X)` | Run EM. |
+| `transform(X)` | Project onto the latent factors. |
+| `get_covariance()` | Model-implied covariance. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `components()` | Loading matrix W. |
+| `noise_variance()` | Per-feature noise variance. |
+| `log_likelihood()` | Final log-likelihood. |
+
+## Example
+
+```cpp
+Skigen::FactorAnalysis<double> fa(2);
+fa.fit(X);
+auto Z = fa.transform(X);
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_decomposition_reference.py` and the reference fixtures in `tests/parity/data/factor_analysis/`, exercised by `tests/parity/parity_decomposition.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [FactorAnalysis API Reference](/docs/api/decomposition/factor-analysis).
+:::

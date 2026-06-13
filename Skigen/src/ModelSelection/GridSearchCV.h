@@ -10,9 +10,12 @@
 
 #include <Eigen/Core>
 
+#include <algorithm>
+#include <future>
 #include <limits>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace Skigen {
@@ -37,6 +40,9 @@ namespace Skigen {
 /// | `param_grid` | `ParameterGrid` | (required) |
 /// | `cv` | `int` | `5` |
 /// | `refit` | `bool` | `true` |
+/// | `n_jobs` | `int` | `1` | Grid points evaluated in parallel via
+///   `std::async`; `-1` uses all hardware threads. Parallelism is over the
+///   grid, not over CV folds, matching sklearn's documented behaviour. |
 ///
 /// ### Attributes (after fitting)
 ///
@@ -57,11 +63,13 @@ public:
         Estimator estimator,
         ParameterGrid param_grid,
         int cv = 5,
-        bool refit = true)
+        bool refit = true,
+        int n_jobs = 1)
         : estimator_(std::move(estimator)),
           param_grid_(std::move(param_grid)),
           cv_(cv),
-          refit_(refit) {}
+          refit_(refit),
+          n_jobs_(n_jobs) {}
 
     template <typename YType>
     GridSearchCV& fit(const MatrixType& X, const YType& y) {
@@ -79,22 +87,43 @@ public:
         best_score_ = -std::numeric_limits<Scalar>::infinity();
         best_index_ = 0;
 
-        for (std::size_t i = 0; i < n_combos; ++i) {
-            ParameterDict params = param_grid_[i];
-            cv_params_.push_back(params);
+        for (std::size_t i = 0; i < n_combos; ++i)
+            cv_params_.push_back(param_grid_[i]);
 
+        // Evaluate one grid point: clone the estimator, apply the parameter
+        // overrides, and return the mean cross-validation score. Each call
+        // owns its estimator copy and only reads X / y, so calls are
+        // independent and safe to run concurrently.
+        auto evaluate = [&](std::size_t i) -> Scalar {
             Estimator est = estimator_;
-            for (const auto& [name, val] : params) {
+            for (const auto& [name, val] : cv_params_[i]) {
                 est.set_param(name, val);
             }
+            return cross_val_score<Estimator, Scalar>(est, X, y, cv_).mean();
+        };
 
-            auto scores = cross_val_score<Estimator, Scalar>(
-                est, X, y, cv_);
-            const Scalar mean = scores.mean();
-            cv_mean_scores_.push_back(mean);
+        cv_mean_scores_.assign(n_combos, Scalar{0});
+        const unsigned jobs = effective_jobs();
+        if (jobs <= 1) {
+            for (std::size_t i = 0; i < n_combos; ++i)
+                cv_mean_scores_[i] = evaluate(i);
+        } else {
+            // Bounded concurrency: keep at most `jobs` evaluations in flight.
+            for (std::size_t start = 0; start < n_combos; start += jobs) {
+                const std::size_t end = std::min(start + jobs, n_combos);
+                std::vector<std::future<Scalar>> futures;
+                futures.reserve(end - start);
+                for (std::size_t i = start; i < end; ++i)
+                    futures.push_back(
+                        std::async(std::launch::async, evaluate, i));
+                for (std::size_t i = start; i < end; ++i)
+                    cv_mean_scores_[i] = futures[i - start].get();
+            }
+        }
 
-            if (mean > best_score_) {
-                best_score_ = mean;
+        for (std::size_t i = 0; i < n_combos; ++i) {
+            if (cv_mean_scores_[i] > best_score_) {
+                best_score_ = cv_mean_scores_[i];
                 best_index_ = i;
             }
         }
@@ -150,10 +179,19 @@ private:
         }
     }
 
+    [[nodiscard]] unsigned effective_jobs() const {
+        if (n_jobs_ < 0) {
+            const unsigned hw = std::thread::hardware_concurrency();
+            return hw == 0 ? 1u : hw;
+        }
+        return static_cast<unsigned>(n_jobs_ <= 0 ? 1 : n_jobs_);
+    }
+
     Estimator estimator_;
     ParameterGrid param_grid_;
     int cv_;
     bool refit_;
+    int n_jobs_{1};
 
     bool fitted_{false};
     Estimator best_estimator_{estimator_};

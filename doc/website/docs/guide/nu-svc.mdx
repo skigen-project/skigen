@@ -1,0 +1,44 @@
+---
+sidebar_position: 113
+title: NuSVC
+---
+
+# NuSVC
+
+`NuSVC` ships as a documented **placeholder** in v1.1.0: the nu-parametrised formulation requires libsvm's specialised SMO variant, which is scheduled for a later release.
+
+## Algorithm
+
+The constructor and accessor surface are present so user code can target the final API, but `fit()` throws `std::runtime_error`. Use Skigen::SVC instead until the nu-solver lands.
+
+## Constructor
+
+```cpp
+Skigen::NuSVC<Scalar> model(Scalar nu = 0.5, ...);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `nu` | `0.5` | Upper bound on the fraction of margin errors and lower bound on the fraction of support vectors. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(...)` | Throws — not yet implemented. |
+
+## Example
+
+```cpp
+// Placeholder: Skigen::NuSVC fit() throws in v1.1.0.
+```
+
+:::caution Placeholder
+`NuSVC` is an API placeholder in v1.1.0 — `fit()` throws until the nu-SVM solver lands. It is intentionally excluded from behavioural parity.
+:::
+
+:::tip API Reference
+For full signatures see the [NuSVC API Reference](/docs/api/svm/nu-svc).
+:::
