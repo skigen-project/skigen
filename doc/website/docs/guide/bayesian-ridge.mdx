@@ -1,0 +1,60 @@
+---
+sidebar_position: 122
+title: BayesianRidge
+---
+
+# BayesianRidge
+
+Bayesian ridge regression: a Gaussian linear model whose noise and weight precisions are estimated from the data by evidence maximisation, yielding predictive uncertainty for free.
+
+## Algorithm
+
+Gamma hyperpriors on the noise precision (alpha) and weight precision (lambda) are optimised by the iterative evidence-maximisation scheme of Tipping (2001). `predict(X, with_std)` returns the predictive mean and standard deviation.
+
+## Constructor
+
+```cpp
+Skigen::BayesianRidge<Scalar> model(int max_iter = 300, Scalar tol = 1e-3, Scalar alpha_1 = 1e-6, ...);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `max_iter` | `300` | Evidence-maximisation iterations. |
+| `tol` | `1e-3` | Convergence tolerance. |
+| `alpha_1 / alpha_2` | `1e-6` | Gamma prior on the noise precision. |
+| `lambda_1 / lambda_2` | `1e-6` | Gamma prior on the weight precision. |
+| `compute_score` | `false` | Track the log marginal likelihood. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Optimise the evidence. |
+| `predict(X)` | Predictive mean. |
+| `predict(X, with_std)` | Mean and predictive std-dev. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `coef()` | Posterior mean weights. |
+| `alpha()` | Estimated noise precision. |
+| `lambda_()` | Estimated weight precision. |
+
+## Example
+
+```cpp
+Skigen::BayesianRidge<double> br;
+br.fit(X, y);
+auto [mean, std] = br.predict(X_test, Skigen::with_std);
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_bayesian_linear_reference.py` and the reference fixtures in `tests/parity/data/bayesian_ridge/`, exercised by `tests/parity/parity_bayesian_linear.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [BayesianRidge API Reference](/docs/api/linear-model/bayesian-ridge).
+:::

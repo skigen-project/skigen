@@ -1,0 +1,53 @@
+---
+sidebar_position: 126
+title: LocallyLinearEmbedding
+---
+
+# LocallyLinearEmbedding
+
+LLE: embeds data by preserving the local linear reconstruction weights of each point from its neighbours.
+
+## Algorithm
+
+Each point is expressed as a weighted combination of its k nearest neighbours; the embedding minimises the same reconstruction error in low dimensions via a sparse eigenproblem (standard variant).
+
+## Constructor
+
+```cpp
+Skigen::LocallyLinearEmbedding<Scalar> model(int n_components = 2, int n_neighbors = 5, Scalar reg = 1e-3);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `n_components` | `2` | Embedding dimensionality. |
+| `n_neighbors` | `5` | Neighbours per point. |
+| `reg` | `1e-3` | Regularisation of the local Gram matrix. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit_transform(X)` | Return the embedding. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `reconstruction_error()` | Embedding reconstruction error. |
+
+## Example
+
+```cpp
+Skigen::LocallyLinearEmbedding<double> lle(2, 5);
+auto Y = lle.fit_transform(X);
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_manifold_reference.py` and the reference fixtures in `tests/parity/data/locally_linear_embedding/`, exercised by `tests/parity/parity_manifold.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [LocallyLinearEmbedding API Reference](/docs/api/manifold/locally-linear-embedding).
+:::

@@ -1,0 +1,56 @@
+---
+sidebar_position: 131
+title: IsotonicRegression
+---
+
+# IsotonicRegression
+
+Non-parametric monotonic regression: fits the best non-decreasing (or non-increasing) step function to 1-D data via the Pool-Adjacent-Violators Algorithm.
+
+## Algorithm
+
+PAVA merges adjacent blocks that violate monotonicity, replacing them with their weighted mean, in O(n log n). Out-of-range queries follow the `out_of_bounds` policy (NaN, clip, or raise).
+
+## Constructor
+
+```cpp
+Skigen::IsotonicRegression<Scalar> model(std::optional<Scalar> y_min = nullopt, std::optional<Scalar> y_max = nullopt, IsotonicIncreasing = True, OutOfBounds = Nan);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `y_min / y_max` | `nullopt` | Optional clamps on the output. |
+| `increasing` | `True` | Direction (`True`, `False`, `Auto`). |
+| `out_of_bounds` | `Nan` | Behaviour outside the training range. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Run PAVA. |
+| `predict(X)` | Interpolate the fitted step function. |
+| `transform(X)` | Alias of `predict`. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `increasing_resolved()` | Resolved monotonic direction. |
+
+## Example
+
+```cpp
+Skigen::IsotonicRegression<double> iso;
+iso.fit(X, y);
+auto yhat = iso.predict(X_test);
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_isotonic_reference.py` and the reference fixtures in `tests/parity/data/isotonic/`, exercised by `tests/parity/parity_isotonic.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [IsotonicRegression API Reference](/docs/api/isotonic/isotonic-regression).
+:::

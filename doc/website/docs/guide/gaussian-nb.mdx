@@ -1,0 +1,58 @@
+---
+sidebar_position: 106
+title: GaussianNB
+---
+
+# GaussianNB
+
+Gaussian Naive Bayes: each feature is modelled as class-conditional Gaussian, and predictions combine the per-feature likelihoods with the class priors under the naive independence assumption.
+
+## Algorithm
+
+For each class the per-feature mean and variance are estimated by maximum likelihood (a small `var_smoothing` floor is added for stability). Posterior class scores are the sum of Gaussian log-likelihoods plus the log prior. Supports streaming via `partial_fit` with Welford-style variance updates.
+
+## Constructor
+
+```cpp
+Skigen::GaussianNB<Scalar> model(VectorType priors = {}, Scalar var_smoothing = 1e-9);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `priors` | `empty` | Class priors; estimated from data if empty. |
+| `var_smoothing` | `1e-9` | Variance floor as a fraction of the largest feature variance. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Estimate per-class means and variances. |
+| `partial_fit(X, y, classes)` | Incremental update. |
+| `predict(X)` | MAP class labels. |
+| `predict_proba(X)` | Normalised class posteriors. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `theta()` | Per-class feature means. |
+| `var()` | Per-class feature variances. |
+| `class_prior()` | Class prior probabilities. |
+
+## Example
+
+```cpp
+Skigen::GaussianNB<double> nb;
+nb.fit(X, y);
+auto proba = nb.predict_proba(X_test);
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_naive_bayes_reference.py` and the reference fixtures in `tests/parity/data/gaussian_nb/`, exercised by `tests/parity/parity_naive_bayes.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [GaussianNB API Reference](/docs/api/naive-bayes/gaussian-nb).
+:::

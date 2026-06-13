@@ -23,9 +23,14 @@ All notable changes to Skigen will be documented in this file.
   `Ridge`, `Lasso`, `ElasticNet`, `SelectKBest` (chi-squared), `KMeans`,
   `MiniBatchKMeans`, and the `DecisionTree*` family.
 - **Strict sklearn parity** — parameter names, order, types, defaults, fitted
-  attributes, and error semantics pinned to scikit-learn 1.7.x as a
-  release-blocking contract.
-- **One example per public estimator** — `examples/` now holds 57 programs
+  attributes, and error semantics pinned to scikit-learn (recorded in
+  `tests/parity/sklearn_version.txt`) as a release-blocking contract.
+- **scikit-learn parity suite** — `skigen_test_parity` (CTest target #21)
+  loads checked-in reference fixtures and verifies 47 estimators against
+  scikit-learn: tight element-wise tolerances for deterministic estimators,
+  behavioural score/trustworthiness bands for the stochastic ones. Fixtures
+  regenerate via `cmake --build build --target skigen_regenerate_parity`.
+- **One example per public estimator** — `examples/` now holds 61 programs
   organised by module.
 
 ### New modules
@@ -54,7 +59,23 @@ All notable changes to Skigen will be documented in this file.
 - New `IncrementalLike` concept and `partial_fit` contract documented in
   the developer guide.
 - `SKIGEN_PARAMS(...)` reflection macro on every concrete estimator.
-- 20 test executables; **376** unit tests, 100% passing.
+- **21 test executables** (20 unit suites + the scikit-learn parity suite),
+  100% passing under `-Wall -Wextra -Wpedantic`.
+- **Parity harness** — Python reference generators in `tests/parity/`, a
+  C++ CSV-fixture runner, and the `skigen_test_parity` / `skigen_regenerate_parity`
+  CMake targets. CI never invokes Python; the fixtures are committed.
+- `GridSearchCV` gains an `n_jobs` parameter that dispatches grid points
+  across threads with `std::async` (parallelism over the grid, not folds).
+- `Pipeline::set_param("<step_index>__<param>", value)` routes a setting to
+  a step by index, enabling hyperparameter search over pipeline steps.
+
+### Fixes
+
+- **`chi2` feature scoring** now matches scikit-learn: the expected counts
+  divide by the sample count (`expected = outer(class_count / n, feature_count)`)
+  rather than by the sum of all feature totals.
+- **`OAS` covariance** adopts scikit-learn's corrected Oracle-Approximating-
+  Shrinkage coefficient (the earlier Chen-et-al. formula diverged by ~0.3%).
 
 ### Breaking changes
 
@@ -66,23 +87,27 @@ All breaking changes are catalogued in
 - `Estimator::set_param(name, value)` / `get_params()` reflection surface
   added to the base class; concrete estimators register via `SKIGEN_PARAMS`.
 - `LinearRegression` gains `positive` and `n_jobs` parameters.
-- `Pipeline` accepts `(name, estimator)` named-step construction (positional
-  form preserved); `"step__param"` nested syntax is now supported by
-  `GridSearchCV`.
+- `Pipeline` supports `set_param("<step_index>__<param>", value)` routing so
+  `GridSearchCV` can tune pipeline steps. (Steps are addressed by numeric
+  index; sklearn-style named-step addressing is on the v1.1.x backlog.)
 - Classification metrics that admit multi-output averaging return
   `MetricsResult` (variant of `Scalar` / `VectorType`).
 - `KMeans::cluster_centers_` row/column convention pinned to
   `(n_clusters, n_features)`.
 
-### Known gaps
+### Known gaps (deferred to v1.1.x / v1.2.0)
 
 - `NuSVC`, `NuSVR`, `OneClassSVM` are placeholder shells (throw from
   `fit`); the nu-SVM SMO solver is deferred.
-- `PCA` and `BayesianRidge` sparse paths remain on the v1.1.x backlog;
-  use `TruncatedSVD` for sparse decomposition in the meantime.
-- Adam solver for `MLP` is on the v1.1.x backlog; SGD solver is the default
-  and is fully functional.
-- Parity-test CTest harness lands later in the v1.1 cycle.
+- Native sparse split-finding for the decision-tree family — the sparse path
+  currently densifies before fitting.
+- `MLP` `solver="lbfgs"` throws; `Adam` (default) and `SGD` are implemented.
+- `SelectKBest` `mutual_info_*` score functions.
+- Optional `Spectra` truncated eigensolver for the manifold learners
+  (`SKIGEN_ENABLE_SPECTRA`); the dense `SelfAdjointEigenSolver` path is the
+  default.
+- sklearn-style named-step addressing in `Pipeline` (index-prefixed routing
+  is available now).
 
 ## [1.0.0] - 2026-05-02
 

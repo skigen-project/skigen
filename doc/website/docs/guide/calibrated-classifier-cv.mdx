@@ -1,0 +1,58 @@
+---
+sidebar_position: 130
+title: CalibratedClassifierCV
+---
+
+# CalibratedClassifierCV
+
+Post-hoc probability calibration that maps a base classifier's scores onto well-calibrated probabilities using sigmoid (Platt) or isotonic regression fit by cross-validation.
+
+## Algorithm
+
+For each CV fold the base estimator is fit on the training part and a calibrator (1-D logistic regression for sigmoid, PAVA for isotonic) is fit on the held-out scores. Predictions average the per-fold calibrators. v1.1.0 covers binary classification.
+
+## Constructor
+
+```cpp
+Skigen::CalibratedClassifierCV<Base, Scalar> model(Base est, Method = Sigmoid, int cv = 5, int n_jobs = 1, bool ensemble = true);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `estimator` | `—` | Base classifier to calibrate. |
+| `method` | `Sigmoid` | `Sigmoid` (Platt) or `Isotonic`. |
+| `cv` | `5` | Cross-validation folds. |
+| `ensemble` | `true` | Average per-fold calibrators. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Fit base estimators and calibrators. |
+| `predict(X)` | Calibrated class labels. |
+| `predict_proba(X)` | Calibrated probabilities. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `n_classes()` | Number of classes. |
+| `n_estimators_fitted()` | Calibrated base estimators held. |
+
+## Example
+
+```cpp
+Skigen::GaussianNB<double> nb;
+Skigen::CalibratedClassifierCV cc(nb, Skigen::CalibrationMethod::Sigmoid, 5);
+cc.fit(X, y);
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_calibration_reference.py` and the reference fixtures in `tests/parity/data/calibrated_classifier_cv/`, exercised by `tests/parity/parity_calibration.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [CalibratedClassifierCV API Reference](/docs/api/calibration/calibrated-classifier-cv).
+:::

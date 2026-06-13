@@ -1,0 +1,56 @@
+---
+sidebar_position: 119
+title: SelectKBest
+---
+
+# SelectKBest
+
+Keeps the top-k features ranked by a univariate score function (`f_classif`, `f_regression`, or `chi2`).
+
+## Algorithm
+
+Each feature is scored independently against the target; the k highest-scoring features are retained. The chi-squared score is sparse-aware for text pipelines.
+
+## Constructor
+
+```cpp
+Skigen::SelectKBest<Scalar, ScoreFn> model(ScoreFn score, int k);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `score_func` | `—` | `FClassif`, `FRegression`, or `Chi2`. |
+| `k` | `—` | Number of features to keep. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Score and rank the features. |
+| `transform(X)` | Project onto the top-k features. |
+| `get_support_mask()` | Boolean mask of selected features. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `scores()` | Per-feature scores. |
+| `pvalues()` | Per-feature p-values. |
+
+## Example
+
+```cpp
+Skigen::SelectKBest<double, Skigen::feature_selection::FClassif<double>> sel({}, 5);
+sel.fit(X, y);
+auto X_top = sel.transform(X);
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_feature_selection_reference.py` and the reference fixtures in `tests/parity/data/f_classif/`, exercised by `tests/parity/parity_feature_selection.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [SelectKBest API Reference](/docs/api/feature-selection/select-kbest).
+:::

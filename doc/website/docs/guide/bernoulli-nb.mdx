@@ -1,0 +1,58 @@
+---
+sidebar_position: 108
+title: BernoulliNB
+---
+
+# BernoulliNB
+
+Bernoulli Naive Bayes for binary/boolean features, with an explicit penalty for features that do *not* occur. Sparse-aware.
+
+## Algorithm
+
+Inputs are binarised at `binarize`. Each class stores the smoothed probability that each feature is 1; the decision function includes the log-probability of absence for unset features, distinguishing it from the multinomial model.
+
+## Constructor
+
+```cpp
+Skigen::BernoulliNB<Scalar> model(Scalar alpha = 1.0, bool fit_prior = true, std::optional<Scalar> binarize = 0.0);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `alpha` | `1.0` | Additive smoothing. |
+| `fit_prior` | `true` | Learn class priors. |
+| `binarize` | `0.0` | Threshold for binarising features; `nullopt` assumes pre-binarised input. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Accumulate binary feature counts. |
+| `partial_fit(X, y, classes)` | Incremental update. |
+| `predict(X)` | MAP class labels. |
+| `predict_proba(X)` | Class posteriors. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `feature_log_prob()` | Log P(feature = 1 | class). |
+| `class_log_prior()` | Log class priors. |
+
+## Example
+
+```cpp
+Skigen::BernoulliNB<double> nb;
+nb.fit(X_binary, y);
+auto preds = nb.predict(X_test);
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_naive_bayes_reference.py` and the reference fixtures in `tests/parity/data/bernoulli_nb/`, exercised by `tests/parity/parity_naive_bayes.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [BernoulliNB API Reference](/docs/api/naive-bayes/bernoulli-nb).
+:::

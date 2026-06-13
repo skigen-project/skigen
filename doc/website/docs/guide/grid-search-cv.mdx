@@ -1,0 +1,59 @@
+---
+sidebar_position: 132
+title: GridSearchCV
+---
+
+# GridSearchCV
+
+Exhaustive cross-validated search over a parameter grid, refitting the best configuration on the full training set.
+
+## Algorithm
+
+Every point in the Cartesian product of the grid is evaluated by K-fold cross-validation. Grid points are dispatched across threads with `n_jobs` (parallelism is over the grid, not the folds). Over a pipeline, parameters are addressed by step index, e.g. `1__alpha`.
+
+## Constructor
+
+```cpp
+Skigen::GridSearchCV<Estimator> model(Estimator est, ParameterGrid grid, int cv = 5, bool refit = true, int n_jobs = 1);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `estimator` | `—` | Estimator to tune. |
+| `param_grid` | `—` | Grid of parameter values. |
+| `cv` | `5` | Cross-validation folds. |
+| `n_jobs` | `1` | Grid points evaluated in parallel (`-1` = all). |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Search and refit the best estimator. |
+| `predict(X)` | Predict with the best estimator. |
+| `best_params()` | Best parameter dictionary. |
+| `best_score()` | Best mean CV score. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `best_score()` | Best mean cross-validation score. |
+| `cv_results_mean_score()` | Mean score per grid point. |
+
+## Example
+
+```cpp
+Skigen::ParameterGrid grid({{"alpha", {0.1, 1.0, 10.0}}});
+Skigen::GridSearchCV<Skigen::Ridge<double>> gs(Skigen::Ridge<double>(), grid, 5, true, -1);
+gs.fit(X, y);
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_model_selection_reference.py` and the reference fixtures in `tests/parity/data/grid_search_cv/`, exercised by `tests/parity/parity_model_selection.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [GridSearchCV API Reference](/docs/api/model-selection/grid-search-cv).
+:::

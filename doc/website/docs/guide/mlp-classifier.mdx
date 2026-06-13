@@ -1,0 +1,63 @@
+---
+sidebar_position: 116
+title: MLPClassifier
+---
+
+# MLPClassifier
+
+A dense feed-forward neural network for classification, trained with mini-batch Adam (or SGD) on the cross-entropy loss.
+
+## Algorithm
+
+Forward and backward passes are expressed entirely as Eigen matrix operations. The output layer is sigmoid (binary) or softmax (multiclass). Adam moment vectors persist across `partial_fit` calls for warm-started streaming.
+
+## Constructor
+
+```cpp
+Skigen::MLPClassifier<Scalar> model(std::vector<int> hidden_layer_sizes = {100}, Activation = ReLU, Solver = Adam, ...);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `hidden_layer_sizes` | `{100}` | Units per hidden layer. |
+| `activation` | `ReLU` | `Identity`, `Logistic`, `Tanh`, `ReLU`. |
+| `solver` | `Adam` | `Adam` or `SGD` (`LBFGS` reserved). |
+| `alpha` | `1e-4` | L2 regularisation strength. |
+| `learning_rate_init` | `1e-3` | Initial step size. |
+| `max_iter` | `200` | Maximum epochs. |
+| `random_state` | `nullopt` | Seed. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Train the network. |
+| `predict(X)` | Class labels. |
+| `predict_proba(X)` | Softmax/sigmoid outputs. |
+| `score(X, y)` | Mean accuracy. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `coefs()` | Per-layer weight matrices. |
+| `intercepts()` | Per-layer bias vectors. |
+| `n_iter_run()` | Epochs actually run. |
+
+## Example
+
+```cpp
+Skigen::MLPClassifier<double> mlp({64, 32});
+mlp.fit(X, y);
+auto preds = mlp.predict(X_test);
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_neural_network_reference.py` and the reference fixtures in `tests/parity/data/mlp_classifier/`, exercised by `tests/parity/parity_neural_network.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [MLPClassifier API Reference](/docs/api/neural-network/mlpclassifier).
+:::

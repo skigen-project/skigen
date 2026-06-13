@@ -1,0 +1,59 @@
+---
+sidebar_position: 123
+title: ARDRegression
+---
+
+# ARDRegression
+
+Automatic Relevance Determination: Bayesian linear regression with a separate weight precision per feature, driving irrelevant coefficients to zero for sparse solutions.
+
+## Algorithm
+
+Identical evidence-maximisation machinery to `BayesianRidge` but with a per-feature lambda. Features whose precision exceeds `threshold_lambda` are pruned from the model.
+
+## Constructor
+
+```cpp
+Skigen::ARDRegression<Scalar> model(int max_iter = 300, Scalar tol = 1e-3, ..., Scalar threshold_lambda = 1e4);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `max_iter` | `300` | Iterations. |
+| `tol` | `1e-3` | Convergence tolerance. |
+| `threshold_lambda` | `1e4` | Prune features above this precision. |
+| `compute_score` | `false` | Track the marginal likelihood. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Optimise the per-feature evidence. |
+| `predict(X)` | Predictive mean. |
+| `predict(X, with_std)` | Mean and predictive std-dev. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `coef()` | Posterior mean weights (sparse). |
+| `alpha()` | Noise precision. |
+| `lambda_()` | Per-feature weight precisions. |
+
+## Example
+
+```cpp
+Skigen::ARDRegression<double> ard;
+ard.fit(X, y);
+auto preds = ard.predict(X_test);
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_bayesian_linear_reference.py` and the reference fixtures in `tests/parity/data/ard_regression/`, exercised by `tests/parity/parity_bayesian_linear.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [ARDRegression API Reference](/docs/api/linear-model/ardregression).
+:::

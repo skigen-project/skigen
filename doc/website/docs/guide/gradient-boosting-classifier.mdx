@@ -1,0 +1,59 @@
+---
+sidebar_position: 102
+title: GradientBoostingClassifier
+---
+
+# GradientBoostingClassifier
+
+A stage-wise additive model that fits shallow regression trees to the negative gradient of the binary log-loss.
+
+## Algorithm
+
+Starting from the log-odds prior, each stage fits a regression tree to the pseudo-residuals (negative gradient) of the loss and adds it to the running prediction scaled by `learning_rate`. Binary log-loss is supported; multiclass and the exponential loss are rejected with a parity-gap message.
+
+## Constructor
+
+```cpp
+Skigen::GradientBoostingClassifier<Scalar> model(Loss = LogLoss, Scalar learning_rate = 0.1, int n_estimators = 100, ...);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `learning_rate` | `0.1` | Shrinkage applied to each stage. |
+| `n_estimators` | `100` | Number of boosting stages. |
+| `max_depth` | `3` | Depth of each regression tree. |
+| `subsample` | `1.0` | Row fraction per stage (stochastic GB). |
+| `random_state` | `nullopt` | Seed. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Boost over the stages. |
+| `predict(X)` | Thresholded class labels. |
+| `predict_proba(X)` | Sigmoid of the boosted score. |
+| `score(X, y)` | Mean accuracy. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `train_score()` | Per-stage training log-loss. |
+
+## Example
+
+```cpp
+Skigen::GradientBoostingClassifier<double> gb;
+gb.fit(X, y);
+auto p = gb.predict_proba(X_test);
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_ensemble_reference.py` and the reference fixtures in `tests/parity/data/gradient_boosting_classifier/`, exercised by `tests/parity/parity_ensemble.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [GradientBoostingClassifier API Reference](/docs/api/ensemble/gradient-boosting-classifier).
+:::

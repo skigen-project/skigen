@@ -1,0 +1,55 @@
+---
+sidebar_position: 128
+title: TSNE
+---
+
+# TSNE
+
+t-distributed Stochastic Neighbor Embedding: a popular non-linear method for visualising high-dimensional data in 2-D/3-D.
+
+## Algorithm
+
+Models pairwise similarities as conditional probabilities in both spaces and minimises their KL divergence by gradient descent, using a heavy-tailed Student-t kernel in the embedding to avoid crowding. v1.1.0 implements the exact (non-Barnes-Hut) gradient.
+
+## Constructor
+
+```cpp
+Skigen::TSNE<Scalar> model(int n_components = 2, Scalar perplexity = 30.0, Scalar learning_rate = 200.0, int max_iter = 1000, uint64_t random_state = 0);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `n_components` | `2` | Embedding dimensionality. |
+| `perplexity` | `30.0` | Effective neighbourhood size. |
+| `learning_rate` | `200.0` | Gradient-descent step size. |
+| `max_iter` | `1000` | Optimisation iterations. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit_transform(X)` | Return the embedding. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `kl_divergence()` | Final KL divergence. |
+| `n_iter()` | Iterations run. |
+
+## Example
+
+```cpp
+Skigen::TSNE<double> tsne(2, 30.0);
+auto Y = tsne.fit_transform(X);
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_manifold_reference.py` and the reference fixtures in `tests/parity/data/tsne/`, exercised by `tests/parity/parity_manifold.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [TSNE API Reference](/docs/api/manifold/tsne).
+:::

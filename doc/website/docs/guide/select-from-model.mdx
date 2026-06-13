@@ -1,0 +1,55 @@
+---
+sidebar_position: 120
+title: SelectFromModel
+---
+
+# SelectFromModel
+
+A meta-transformer that selects features by thresholding the `coef_` or `feature_importances_` of a wrapped estimator.
+
+## Algorithm
+
+Fits the base estimator, then keeps features whose importance exceeds a threshold (`mean`, `median`, or a numeric value).
+
+## Constructor
+
+```cpp
+Skigen::SelectFromModel<Estimator> model(Estimator est, Threshold = Mean);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `estimator` | `—` | Estimator exposing coefficients/importances. |
+| `threshold` | `Mean` | `Mean`, `Median`, or a numeric cutoff. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Fit the base estimator and compute the mask. |
+| `transform(X)` | Keep features above the threshold. |
+| `get_support_mask()` | Boolean mask of selected features. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `estimator()` | The fitted base estimator. |
+
+## Example
+
+```cpp
+Skigen::SelectFromModel sel(Skigen::Ridge<double>(0.1));
+sel.fit(X, y);
+auto X_sel = sel.transform(X);
+```
+
+:::note Verified by unit tests
+Covered by the module's CTest suite under `tests/`.
+:::
+
+:::tip API Reference
+For full signatures see the [SelectFromModel API Reference](/docs/api/feature-selection/select-from-model).
+:::

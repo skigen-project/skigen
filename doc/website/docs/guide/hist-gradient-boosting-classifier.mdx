@@ -1,0 +1,60 @@
+---
+sidebar_position: 104
+title: HistGradientBoostingClassifier
+---
+
+# HistGradientBoostingClassifier
+
+Histogram-based gradient boosting: features are binned up-front so split finding scans bin histograms rather than raw values, making training near-linear in the sample count.
+
+## Algorithm
+
+Each feature is quantile-binned into at most `max_bins` buckets. Split finding then operates on per-bin gradient/hessian histograms, which is dramatically faster on large datasets. Binary log-loss is supported.
+
+## Constructor
+
+```cpp
+Skigen::HistGradientBoostingClassifier<Scalar> model(Scalar learning_rate = 0.1, int max_iter = 100, ...);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `learning_rate` | `0.1` | Shrinkage per iteration. |
+| `max_iter` | `100` | Number of boosting iterations. |
+| `max_bins` | `255` | Feature quantisation resolution. |
+| `max_leaf_nodes` | `31` | Leaves per tree. |
+| `random_state` | `nullopt` | Seed. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Bin features, then boost. |
+| `predict(X)` | Class labels. |
+| `predict_proba(X)` | Calibrated-by-sigmoid scores. |
+| `score(X, y)` | Mean accuracy. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `bin_edges()` | Per-feature quantile bin edges. |
+| `train_score()` | Per-iteration training log-loss. |
+
+## Example
+
+```cpp
+Skigen::HistGradientBoostingClassifier<double> gb;
+gb.fit(X, y);
+auto preds = gb.predict(X_test);
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_ensemble_reference.py` and the reference fixtures in `tests/parity/data/hist_gradient_boosting_classifier/`, exercised by `tests/parity/parity_ensemble.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [HistGradientBoostingClassifier API Reference](/docs/api/ensemble/hist-gradient-boosting-classifier).
+:::

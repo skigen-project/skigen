@@ -1,0 +1,53 @@
+---
+sidebar_position: 124
+title: Isomap
+---
+
+# Isomap
+
+Isometric mapping: a non-linear embedding that preserves geodesic (along-the-manifold) distances rather than straight-line ones.
+
+## Algorithm
+
+Builds a k-nearest-neighbour graph, approximates geodesic distances by shortest paths through it, then applies classical MDS to the geodesic distance matrix.
+
+## Constructor
+
+```cpp
+Skigen::Isomap<Scalar> model(int n_components = 2, int n_neighbors = 5);
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `n_components` | `2` | Embedding dimensionality. |
+| `n_neighbors` | `5` | Neighbours per point in the graph. |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit_transform(X)` | Compute and return the embedding. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `dist_matrix()` | Geodesic distance matrix. |
+| `reconstruction_error()` | Residual of the MDS fit. |
+
+## Example
+
+```cpp
+Skigen::Isomap<double> iso(2, 5);
+auto Y = iso.fit_transform(X);
+```
+
+:::note Verified against scikit-learn
+This estimator is checked by the parity suite. See the generator `tests/parity/generate_manifold_reference.py` and the reference fixtures in `tests/parity/data/isomap/`, exercised by `tests/parity/parity_manifold.cpp`.
+:::
+
+:::tip API Reference
+For full signatures see the [Isomap API Reference](/docs/api/manifold/isomap).
+:::
