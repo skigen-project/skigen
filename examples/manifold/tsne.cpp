@@ -21,7 +21,11 @@
 #include <iostream>
 #include <random>
 
-int main() {
+#ifdef SKIGEN_EXAMPLE_WITH_PLOT
+#include <skigen/plot/figure.h>
+#endif
+
+int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     constexpr int n_per = 20;
     constexpr int n = 3 * n_per;
     constexpr int d = 4;
@@ -48,5 +52,20 @@ int main() {
     std::cout << "=== t-SNE (exact) ===\n";
     std::cout << "  embedding shape = " << Y.rows() << " x " << Y.cols() << "\n";
     std::cout << "  KL divergence   = " << tsne.kl_divergence() << "\n";
+
+#ifdef SKIGEN_EXAMPLE_WITH_PLOT
+    Eigen::VectorXi labels(n);
+    for (int c = 0; c < 3; ++c)
+        for (int i = 0; i < n_per; ++i) labels(c * n_per + i) = c;
+
+    Skigen::Plot::Figure fig;
+    fig.title("t-SNE embedding")
+       .caption("Three 4-D Gaussian clusters embedded into 2-D by exact Skigen::TSNE")
+       .xlabel("t-SNE 1")
+       .ylabel("t-SNE 2")
+       .scatter(Y, labels);
+    return argc > 1 ? (fig.saveThemed(argv[1]) ? 0 : 1) : fig.show();
+#else
     return 0;
+#endif
 }

@@ -190,14 +190,17 @@ jobs:
             -DSKIGEN_BUILD_EXAMPLES=ON \
             -DSKIGEN_WITH_PLOT=ON \
             -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/qt;${{ github.workspace }}/skigen-plot"
-          cmake --build build-plot --target ex_kmeans -j$(nproc)
+          cmake --build build-plot \
+            --target ex_kmeans ex_tsne ex_pca_clustering_workflow -j$(nproc)
 
       - name: Render example plots
         run: |
-          mkdir -p doc/website/static/img/plots
-          xvfb-run -a ./build-plot/examples/ex_kmeans \
-            doc/website/static/img/plots
-          ls -la doc/website/static/img/plots
+          # Runs every example registered via skigen_enable_plot(<tgt> <stem>),
+          # writing <stem>_{dark,light}.png into doc/website/static/img/examples/
+          # (git-ignored — consumed by the site build, never committed).
+          xvfb-run -a cmake --build build-plot \
+            --target skigen_render_example_plots
+          ls -la doc/website/static/img/examples
 
       - name: Build (dev)
         working-directory: doc/website

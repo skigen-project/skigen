@@ -1,8 +1,9 @@
 # Rendered example plots
 
 The `*_dark.png` / `*_light.png` files in this directory are **generated** from
-the plot-enabled example programs (SkigenPlot / Qt-RHI), not hand-authored.
-Do not edit them by hand.
+the plot-enabled example programs (SkigenPlot / Qt-RHI) and are **git-ignored**
+— they are produced on the fly by the website CI/CD build (and can be produced
+locally), never committed. Only this `README.md` is tracked.
 
 ## Regenerating
 
@@ -17,7 +18,11 @@ cmake --build build-plot --target skigen_render_example_plots
 
 Each example registered via `skigen_enable_plot(<target> <stem>)` in
 `examples/CMakeLists.txt` writes `<stem>_dark.png` and `<stem>_light.png`
-here. Currently rendered: `kmeans` (more examples gain plots over time).
+here. Currently registered: `kmeans`, `tsne`, `pca_clustering`.
+
+The website CI (`.github/workflows/{staging,main}.yml`) runs this same target
+(with mne-cpp pre-built Qt 6.11.1 under `xvfb`) right before `npm run build`,
+so the published site always has fresh figures without committing binaries.
 
 ## Referencing from a guide page
 

@@ -3,9 +3,21 @@ sidebar_position: 20
 title: PCA
 ---
 
+import ThemedImage from '@theme/ThemedImage';
+
 # PCA
 
 Principal Component Analysis finds orthogonal directions of maximum variance in the data, enabling dimensionality reduction while retaining as much information as possible.
+
+The [`examples/pca_clustering_workflow.cpp`](https://github.com/skigen-project/skigen/blob/main/examples/pca_clustering_workflow.cpp) program projects 10-D Gaussian clusters down to 2-D with PCA and recovers them with KMeans, rendered via [SkigenPlot](https://github.com/skigen-project/skigen-plot):
+
+<ThemedImage
+  alt="10-D Gaussian clusters projected to 2-D by Skigen::PCA and recovered by Skigen::KMeans"
+  sources={{
+    light: '/img/examples/pca_clustering_light.png',
+    dark: '/img/examples/pca_clustering_dark.png',
+  }}
+/>
 
 ## Algorithm
 

@@ -123,6 +123,7 @@ skigen_add_example(ex_mds                       manifold/mds.cpp)
 skigen_add_example(ex_locally_linear_embedding  manifold/locally_linear_embedding.cpp)
 skigen_add_example(ex_spectral_embedding        manifold/spectral_embedding.cpp)
 skigen_add_example(ex_tsne                      manifold/tsne.cpp)
+skigen_enable_plot(ex_tsne                      tsne)
 skigen_add_example(ex_umap                      manifold/umap.cpp)
 
 # ---------------------------------------------------------------------------
@@ -164,6 +165,7 @@ skigen_add_example(ex_pipeline            pipeline/pipeline.cpp)
 skigen_add_example(ex_classification_workflow   classification_workflow.cpp)
 skigen_add_example(ex_regression_pipeline       regression_pipeline.cpp)
 skigen_add_example(ex_pca_clustering_workflow   pca_clustering_workflow.cpp)
+skigen_enable_plot(ex_pca_clustering_workflow   pca_clustering)
 
 # ---------------------------------------------------------------------------
 # Documentation plot rendering
