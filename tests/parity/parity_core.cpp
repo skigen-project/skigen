@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 The Skigen Contributors
 //
-// Parity for the v1.0.0 estimators touched by the v1.1.0 §5 refactors plus
-// StandardScaler. Closed-form / convex estimators get tight tolerances;
-// KMeans uses a behavioural inertia band (k-means++ seeding differs).
+// Parity for the core linear and preprocessing estimators (LinearRegression,
+// Ridge, Lasso, ElasticNet, KMeans, StandardScaler). Closed-form / convex
+// estimators get tight tolerances; KMeans uses a behavioural inertia band
+// (k-means++ seeding differs).
 
 #include <Skigen/Dense>
 
