@@ -3,9 +3,21 @@ sidebar_position: 30
 title: KMeans
 ---
 
+import ThemedImage from '@theme/ThemedImage';
+
 # KMeans
 
 K-Means partitions $n$ samples into $K$ clusters by minimizing the within-cluster sum of squared distances (inertia).
+
+The [`examples/cluster/kmeans.cpp`](https://github.com/skigen-project/skigen/blob/main/examples/cluster/kmeans.cpp) program recovers three Gaussian clusters and renders them with [SkigenPlot](https://github.com/skigen-project/skigen-plot):
+
+<ThemedImage
+  alt="Three Gaussian clusters recovered by Skigen::KMeans, visualized with SkigenPlot"
+  sources={{
+    light: '/img/examples/kmeans_light.png',
+    dark: '/img/examples/kmeans_dark.png',
+  }}
+/>
 
 ## Objective Function
 $$

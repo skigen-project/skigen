@@ -6,16 +6,18 @@ Do not edit them by hand.
 
 ## Regenerating
 
-On a machine with a working SkigenPlot (Qt 6 + RHI) runtime:
+On a machine with a working SkigenPlot (Qt 6 + RHI) runtime, point CMake at the
+Qt prefix and build the render target:
 
 ```bash
-cmake -B build-plot -DSKIGEN_BUILD_EXAMPLES=ON -DSKIGEN_WITH_PLOT=ON
+cmake -B build-plot -DSKIGEN_BUILD_EXAMPLES=ON -DSKIGEN_WITH_PLOT=ON \
+      -DCMAKE_PREFIX_PATH=/path/to/Qt/6.11.1/macos   # e.g. ~/Qt/6.11.1/macos
 cmake --build build-plot --target skigen_render_example_plots
 ```
 
 Each example registered via `skigen_enable_plot(<target> <stem>)` in
 `examples/CMakeLists.txt` writes `<stem>_dark.png` and `<stem>_light.png`
-here. Currently registered: `kmeans` (more examples gain plots over time).
+here. Currently rendered: `kmeans` (more examples gain plots over time).
 
 ## Referencing from a guide page
 
