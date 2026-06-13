@@ -1,0 +1,5 @@
+{
+  "n_components": 2,
+  "n_neighbors": 15,
+  "note": "floor check; no umap-learn reference"
+}

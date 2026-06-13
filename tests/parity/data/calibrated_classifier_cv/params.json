@@ -1,0 +1,5 @@
+{
+  "base": "GaussianNB",
+  "cv": 5,
+  "method": "sigmoid"
+}

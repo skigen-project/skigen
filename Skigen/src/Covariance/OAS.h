@@ -127,13 +127,14 @@ public:
         const Scalar n_d = static_cast<Scalar>(n);
         const Scalar mu = trS / p_d;
 
-        // OAS formula
-        const Scalar num = (Scalar{1} - Scalar{2} / p_d) * trS2
-                           + trS * trS;
-        const Scalar den = (n_d + Scalar{1} - Scalar{2} / p_d)
-                           * (trS2 - trS * trS / p_d);
+        // OAS shrinkage (Chen et al. 2010, as corrected in scikit-learn):
+        //   alpha = mean(S_ij^2) = ||S||_F^2 / p^2,  mu = tr(S) / p
+        //   shrinkage = (alpha + mu^2) / [(n + 1) (alpha - mu^2 / p)]
+        const Scalar alpha = trS2 / (p_d * p_d);
+        const Scalar num = alpha + mu * mu;
+        const Scalar den = (n_d + Scalar{1}) * (alpha - mu * mu / p_d);
 
-        shrinkage_ = Scalar{0};
+        shrinkage_ = Scalar{1};
         if (std::abs(den) > Scalar{1e-30}) {
             shrinkage_ = std::clamp(num / den, Scalar{0}, Scalar{1});
         }

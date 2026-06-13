@@ -257,6 +257,55 @@ void test_randomized_search_cv_basic() {
 }
 
 // ===================================================================
+// n_jobs parallel grid dispatch + Pipeline step routing
+// ===================================================================
+
+void test_grid_search_cv_njobs_matches_serial() {
+    Eigen::MatrixXd X(60, 2);
+    Eigen::VectorXd y(60);
+    for (int i = 0; i < 60; ++i) {
+        X(i, 0) = static_cast<double>(i) * 0.1;
+        X(i, 1) = std::sin(i * 0.3);
+        y(i) = 2.0 * X(i, 0) - X(i, 1) + 0.5;
+    }
+    Skigen::ParameterGrid grid(Skigen::ParameterGrid::Grid{
+        {"alpha", {Skigen::ParameterValue(0.001),
+                   Skigen::ParameterValue(0.1),
+                   Skigen::ParameterValue(1.0),
+                   Skigen::ParameterValue(10.0)}}});
+
+    Skigen::GridSearchCV<Skigen::Ridge<double>> serial(
+        Skigen::Ridge<double>(), grid, 4, true, 1);
+    Skigen::GridSearchCV<Skigen::Ridge<double>> parallel(
+        Skigen::Ridge<double>(), grid, 4, true, 4);
+    serial.fit(X, y);
+    parallel.fit(X, y);
+
+    // Parallel dispatch must produce identical cv scores and selection.
+    ASSERT_TRUE(serial.cv_results_mean_score().size() ==
+                parallel.cv_results_mean_score().size());
+    for (std::size_t i = 0; i < serial.cv_results_mean_score().size(); ++i) {
+        ASSERT_NEAR(serial.cv_results_mean_score()[i],
+                    parallel.cv_results_mean_score()[i], 1e-12);
+    }
+    ASSERT_NEAR(serial.best_score(), parallel.best_score(), 1e-12);
+    ASSERT_TRUE(std::get<double>(serial.best_params().at("alpha")) ==
+                std::get<double>(parallel.best_params().at("alpha")));
+}
+
+void test_pipeline_set_param_index_routing() {
+    auto pipe = Skigen::make_pipeline(Skigen::StandardScaler<double>(),
+                                      Skigen::Ridge<double>(0.5));
+    // Route "1__alpha" to the Ridge step.
+    pipe.set_param("1__alpha", Skigen::ParameterValue(123.0));
+    ASSERT_NEAR(pipe.template get<1>().alpha(), 123.0, 1e-12);
+
+    // Malformed / out-of-range specs are rejected.
+    ASSERT_THROW(pipe.set_param("alpha", Skigen::ParameterValue(1.0)),
+                 std::invalid_argument);
+    ASSERT_THROW(pipe.set_param("9__alpha", Skigen::ParameterValue(1.0)),
+                 std::out_of_range);
+}
 
 int main() {
     std::cout << "=== TrainTestSplit Tests ===\n";
@@ -274,6 +323,11 @@ int main() {
     std::cout << "\n=== GridSearchCV Tests ===\n";
     run_test("grid_search_cv_basic", test_grid_search_cv_basic);
     run_test("grid_search_cv_best_params", test_grid_search_cv_best_params);
+
+    run_test("grid_search_cv_njobs_matches_serial",
+             test_grid_search_cv_njobs_matches_serial);
+    run_test("pipeline_set_param_index_routing",
+             test_pipeline_set_param_index_routing);
 
     std::cout << "\n=== RandomizedSearchCV Tests ===\n";
     run_test("randomized_search_cv_basic", test_randomized_search_cv_basic);

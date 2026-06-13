@@ -40,3 +40,7 @@ doc/website/docs/api/
 *.exe
 *.out
 eigen
+
+# Python bytecode from the parity reference generators
+__pycache__/
+*.pyc

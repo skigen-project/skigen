@@ -435,17 +435,18 @@ chi2(const Eigen::Ref<const Eigen::Matrix<
     }
 
     RowVec feature_total = X.colwise().sum();
-    Scalar grand_total = feature_total.sum();
+    const Scalar n_samples = static_cast<Scalar>(n);
 
-    // expected[c, j] = class_count[c] * feature_total[j] / grand_total
+    // expected[c, j] = (class_count[c] / n_samples) * feature_total[j]
+    // (sklearn: expected = outer(class_prob, feature_count))
     // chi2_stat per feature = sum_c (obs - exp)^2 / exp
     RowVec stat(p);
     RowVec pv(p);
     for (Eigen::Index j = 0; j < p; ++j) {
         Scalar s = Scalar{0};
-        if (feature_total(j) > Scalar{0} && grand_total > Scalar{0}) {
+        if (feature_total(j) > Scalar{0} && n_samples > Scalar{0}) {
             for (int c = 0; c < k; ++c) {
-                Scalar exp_cj = class_count(c) * feature_total(j) / grand_total;
+                Scalar exp_cj = class_count(c) * feature_total(j) / n_samples;
                 if (exp_cj > Scalar{0}) {
                     Scalar diff = observed(c, j) - exp_cj;
                     s += diff * diff / exp_cj;
@@ -526,15 +527,15 @@ chi2(const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X,
         }
     }
 
-    Scalar grand_total = feature_total.sum();
+    const Scalar n_samples = static_cast<Scalar>(n);
     RowVec stat(p);
     RowVec pv(p);
     for (Eigen::Index j = 0; j < p; ++j) {
         Scalar s = Scalar{0};
-        if (feature_total(j) > Scalar{0} && grand_total > Scalar{0}) {
+        if (feature_total(j) > Scalar{0} && n_samples > Scalar{0}) {
             for (int c = 0; c < k; ++c) {
                 const Scalar exp_cj =
-                    class_count(c) * feature_total(j) / grand_total;
+                    class_count(c) * feature_total(j) / n_samples;
                 if (exp_cj > Scalar{0}) {
                     const Scalar diff = observed(c, j) - exp_cj;
                     s += diff * diff / exp_cj;
