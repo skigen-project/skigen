@@ -4,6 +4,7 @@ import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
 import Heading from '@theme/Heading';
 import { useColorMode } from '@docusaurus/theme-common';
+import ExamplePlot from '../components/ExamplePlot';
 import styles from './index.module.css';
 
 const features = [
@@ -131,6 +132,37 @@ export default function Home(): React.JSX.Element {
                                         <span className={styles.codeFilename}>linear_regression.cpp</span>
                                     </div>
                                     <pre className={styles.codePre}><code>{codeExample}</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* Visualization companion */}
+                <section className={styles.showcase}>
+                    <div className="container">
+                        <div className={styles.showcaseInner}>
+                            <ExamplePlot
+                                alt="Three Gaussian clusters recovered by Skigen::KMeans, visualized with SkigenPlot"
+                                className={styles.showcasePlot}
+                                stem="kmeans"
+                            />
+                            <div className={styles.showcaseText}>
+                                <p className={styles.showcaseEyebrow}>Visualization companion</p>
+                                <Heading as="h2" className={styles.showcaseTitle}>
+                                    SkigenPlot for model insight
+                                </Heading>
+                                <p className={styles.showcaseDesc}>
+                                    Render clustering, embeddings, calibration curves, and other matplotlib-style
+                                    diagnostics directly from native C++ examples.
+                                </p>
+                                <div className={styles.showcaseLinks}>
+                                    <Link className="button button--primary" to="https://skigen-project.github.io/skigen-plot/">
+                                        Open SkigenPlot docs →
+                                    </Link>
+                                    <Link className={clsx('button', styles.btnOutline)} to="/docs/guide/kmeans">
+                                        See a rendered example →
+                                    </Link>
                                 </div>
                             </div>
                         </div>

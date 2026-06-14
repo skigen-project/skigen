@@ -6,126 +6,144 @@
       "dir_slug": "linear-model",
       "sidebar_label": "Skigen::LinearModel",
       "test": "tests/test_linear_model.cpp",
-      "benchmark": "benchmarks/bench_linear_model.cpp"
+      "benchmark": "benchmarks/bench_linear_model.cpp",
+      "plot_generation": false
     },
     "Preprocessing": {
       "include": "Skigen/Preprocessing",
       "dir_slug": "preprocessing",
       "sidebar_label": "Skigen::Preprocessing",
       "test": "tests/test_preprocessing.cpp",
-      "benchmark": "benchmarks/bench_preprocessing.cpp"
+      "benchmark": "benchmarks/bench_preprocessing.cpp",
+      "plot_generation": false
     },
     "Decomposition": {
       "include": "Skigen/Decomposition",
       "dir_slug": "decomposition",
       "sidebar_label": "Skigen::Decomposition",
       "test": "tests/test_decomposition.cpp",
-      "benchmark": null
+      "benchmark": null,
+      "plot_generation": true
     },
     "Cluster": {
       "include": "Skigen/Cluster",
       "dir_slug": "cluster",
       "sidebar_label": "Skigen::Cluster",
       "test": "tests/test_cluster.cpp",
-      "benchmark": null
+      "benchmark": null,
+      "plot_generation": true
     },
     "Tree": {
       "include": "Skigen/Tree",
       "dir_slug": "tree",
       "sidebar_label": "Skigen::Tree",
       "test": "tests/test_tree.cpp",
-      "benchmark": null
+      "benchmark": null,
+      "plot_generation": false
     },
     "Neighbors": {
       "include": "Skigen/Neighbors",
       "dir_slug": "neighbors",
       "sidebar_label": "Skigen::Neighbors",
       "test": "tests/test_neighbors.cpp",
-      "benchmark": null
+      "benchmark": null,
+      "plot_generation": false
     },
     "Pipeline": {
       "include": "Skigen/Pipeline",
       "dir_slug": "pipeline",
       "sidebar_label": "Skigen::Pipeline",
       "test": null,
-      "benchmark": null
+      "benchmark": null,
+      "plot_generation": false
     },
     "ModelSelection": {
       "include": "Skigen/ModelSelection",
       "dir_slug": "model-selection",
       "sidebar_label": "Skigen::ModelSelection",
       "test": "tests/test_model_selection.cpp",
-      "benchmark": null
+      "benchmark": null,
+      "plot_generation": false
     },
     "Metrics": {
       "include": "Skigen/Metrics",
       "dir_slug": "metrics",
       "sidebar_label": "Skigen::Metrics",
       "test": "tests/test_metrics.cpp",
-      "benchmark": null
+      "benchmark": null,
+      "plot_generation": false
     },
     "Covariance": {
       "include": "Skigen/Covariance",
       "dir_slug": "covariance",
       "sidebar_label": "Skigen::Covariance",
       "test": "tests/test_covariance.cpp",
-      "benchmark": null
+      "benchmark": null,
+      "plot_generation": false
     },
     "NaiveBayes": {
       "include": "Skigen/NaiveBayes",
       "dir_slug": "naive-bayes",
       "sidebar_label": "Skigen::NaiveBayes",
       "test": "tests/test_naive_bayes.cpp",
-      "benchmark": null
+      "benchmark": null,
+      "plot_generation": false
     },
     "FeatureSelection": {
       "include": "Skigen/FeatureSelection",
       "dir_slug": "feature-selection",
       "sidebar_label": "Skigen::FeatureSelection",
       "test": "tests/test_feature_selection.cpp",
-      "benchmark": null
+      "benchmark": null,
+      "plot_generation": false
     },
     "Isotonic": {
       "include": "Skigen/Isotonic",
       "dir_slug": "isotonic",
       "sidebar_label": "Skigen::Isotonic",
       "test": "tests/test_isotonic.cpp",
-      "benchmark": null
+      "benchmark": null,
+      "plot_generation": false
     },
     "Calibration": {
       "include": "Skigen/Calibration",
       "dir_slug": "calibration",
       "sidebar_label": "Skigen::Calibration",
       "test": "tests/test_calibration.cpp",
-      "benchmark": null
+      "benchmark": null,
+      "plot_generation": false
     },
     "Ensemble": {
       "include": "Skigen/Ensemble",
       "dir_slug": "ensemble",
       "sidebar_label": "Skigen::Ensemble",
       "test": "tests/test_ensemble.cpp",
-      "benchmark": "benchmarks/bench_ensembles.cpp"
+      "benchmark": "benchmarks/bench_ensembles.cpp",
+      "plot_generation": false
     },
     "SVM": {
       "include": "Skigen/SVM",
       "dir_slug": "svm",
       "sidebar_label": "Skigen::SVM",
       "test": "tests/test_svm.cpp",
-      "benchmark": null
+      "benchmark": null,
+      "plot_generation": false
     },
     "NeuralNetwork": {
       "include": "Skigen/NeuralNetwork",
       "dir_slug": "neural-network",
       "sidebar_label": "Skigen::NeuralNetwork",
       "test": "tests/test_neural_network.cpp",
-      "benchmark": "benchmarks/bench_mlp.cpp"
+      "benchmark": "benchmarks/bench_mlp.cpp",
+      "plot_generation": false
     },
     "Manifold": {
       "include": "Skigen/Manifold",
       "dir_slug": "manifold",
       "sidebar_label": "Skigen::Manifold",
       "test": "tests/test_manifold.cpp",
-      "benchmark": null
+      "benchmark": null,
+      "plot_generation": true
     }
   },
   "classes": [
@@ -292,6 +310,13 @@
       "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html",
       "example": "examples/decomposition/pca.cpp",
       "example_snippet": "example_pca",
+      "plots": [
+        {
+          "stem": "pca_clustering",
+          "title": "PCA clustering workflow",
+          "example": "examples/pca_clustering_workflow.cpp"
+        }
+      ],
       "sidebar_position": 1
     },
     {
@@ -314,6 +339,13 @@
       "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html",
       "example": "examples/cluster/kmeans.cpp",
       "example_snippet": "example_kmeans",
+      "plots": [
+        {
+          "stem": "kmeans",
+          "title": "KMeans cluster recovery",
+          "example": "examples/cluster/kmeans.cpp"
+        }
+      ],
       "sidebar_position": 1
     },
     {
@@ -728,6 +760,13 @@
       "documented": false,
       "sklearn": "sklearn.manifold.TSNE",
       "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.manifold.TSNE.html",
+      "plots": [
+        {
+          "stem": "tsne",
+          "title": "t-SNE embedding",
+          "example": "examples/manifold/tsne.cpp"
+        }
+      ],
       "sidebar_position": 3
     },
     {

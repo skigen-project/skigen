@@ -316,6 +316,7 @@ def generate_class_mdx(compounddef, out_dir):
     # Registry lookup — throws if class is not registered
     reg_entry = registry_lookup(short_name)
     sidebar_position = reg_entry.get("sidebar_position")
+    plots = reg_entry.get("plots", [])
 
     # Template params
     tparams = []
@@ -379,6 +380,9 @@ def generate_class_mdx(compounddef, out_dir):
         lines.append(f"sidebar_position: {sidebar_position}")
     lines.append("---")
     lines.append("")
+    if plots:
+        lines.append("import ExamplePlot from '@site/src/components/ExamplePlot';")
+        lines.append("")
     lines.append(f"# {short_name}")
     lines.append("")
 
@@ -631,6 +635,25 @@ def generate_class_mdx(compounddef, out_dir):
         lines.append("")
         for ex in examples:
             lines.append(ex)
+            lines.append("")
+        lines.append("---")
+        lines.append("")
+
+    if plots:
+        lines.append("## Generated plots")
+        lines.append("")
+        lines.append("These figures are rendered from registered SkigenPlot-enabled examples during the documentation build.")
+        lines.append("")
+        for plot in plots:
+            title = plot.get("title", "Generated plot")
+            stem = plot["stem"]
+            example = plot.get("example")
+            lines.append(f"### {title}")
+            lines.append("")
+            if example:
+                lines.append(f"Source example: [`{example}`](https://github.com/skigen-project/skigen/blob/main/{example})")
+                lines.append("")
+            lines.append(f'<ExamplePlot alt="{html.escape(title)}" stem="{stem}" />')
             lines.append("")
         lines.append("---")
         lines.append("")
