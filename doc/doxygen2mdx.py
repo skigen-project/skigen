@@ -630,37 +630,37 @@ def generate_class_mdx(compounddef, out_dir):
 
     # Example section — extract @snippet / programlisting from class description
     examples = extract_examples(detail_el)
-    if examples:
+    if examples or plots:
         lines.append("## Example")
         lines.append("")
+
+    if examples:
         for ex in examples:
             lines.append(ex)
             lines.append("")
-        lines.append("---")
-        lines.append("")
 
     if plots:
-        lines.append("## Plot examples")
+        lines.append("### Plotting")
         lines.append("")
-        lines.append("These SkigenPlot figures are rendered from registered examples during the documentation build.")
+        lines.append("The figure below is rendered from a registered SkigenPlot-enabled example during the documentation build.")
         lines.append("")
         for plot in plots:
             title = plot.get("title", "Generated plot")
             stem = plot["stem"]
             example = plot.get("example")
             snippet = extract_source_snippet(example, plot.get("snippet"))
-            lines.append(f"### {title}")
-            lines.append("")
             if example:
                 lines.append(f"Source example: [`{example}`](https://github.com/skigen-project/skigen/blob/main/{example})")
                 lines.append("")
             lines.append(f'<ExamplePlot alt="{html.escape(title)}" stem="{stem}" />')
             lines.append("")
             if snippet:
-                lines.append("Plot-generation snippet:")
-                lines.append("")
+                lines.append("```cpp")
                 lines.append(snippet)
+                lines.append("```")
                 lines.append("")
+
+    if examples or plots:
         lines.append("---")
         lines.append("")
 
@@ -730,7 +730,9 @@ def extract_examples(detail_el):
             # Remove fences to dedent, then re-add
             if inner.startswith("```cpp\n") and inner.endswith("\n```"):
                 body = inner[7:-4]  # strip ```cpp\n and \n```
-                body = textwrap.dedent(body)
+                body = textwrap.dedent(body).strip("\n")
+                if not body.strip():
+                    continue
                 inner = f"```cpp\n{body}\n```"
             examples.append(inner)
     return examples
@@ -762,7 +764,7 @@ def extract_source_snippet(source_path, snippet_name):
         return ""
 
     body = textwrap.dedent("\n".join(snippet_lines)).strip("\n")
-    return f"```cpp\n{body}\n```"
+    return body
 
 
 def extract_body_text(detail_el):

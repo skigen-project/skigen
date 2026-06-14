@@ -83,7 +83,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     //! [example_kmeans_plot]
     Skigen::Plot::Figure fig;
     fig.title("KMeans Clustering")
-        .caption("Three Gaussian clusters grouped by Skigen::KMeans, visualized with SkigenPlot")
+       .caption("Three Gaussian clusters grouped by Skigen::KMeans, visualized with SkigenPlot")
        .xlabel("feature 1")
        .ylabel("feature 2")
        .scatter(X, km.predict(X))

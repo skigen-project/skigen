@@ -77,7 +77,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     //! [example_pca_clustering_plot]
     Skigen::Plot::Figure fig;
     fig.title("PCA → KMeans")
-    .caption("10-D Gaussian clusters projected to 2-D by Skigen::PCA and grouped by Skigen::KMeans")
+       .caption("10-D Gaussian clusters projected to 2-D by Skigen::PCA and grouped by Skigen::KMeans")
        .xlabel("PC 1")
        .ylabel("PC 2")
        .scatter(X_pca, km.predict(X_pca))
