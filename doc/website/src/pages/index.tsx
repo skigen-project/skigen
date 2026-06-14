@@ -128,7 +128,7 @@ export default function Home(): React.JSX.Element {
                                         <span className={styles.codeDot} style={{ background: '#ff5f57' }} />
                                         <span className={styles.codeDot} style={{ background: '#febc2e' }} />
                                         <span className={styles.codeDot} style={{ background: '#28c840' }} />
-                                        <span className={styles.codeFilename}>pipeline.cpp</span>
+                                        <span className={styles.codeFilename}>linear_regression.cpp</span>
                                     </div>
                                     <pre className={styles.codePre}><code>{codeExample}</code></pre>
                                 </div>
