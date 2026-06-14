@@ -216,18 +216,18 @@ jobs:
           import json
           from pathlib import Path
 
-            registry = json.loads(Path('doc/api_registry.json').read_text())
+          registry = json.loads(Path('doc/api_registry.json').read_text())
           image_dir = Path('doc/website/static/img/examples')
           missing = []
-            for entry in registry.get('classes', []):
-              for plot in entry.get('plots', []):
-                stem = plot['stem']
-                for theme in ('light', 'dark'):
-                  image = image_dir / f'{stem}_{theme}.png'
-                  if not image.is_file() or image.stat().st_size == 0:
-                    missing.append(str(image))
+          for entry in registry.get('classes', []):
+            for plot in entry.get('plots', []):
+              stem = plot['stem']
+              for theme in ('light', 'dark'):
+                image = image_dir / f'{stem}_{theme}.png'
+                if not image.is_file() or image.stat().st_size == 0:
+                  missing.append(str(image))
           if missing:
-              raise SystemExit('Missing rendered example plots:\n' + '\n'.join(missing))
+            raise SystemExit('Missing rendered example plots:\n' + '\n'.join(missing))
           PY
 
       - name: Build (production)
