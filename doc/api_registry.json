@@ -314,7 +314,8 @@
         {
           "stem": "pca_clustering",
           "title": "PCA clustering workflow",
-          "example": "examples/pca_clustering_workflow.cpp"
+          "example": "examples/pca_clustering_workflow.cpp",
+          "snippet": "example_pca_clustering_plot"
         }
       ],
       "sidebar_position": 1
@@ -342,8 +343,9 @@
       "plots": [
         {
           "stem": "kmeans",
-          "title": "KMeans cluster recovery",
-          "example": "examples/cluster/kmeans.cpp"
+          "title": "KMeans clustering example",
+          "example": "examples/cluster/kmeans.cpp",
+          "snippet": "example_kmeans_plot"
         }
       ],
       "sidebar_position": 1
@@ -764,7 +766,8 @@
         {
           "stem": "tsne",
           "title": "t-SNE embedding",
-          "example": "examples/manifold/tsne.cpp"
+          "example": "examples/manifold/tsne.cpp",
+          "snippet": "example_tsne_plot"
         }
       ],
       "sidebar_position": 3

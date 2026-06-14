@@ -74,15 +74,17 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     std::cout << "  Inertia: " << mbk.inertia() << "\n";
 
 #ifdef SKIGEN_EXAMPLE_WITH_PLOT
+    //! [example_pca_clustering_plot]
     Skigen::Plot::Figure fig;
     fig.title("PCA → KMeans")
-       .caption("10-D Gaussian clusters projected to 2-D by Skigen::PCA and recovered by Skigen::KMeans")
+    .caption("10-D Gaussian clusters projected to 2-D by Skigen::PCA and grouped by Skigen::KMeans")
        .xlabel("PC 1")
        .ylabel("PC 2")
        .scatter(X_pca, km.predict(X_pca))
        .scatter(km.cluster_centers(), km.predict(km.cluster_centers()),
                 {.pointSize = 18.0f, .hollow = true});
     return argc > 1 ? (fig.saveThemed(argv[1]) ? 0 : 1) : fig.show();
+    //! [example_pca_clustering_plot]
 #else
     return 0;
 #endif

@@ -54,6 +54,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     std::cout << "  KL divergence   = " << tsne.kl_divergence() << "\n";
 
 #ifdef SKIGEN_EXAMPLE_WITH_PLOT
+    //! [example_tsne_plot]
     Eigen::VectorXi labels(n);
     for (int c = 0; c < 3; ++c)
         for (int i = 0; i < n_per; ++i) labels(c * n_per + i) = c;
@@ -65,6 +66,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
        .ylabel("t-SNE 2")
        .scatter(Y, labels);
     return argc > 1 ? (fig.saveThemed(argv[1]) ? 0 : 1) : fig.show();
+    //! [example_tsne_plot]
 #else
     return 0;
 #endif

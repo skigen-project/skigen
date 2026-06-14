@@ -640,14 +640,15 @@ def generate_class_mdx(compounddef, out_dir):
         lines.append("")
 
     if plots:
-        lines.append("## Generated plots")
+        lines.append("## Plot examples")
         lines.append("")
-        lines.append("These figures are rendered from registered SkigenPlot-enabled examples during the documentation build.")
+        lines.append("These SkigenPlot figures are rendered from registered examples during the documentation build.")
         lines.append("")
         for plot in plots:
             title = plot.get("title", "Generated plot")
             stem = plot["stem"]
             example = plot.get("example")
+            snippet = extract_source_snippet(example, plot.get("snippet"))
             lines.append(f"### {title}")
             lines.append("")
             if example:
@@ -655,6 +656,11 @@ def generate_class_mdx(compounddef, out_dir):
                 lines.append("")
             lines.append(f'<ExamplePlot alt="{html.escape(title)}" stem="{stem}" />')
             lines.append("")
+            if snippet:
+                lines.append("Plot-generation snippet:")
+                lines.append("")
+                lines.append(snippet)
+                lines.append("")
         lines.append("---")
         lines.append("")
 
@@ -728,6 +734,35 @@ def extract_examples(detail_el):
                 inner = f"```cpp\n{body}\n```"
             examples.append(inner)
     return examples
+
+
+def extract_source_snippet(source_path, snippet_name):
+    """Extract a //! [snippet] block from a source file as a C++ code block."""
+    if not source_path or not snippet_name:
+        return ""
+
+    repo_root = Path(__file__).resolve().parents[1]
+    path = repo_root / source_path
+    if not path.is_file():
+        return ""
+
+    marker = f"//! [{snippet_name}]"
+    in_snippet = False
+    snippet_lines = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.strip() == marker:
+            if in_snippet:
+                break
+            in_snippet = True
+            continue
+        if in_snippet:
+            snippet_lines.append(line)
+
+    if not snippet_lines:
+        return ""
+
+    body = textwrap.dedent("\n".join(snippet_lines)).strip("\n")
+    return f"```cpp\n{body}\n```"
 
 
 def extract_body_text(detail_el):

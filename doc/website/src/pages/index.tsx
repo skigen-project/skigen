@@ -143,7 +143,7 @@ export default function Home(): React.JSX.Element {
                     <div className="container">
                         <div className={styles.showcaseInner}>
                             <ExamplePlot
-                                alt="Three Gaussian clusters recovered by Skigen::KMeans, visualized with SkigenPlot"
+                                alt="Three Gaussian clusters grouped by Skigen::KMeans, visualized with SkigenPlot"
                                 className={styles.showcasePlot}
                                 stem="kmeans"
                             />
@@ -157,8 +157,8 @@ export default function Home(): React.JSX.Element {
                                     diagnostics directly from native C++ examples.
                                 </p>
                                 <div className={styles.showcaseLinks}>
-                                    <Link className="button button--primary" to="https://skigen-project.github.io/skigen-plot/">
-                                        Open SkigenPlot docs →
+                                    <Link className="button button--primary" to="https://github.com/skigen-project/skigen-plot">
+                                        View SkigenPlot →
                                     </Link>
                                     <Link className={clsx('button', styles.btnOutline)} to="/docs/guide/kmeans">
                                         See a rendered example →
