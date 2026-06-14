@@ -3,9 +3,21 @@ sidebar_position: 128
 title: TSNE
 ---
 
+import ThemedImage from '@theme/ThemedImage';
+
 # TSNE
 
 t-distributed Stochastic Neighbor Embedding: a popular non-linear method for visualising high-dimensional data in 2-D/3-D.
+
+The [`examples/manifold/tsne.cpp`](https://github.com/skigen-project/skigen/blob/main/examples/manifold/tsne.cpp) program embeds three 4-D Gaussian clusters into 2-D and renders them with [SkigenPlot](https://github.com/skigen-project/skigen-plot):
+
+<ThemedImage
+  alt="Three 4-D Gaussian clusters embedded into 2-D by exact Skigen::TSNE"
+  sources={{
+    light: '/img/examples/tsne_light.png',
+    dark: '/img/examples/tsne_dark.png',
+  }}
+/>
 
 ## Algorithm
 

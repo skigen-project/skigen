@@ -11,12 +11,20 @@ endfunction()
 
 # Augment an existing example target with SkigenPlot. No-op when
 # SKIGEN_WITH_PLOT=OFF so the target stays dependency-free by default.
+#
+# Optional second argument is the image stem under
+# doc/website/static/img/examples/. When given, the example is registered
+# with the skigen_render_example_plots target, which runs it to emit
+# <stem>_dark.png / <stem>_light.png for inclusion in the documentation.
 function(skigen_enable_plot name)
     if(NOT SKIGEN_WITH_PLOT)
         return()
     endif()
     target_link_libraries(${name} PRIVATE SkigenPlot::SkigenPlot)
     target_compile_definitions(${name} PRIVATE SKIGEN_EXAMPLE_WITH_PLOT)
+    if(ARGC GREATER 1)
+        set_property(GLOBAL APPEND PROPERTY SKIGEN_PLOT_EXAMPLES "${name}|${ARGV1}")
+    endif()
 endfunction()
 
 # ---------------------------------------------------------------------------
@@ -58,7 +66,7 @@ skigen_add_example(ex_covariance          covariance/covariance.cpp)
 # Cluster examples
 # ---------------------------------------------------------------------------
 skigen_add_example(ex_kmeans              cluster/kmeans.cpp)
-skigen_enable_plot(ex_kmeans)
+skigen_enable_plot(ex_kmeans              kmeans)
 
 # ---------------------------------------------------------------------------
 # Neighbors examples
@@ -115,6 +123,7 @@ skigen_add_example(ex_mds                       manifold/mds.cpp)
 skigen_add_example(ex_locally_linear_embedding  manifold/locally_linear_embedding.cpp)
 skigen_add_example(ex_spectral_embedding        manifold/spectral_embedding.cpp)
 skigen_add_example(ex_tsne                      manifold/tsne.cpp)
+skigen_enable_plot(ex_tsne                      tsne)
 skigen_add_example(ex_umap                      manifold/umap.cpp)
 
 # ---------------------------------------------------------------------------
@@ -156,3 +165,39 @@ skigen_add_example(ex_pipeline            pipeline/pipeline.cpp)
 skigen_add_example(ex_classification_workflow   classification_workflow.cpp)
 skigen_add_example(ex_regression_pipeline       regression_pipeline.cpp)
 skigen_add_example(ex_pca_clustering_workflow   pca_clustering_workflow.cpp)
+skigen_enable_plot(ex_pca_clustering_workflow   pca_clustering)
+
+# ---------------------------------------------------------------------------
+# Documentation plot rendering
+#
+# Runs every plot-enabled example registered with skigen_enable_plot(<tgt> <stem>)
+# to emit <stem>_dark.png / <stem>_light.png into the Docusaurus static image
+# tree, so the rendered figures can be referenced from the guide pages. Needs
+# SKIGEN_WITH_PLOT=ON and a working SkigenPlot (Qt/RHI) runtime.
+#
+#   cmake -B build-plot -DSKIGEN_BUILD_EXAMPLES=ON -DSKIGEN_WITH_PLOT=ON
+#   cmake --build build-plot --target skigen_render_example_plots
+# ---------------------------------------------------------------------------
+if(SKIGEN_WITH_PLOT)
+    get_property(_skigen_plot_examples GLOBAL PROPERTY SKIGEN_PLOT_EXAMPLES)
+    if(_skigen_plot_examples)
+        set(_skigen_img_dir
+            "${CMAKE_SOURCE_DIR}/doc/website/static/img/examples")
+        set(_skigen_render_cmds
+            COMMAND ${CMAKE_COMMAND} -E make_directory "${_skigen_img_dir}")
+        set(_skigen_render_deps "")
+        foreach(_entry IN LISTS _skigen_plot_examples)
+            string(REPLACE "|" ";" _parts "${_entry}")
+            list(GET _parts 0 _tgt)
+            list(GET _parts 1 _stem)
+            list(APPEND _skigen_render_cmds
+                COMMAND "$<TARGET_FILE:${_tgt}>" "${_skigen_img_dir}/${_stem}")
+            list(APPEND _skigen_render_deps ${_tgt})
+        endforeach()
+        add_custom_target(skigen_render_example_plots
+            ${_skigen_render_cmds}
+            DEPENDS ${_skigen_render_deps}
+            COMMENT "Rendering example plots into doc/website/static/img/examples/"
+            VERBATIM)
+    endif()
+endif()

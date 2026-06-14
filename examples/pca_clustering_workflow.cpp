@@ -8,7 +8,11 @@
 #include <iomanip>
 #include <random>
 
-int main() {
+#ifdef SKIGEN_EXAMPLE_WITH_PLOT
+#include <skigen/plot/figure.h>
+#endif
+
+int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     // Generate high-dimensional data with 3 hidden clusters
     constexpr int n_per = 60;
     constexpr int n = n_per * 3;
@@ -69,5 +73,17 @@ int main() {
     std::cout << "=== MiniBatchKMeans ===\n";
     std::cout << "  Inertia: " << mbk.inertia() << "\n";
 
+#ifdef SKIGEN_EXAMPLE_WITH_PLOT
+    Skigen::Plot::Figure fig;
+    fig.title("PCA → KMeans")
+       .caption("10-D Gaussian clusters projected to 2-D by Skigen::PCA and recovered by Skigen::KMeans")
+       .xlabel("PC 1")
+       .ylabel("PC 2")
+       .scatter(X_pca, km.predict(X_pca))
+       .scatter(km.cluster_centers(), km.predict(km.cluster_centers()),
+                {.pointSize = 18.0f, .hollow = true});
+    return argc > 1 ? (fig.saveThemed(argv[1]) ? 0 : 1) : fig.show();
+#else
     return 0;
+#endif
 }

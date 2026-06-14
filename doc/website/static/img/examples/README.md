@@ -1,0 +1,44 @@
+# Rendered example plots
+
+The `*_dark.png` / `*_light.png` files in this directory are **generated** from
+the plot-enabled example programs (SkigenPlot / Qt-RHI) and are **git-ignored**
+— they are produced on the fly by the website CI/CD build (and can be produced
+locally), never committed. Only this `README.md` is tracked.
+
+## Regenerating
+
+On a machine with a working SkigenPlot (Qt 6 + RHI) runtime, point CMake at the
+Qt prefix and build the render target:
+
+```bash
+cmake -B build-plot -DSKIGEN_BUILD_EXAMPLES=ON -DSKIGEN_WITH_PLOT=ON \
+      -DCMAKE_PREFIX_PATH=/path/to/Qt/6.11.1/macos   # e.g. ~/Qt/6.11.1/macos
+cmake --build build-plot --target skigen_render_example_plots
+```
+
+Each example registered via `skigen_enable_plot(<target> <stem>)` in
+`examples/CMakeLists.txt` writes `<stem>_dark.png` and `<stem>_light.png`
+here. Currently registered: `kmeans`, `tsne`, `pca_clustering`.
+
+The website CI (`.github/workflows/{staging,main}.yml`) runs this same target
+(with mne-cpp pre-built Qt 6.11.1 under `xvfb`) right before `npm run build`,
+so the published site always has fresh figures without committing binaries.
+
+## Referencing from a guide page
+
+Use Docusaurus `ThemedImage` so the figure follows the site's light/dark mode:
+
+```mdx
+import ThemedImage from '@theme/ThemedImage';
+
+<ThemedImage
+  alt="KMeans clusters rendered with SkigenPlot"
+  sources={{
+    light: '/img/examples/kmeans_light.png',
+    dark: '/img/examples/kmeans_dark.png',
+  }}
+/>
+```
+
+Add the reference to a guide page only once the corresponding PNGs have been
+generated and committed, so the published site never links a missing image.

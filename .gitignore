@@ -10,8 +10,10 @@ cmake-build-*/
 # SkigenPlot (optional sibling dependency, checked out in-tree by CI)
 /skigen-plot/
 
-# Example plots are rendered on the fly (CI or local) — never committed
+# Example plots are rendered on the fly (CI or local) — never committed.
+# The directory's README.md is tracked; the generated PNGs are not.
 doc/website/static/img/plots/
+doc/website/static/img/examples/*.png
 
 # IDE
 .vscode/
