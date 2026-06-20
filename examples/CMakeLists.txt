@@ -68,6 +68,11 @@ skigen_add_example(ex_kernel_ridge        kernel_ridge/kernel_ridge.cpp)
 skigen_add_example(ex_discriminant_analysis discriminant_analysis/discriminant_analysis.cpp)
 
 # ---------------------------------------------------------------------------
+# Optimization examples
+# ---------------------------------------------------------------------------
+skigen_add_example(ex_nelder_mead        optimization/nelder_mead.cpp)
+
+# ---------------------------------------------------------------------------
 # Decomposition examples
 # ---------------------------------------------------------------------------
 skigen_add_example(ex_pca                 decomposition/pca.cpp)

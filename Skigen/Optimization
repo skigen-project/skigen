@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Christoph Dinh <christoph.dinh@mne-cpp.org>
+//
+// Skigen/Optimization — Optimization algorithms.
+//
+// Usage:
+//   #include <Skigen/Optimization>
+
+#ifndef SKIGEN_OPTIMIZATION
+#define SKIGEN_OPTIMIZATION
+
+#include "Core"
+#include "src/Optimization/NelderMead.h"
+
+#endif // SKIGEN_OPTIMIZATION

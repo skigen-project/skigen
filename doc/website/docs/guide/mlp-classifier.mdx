@@ -54,6 +54,10 @@ mlp.fit(X, y);
 auto preds = mlp.predict(X_test);
 ```
 
+## Known Gaps
+
+`solver = LBFGS` is explicitly feature-gated for v1.2.0. Constructing an `MLPClassifier` with `MLPSolver::LBFGS` throws a clear `std::invalid_argument`; Adam and SGD remain supported.
+
 :::note Verified against scikit-learn
 This estimator is checked by the parity suite. See the generator `tests/parity/generate_neural_network_reference.py` and the reference fixtures in `tests/parity/data/mlp_classifier/`, exercised by `tests/parity/parity_neural_network.cpp`.
 :::

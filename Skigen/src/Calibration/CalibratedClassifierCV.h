@@ -36,10 +36,9 @@ enum class CalibrationMethod {
 
 /// @brief Probability calibration for a base classifier via cross-validation.
 ///
-/// Mirrors the binary case of
+/// Mirrors the dense classification core of
 /// [sklearn.calibration.CalibratedClassifierCV](https://scikit-learn.org/stable/modules/generated/sklearn.calibration.CalibratedClassifierCV.html)
-/// for an estimator that exposes `predict_proba(X)` returning a matrix of
-/// shape `(n_samples, 2)`.
+/// for an estimator that exposes `decision_function(X)` or `predict_proba(X)`.
 ///
 /// Splits the training set into `cv` folds. For each fold the base
 /// classifier is cloned, fit on the train portion, and applied to the
@@ -70,8 +69,7 @@ enum class CalibrationMethod {
 /// | `n_classes()` | `int` |
 /// | `n_estimators_fitted()` | `int` (== `cv` when `ensemble=true`) |
 ///
-/// ### Limitations relative to scikit-learn Only binary classification is
-///   supported; `n_jobs > 1` is not honoured. The base estimator should expose
+/// ### Limitations relative to scikit-learn `n_jobs > 1` is not honoured. The base estimator should expose
 ///   either `decision_function(X)` (preferred, used directly as calibration
 ///   input) or `predict_proba(X)` (logit-transformed before calibration),
 ///   matching sklearn's `_get_response_method` dispatch.
@@ -92,10 +90,10 @@ public:
     struct FoldFit {
         Base base;
         // Used when method == Sigmoid.
-        Scalar A{0};
-        Scalar B{0};
+        VectorType A;
+        VectorType B;
         // Used when method == Isotonic.
-        std::optional<IsotonicRegression<Scalar>> iso;
+        std::vector<std::optional<IsotonicRegression<Scalar>>> iso;
     };
     /// @endcond
 
@@ -157,15 +155,16 @@ public:
         for (Eigen::Index i = 0; i < y.size(); ++i) uniq.push_back(y(i));
         std::sort(uniq.begin(), uniq.end());
         uniq.erase(std::unique(uniq.begin(), uniq.end()), uniq.end());
-        if (uniq.size() != 2) {
+        if (uniq.size() < 2) {
             throw std::invalid_argument(
-                "CalibratedClassifierCV: only binary "
-                "classification is supported; got " +
+                "CalibratedClassifierCV: at least two classes are required; got " +
                 std::to_string(uniq.size()) + " classes.");
         }
-        classes_ = Eigen::VectorXi(2);
-        classes_(0) = uniq[0];
-        classes_(1) = uniq[1];
+        classes_ = Eigen::VectorXi(static_cast<Eigen::Index>(uniq.size()));
+        for (Eigen::Index i = 0; i < classes_.size(); ++i) {
+            classes_(i) = uniq[static_cast<std::size_t>(i)];
+        }
+        const Eigen::Index C = classes_.size();
 
         // Build a deterministic shuffle for the K-fold split.
         const Eigen::Index n = X.rows();
@@ -183,8 +182,8 @@ public:
         folds_.clear();
         single_fit_.reset();
         if (ensemble_) folds_.reserve(static_cast<std::size_t>(K));
-        VectorType calibration_scores(n);
-        VectorType calibration_targets(n);
+        MatrixType calibration_scores(n, C);
+        MatrixType calibration_targets(n, C);
 
         Eigen::Index cursor = 0;
         for (int k = 0; k < K; ++k) {
@@ -218,59 +217,67 @@ public:
                 y_train(static_cast<Eigen::Index>(i)) = y(train_idx[i]);
             }
 
-            FoldFit ff{estimator_, Scalar{0}, Scalar{0}, std::nullopt};
+            FoldFit ff{estimator_, VectorType::Zero(C), VectorType::Zero(C), {}};
+            ff.iso.resize(static_cast<std::size_t>(C));
             ff.base.fit(X_train, y_train);
 
-            // Get raw positive-class probability on the validation rows.
+            // Get raw class probabilities on the validation rows.
             MatrixType X_val(static_cast<Eigen::Index>(val_idx.size()),
                              X.cols());
-            VectorType y_val_pos(
-                static_cast<Eigen::Index>(val_idx.size()));
+            MatrixType y_val_one_vs_rest(
+                static_cast<Eigen::Index>(val_idx.size()), C);
             for (std::size_t i = 0; i < val_idx.size(); ++i) {
                 X_val.row(static_cast<Eigen::Index>(i)) = X.row(val_idx[i]);
-                y_val_pos(static_cast<Eigen::Index>(i)) =
-                    (y(val_idx[i]) == classes_(1)) ? Scalar{1} : Scalar{0};
+                for (Eigen::Index c = 0; c < C; ++c) {
+                    y_val_one_vs_rest(static_cast<Eigen::Index>(i), c) =
+                        (y(val_idx[i]) == classes_(c)) ? Scalar{1} : Scalar{0};
+                }
             }
             MatrixType P = ff.base.predict_proba(X_val);
-            // Expect a 2-column probability matrix.
-            if (P.cols() != 2) {
+            // Expect one probability column per discovered class.
+            if (P.cols() != C) {
                 throw std::runtime_error(
                     "CalibratedClassifierCV: base estimator's "
-                    "predict_proba must return a 2-column matrix for "
-                    "binary calibration; got " +
+                    "predict_proba must return one column per class; got " +
                     std::to_string(P.cols()) + " columns.");
             }
-            VectorType p_pos = P.col(1);
+            MatrixType response_scores = get_score_matrix(ff.base, X_val, P, C);
 
             switch (method_) {
                 case CalibrationMethod::Sigmoid: {
-                    VectorType s = get_scores(ff.base, X_val);
-                    if (!ensemble_) {
-                        for (std::size_t i = 0; i < val_idx.size(); ++i) {
-                            calibration_scores(val_idx[i]) = s(static_cast<Eigen::Index>(i));
-                            calibration_targets(val_idx[i]) = y_val_pos(static_cast<Eigen::Index>(i));
+                    for (Eigen::Index c = 0; c < C; ++c) {
+                        VectorType s = response_scores.col(c);
+                        VectorType target = y_val_one_vs_rest.col(c);
+                        if (!ensemble_) {
+                            for (std::size_t i = 0; i < val_idx.size(); ++i) {
+                                calibration_scores(val_idx[i], c) = s(static_cast<Eigen::Index>(i));
+                                calibration_targets(val_idx[i], c) = target(static_cast<Eigen::Index>(i));
+                            }
                         }
+                        internal::fit_platt_sigmoid<Scalar>(s, target, ff.A(c), ff.B(c));
                     }
-                    internal::fit_platt_sigmoid<Scalar>(
-                        s, y_val_pos, ff.A, ff.B);
                     break;
                 }
                 case CalibrationMethod::Isotonic: {
-                    if (!ensemble_) {
-                        for (std::size_t i = 0; i < val_idx.size(); ++i) {
-                            calibration_scores(val_idx[i]) = p_pos(static_cast<Eigen::Index>(i));
-                            calibration_targets(val_idx[i]) = y_val_pos(static_cast<Eigen::Index>(i));
+                    for (Eigen::Index c = 0; c < C; ++c) {
+                        VectorType p_class = P.col(c);
+                        VectorType target = y_val_one_vs_rest.col(c);
+                        if (!ensemble_) {
+                            for (std::size_t i = 0; i < val_idx.size(); ++i) {
+                                calibration_scores(val_idx[i], c) = p_class(static_cast<Eigen::Index>(i));
+                                calibration_targets(val_idx[i], c) = target(static_cast<Eigen::Index>(i));
+                            }
                         }
+                        MatrixType S(p_class.size(), 1);
+                        S.col(0) = p_class;
+                        IsotonicRegression<Scalar> iso(
+                            std::optional<Scalar>(Scalar{0}),
+                            std::optional<Scalar>(Scalar{1}),
+                            IsotonicIncreasing::True,
+                            OutOfBounds::Clip);
+                        iso.fit(S, target);
+                        ff.iso[static_cast<std::size_t>(c)] = std::move(iso);
                     }
-                    MatrixType S(p_pos.size(), 1);
-                    S.col(0) = p_pos;
-                    IsotonicRegression<Scalar> iso(
-                        std::optional<Scalar>(Scalar{0}),
-                        std::optional<Scalar>(Scalar{1}),
-                        IsotonicIncreasing::True,
-                        OutOfBounds::Clip);
-                    iso.fit(S, y_val_pos);
-                    ff.iso = std::move(iso);
                     break;
                 }
             }
@@ -278,23 +285,30 @@ public:
         }
 
         if (!ensemble_) {
-            FoldFit ff{estimator_, Scalar{0}, Scalar{0}, std::nullopt};
+            FoldFit ff{estimator_, VectorType::Zero(C), VectorType::Zero(C), {}};
+            ff.iso.resize(static_cast<std::size_t>(C));
             ff.base.fit(X, y);
             switch (method_) {
                 case CalibrationMethod::Sigmoid:
-                    internal::fit_platt_sigmoid<Scalar>(
-                        calibration_scores, calibration_targets, ff.A, ff.B);
+                    for (Eigen::Index c = 0; c < C; ++c) {
+                        VectorType scores = calibration_scores.col(c);
+                        VectorType targets = calibration_targets.col(c);
+                        internal::fit_platt_sigmoid<Scalar>(scores, targets, ff.A(c), ff.B(c));
+                    }
                     break;
                 case CalibrationMethod::Isotonic: {
-                    MatrixType S(calibration_scores.size(), 1);
-                    S.col(0) = calibration_scores;
-                    IsotonicRegression<Scalar> iso(
-                        std::optional<Scalar>(Scalar{0}),
-                        std::optional<Scalar>(Scalar{1}),
-                        IsotonicIncreasing::True,
-                        OutOfBounds::Clip);
-                    iso.fit(S, calibration_targets);
-                    ff.iso = std::move(iso);
+                    for (Eigen::Index c = 0; c < C; ++c) {
+                        MatrixType S(calibration_scores.rows(), 1);
+                        S.col(0) = calibration_scores.col(c);
+                        VectorType targets = calibration_targets.col(c);
+                        IsotonicRegression<Scalar> iso(
+                            std::optional<Scalar>(Scalar{0}),
+                            std::optional<Scalar>(Scalar{1}),
+                            IsotonicIncreasing::True,
+                            OutOfBounds::Clip);
+                        iso.fit(S, targets);
+                        ff.iso[static_cast<std::size_t>(c)] = std::move(iso);
+                    }
                     break;
                 }
             }
@@ -310,35 +324,27 @@ public:
         MatrixType P = predict_proba(X);
         LabelType out(X.rows());
         for (Eigen::Index i = 0; i < X.rows(); ++i) {
-            out(i) = P(i, 1) >= P(i, 0) ? classes_(1) : classes_(0);
+            Eigen::Index best = 0;
+            P.row(i).maxCoeff(&best);
+            out(i) = classes_(best);
         }
         return out;
     }
 
     /// @brief Return averaged calibrated class probabilities, shape
-    ///   (n_samples, 2).
+    ///   (n_samples, n_classes).
     [[nodiscard]] MatrixType predict_proba(
         const Eigen::Ref<const MatrixType>& X) const {
         this->check_is_fitted();
         this->validate_feature_count(X);
         if (!ensemble_) {
-            MatrixType out(X.rows(), 2);
-            const VectorType p_cal = calibrated_positive_probability(*single_fit_, X);
-            for (Eigen::Index i = 0; i < X.rows(); ++i) {
-                out(i, 0) = Scalar{1} - p_cal(i);
-                out(i, 1) = p_cal(i);
-            }
-            return out;
+            return normalized_probabilities(calibrated_probability_matrix(*single_fit_, X));
         }
 
-        MatrixType acc = MatrixType::Zero(X.rows(), 2);
+        MatrixType acc = MatrixType::Zero(X.rows(), classes_.size());
 
         for (const auto& ff : folds_) {
-            VectorType p_cal = calibrated_positive_probability(ff, X);
-            for (Eigen::Index i = 0; i < X.rows(); ++i) {
-                acc(i, 0) += Scalar{1} - p_cal(i);
-                acc(i, 1) += p_cal(i);
-            }
+            acc += normalized_probabilities(calibrated_probability_matrix(ff, X));
         }
 
         const Scalar inv_k = Scalar{1} / static_cast<Scalar>(folds_.size());
@@ -347,48 +353,87 @@ public:
     }
 
 private:
-    [[nodiscard]] VectorType calibrated_positive_probability(
+    [[nodiscard]] MatrixType calibrated_probability_matrix(
         const FoldFit& ff,
         const Eigen::Ref<const MatrixType>& X) const {
+        MatrixType out(X.rows(), classes_.size());
         switch (method_) {
             case CalibrationMethod::Sigmoid: {
-                VectorType s = get_scores(ff.base, X);
-                return internal::apply_platt_sigmoid<Scalar>(s, ff.A, ff.B);
+                MatrixType scores = get_score_matrix(ff.base, X, ff.base.predict_proba(X), classes_.size());
+                for (Eigen::Index c = 0; c < classes_.size(); ++c) {
+                    out.col(c) = internal::apply_platt_sigmoid<Scalar>(
+                        scores.col(c), ff.A(c), ff.B(c));
+                }
+                return out;
             }
             case CalibrationMethod::Isotonic: {
                 MatrixType P = ff.base.predict_proba(X);
-                VectorType p_pos = P.col(1);
-                MatrixType S(p_pos.size(), 1);
-                S.col(0) = p_pos;
-                return ff.iso->predict(S);
+                for (Eigen::Index c = 0; c < classes_.size(); ++c) {
+                    MatrixType S(P.rows(), 1);
+                    S.col(0) = P.col(c);
+                    out.col(c) = ff.iso[static_cast<std::size_t>(c)]->predict(S);
+                }
+                return out;
             }
         }
-        return VectorType::Zero(X.rows());
+        return MatrixType::Zero(X.rows(), classes_.size());
     }
 
-    static VectorType get_scores(const Base& est,
-                                 const Eigen::Ref<const MatrixType>& X) {
+    [[nodiscard]] static MatrixType normalized_probabilities(MatrixType P) {
+        for (Eigen::Index i = 0; i < P.rows(); ++i) {
+            for (Eigen::Index j = 0; j < P.cols(); ++j) {
+                if (!std::isfinite(P(i, j)) || P(i, j) < Scalar{0}) P(i, j) = Scalar{0};
+            }
+            Scalar sum = P.row(i).sum();
+            if (sum <= std::numeric_limits<Scalar>::epsilon()) {
+                P.row(i).setConstant(Scalar{1} / static_cast<Scalar>(P.cols()));
+            } else {
+                P.row(i) /= sum;
+            }
+        }
+        return P;
+    }
+
+    static MatrixType get_score_matrix(const Base& est,
+                                       const Eigen::Ref<const MatrixType>& X,
+                                       const MatrixType& probabilities,
+                                       Eigen::Index n_classes) {
         if constexpr (requires(const Base& b, const MatrixType& m) {
                           { b.decision_function(m) };
                       }) {
             auto df = est.decision_function(X);
             if constexpr (requires { df.col(0); }) {
-                if (df.cols() == 1) return df.col(0);
-                return df.col(0);
+                if (df.cols() == n_classes) return df;
+                if (df.cols() == 1 && n_classes == 2) {
+                    MatrixType out(df.rows(), 2);
+                    out.col(0) = -df.col(0);
+                    out.col(1) = df.col(0);
+                    return out;
+                }
+                return df.leftCols(n_classes);
             } else {
-                return df;
+                MatrixType out(df.size(), n_classes);
+                if (n_classes == 2) {
+                    out.col(0) = -df;
+                    out.col(1) = df;
+                } else {
+                    out.setZero();
+                    out.col(0) = df;
+                }
+                return out;
             }
         } else {
-            MatrixType P = est.predict_proba(X);
-            VectorType s(P.rows());
-            for (Eigen::Index i = 0; i < P.rows(); ++i) {
-                const Scalar p = std::clamp(
-                    P(i, 1),
-                    std::numeric_limits<Scalar>::epsilon(),
-                    Scalar{1} - std::numeric_limits<Scalar>::epsilon());
-                s(i) = std::log(p / (Scalar{1} - p));
+            MatrixType scores(probabilities.rows(), probabilities.cols());
+            for (Eigen::Index i = 0; i < probabilities.rows(); ++i) {
+                for (Eigen::Index c = 0; c < probabilities.cols(); ++c) {
+                    const Scalar p = std::clamp(
+                        probabilities(i, c),
+                        std::numeric_limits<Scalar>::epsilon(),
+                        Scalar{1} - std::numeric_limits<Scalar>::epsilon());
+                    scores(i, c) = std::log(p / (Scalar{1} - p));
+                }
             }
-            return s;
+            return scores;
         }
     }
 

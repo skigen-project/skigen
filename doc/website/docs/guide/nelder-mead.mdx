@@ -1,0 +1,66 @@
+---
+sidebar_position: 79
+title: NelderMead
+---
+
+# NelderMead
+
+`NelderMead` is a derivative-free direct-search optimizer. It maintains a simplex of `n + 1` vertices in an `n`-dimensional parameter space and updates it with reflection, expansion, contraction, and shrink steps.
+
+This is useful when gradients are unavailable, noisy, or too expensive to compute.
+
+## Constructor
+
+```cpp
+Skigen::NelderMead<double> optimizer(
+    max_iter = 1000,
+    xatol = 1e-8,
+    fatol = 1e-8,
+    initial_step = 0.05);
+```
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `minimize(x0, objective)` | Build an initial simplex around `x0` and minimize. |
+| `minimize_simplex(simplex, objective)` | Start from an explicit `(n + 1) x n` simplex. |
+
+## Result
+
+`NelderMead::Result` contains:
+
+| Field | Description |
+|---|---|
+| `x` | Best point found. |
+| `fun` | Objective value at `x`. |
+| `nit` | Iterations completed. |
+| `nfev` | Objective evaluations. |
+| `success` | Whether convergence tolerances were met. |
+| `message` | Termination message. |
+| `final_simplex` | Final simplex vertices. |
+| `final_values` | Objective values at final vertices. |
+
+## Example
+
+```cpp
+#include <Skigen/Optimization>
+
+Eigen::VectorXd x0(2);
+x0 << -3.0, 4.0;
+
+Skigen::NelderMead<double> optimizer(500, 1e-9, 1e-12, 0.2);
+auto result = optimizer.minimize(x0, [](const Eigen::VectorXd& x) {
+    return std::pow(x(0) - 1.5, 2) + std::pow(x(1) + 2.0, 2);
+});
+```
+
+## Parity Scope
+
+Mirrors the classical Nelder-Mead algorithm used by `scipy.optimize.minimize(method="Nelder-Mead")` at the algorithmic level. Skigen exposes a C++/Eigen-native API rather than SciPy's Python options dictionary.
+
+Bounds, adaptive coefficients, callback interruption, and constraint handling are deferred.
+
+:::tip API Reference
+For full signatures see the [NelderMead API Reference](/docs/api/optimization/nelder-mead).
+:::

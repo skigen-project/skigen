@@ -25,6 +25,14 @@
       "benchmark": null,
       "plot_generation": false
     },
+    "Optimization": {
+      "include": "Skigen/Optimization",
+      "dir_slug": "optimization",
+      "sidebar_label": "Skigen::Optimization",
+      "test": "tests/test_optimization.cpp",
+      "benchmark": null,
+      "plot_generation": false
+    },
     "Preprocessing": {
       "include": "Skigen/Preprocessing",
       "dir_slug": "preprocessing",
@@ -302,6 +310,17 @@
       "example": "examples/discriminant_analysis/discriminant_analysis.cpp",
       "example_snippet": "example_qda",
       "sidebar_position": 2
+    },
+    {
+      "name": "NelderMead",
+      "module": "Optimization",
+      "documented": true,
+      "guide": "/docs/guide/nelder-mead",
+      "sklearn": "scipy.optimize.minimize(method='Nelder-Mead')",
+      "sklearn_url": "https://docs.scipy.org/doc/scipy/reference/optimize.minimize-neldermead.html",
+      "example": "examples/optimization/nelder_mead.cpp",
+      "example_snippet": "example_nelder_mead",
+      "sidebar_position": 1
     },
     {
       "name": "StandardScaler",

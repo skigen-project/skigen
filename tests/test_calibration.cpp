@@ -194,17 +194,53 @@ void test_calibrated_works_with_bernoulli_nb() {
     ASSERT_TRUE(acc > 0.7);
 }
 
-void test_calibrated_multiclass_throws() {
-    Eigen::MatrixXd X(9, 1);
-    Eigen::VectorXi y(9);
-    for (int i = 0; i < 9; ++i) { X(i, 0) = i; y(i) = i % 3; }
+static std::pair<Eigen::MatrixXd, Eigen::VectorXi>
+make_three_cluster_dataset() {
+    Eigen::MatrixXd X(90, 2);
+    Eigen::VectorXi y(90);
+    std::mt19937_64 rng(123);
+    std::normal_distribution<double> nz(0.0, 0.35);
+    const double cx[3] = {-2.0, 2.0, 0.0};
+    const double cy[3] = {0.0, 0.0, 2.5};
+    for (int c = 0; c < 3; ++c) {
+        for (int i = 0; i < 30; ++i) {
+            const int row = c * 30 + i;
+            X(row, 0) = cx[c] + nz(rng);
+            X(row, 1) = cy[c] + nz(rng);
+            y(row) = c;
+        }
+    }
+    return {X, y};
+}
+
+void test_calibrated_multiclass_sigmoid_runs() {
+    auto [X, y] = make_three_cluster_dataset();
     Skigen::GaussianNB<double> nb;
     Skigen::CalibratedClassifierCV<Skigen::GaussianNB<double>, double> cc(
-        nb, Skigen::CalibrationMethod::Sigmoid, 3);
-    bool threw = false;
-    try { cc.fit(X, y); }
-    catch (const std::invalid_argument&) { threw = true; }
-    ASSERT_TRUE(threw);
+        nb, Skigen::CalibrationMethod::Sigmoid, 3, 1, false,
+        std::optional<uint64_t>(3));
+    cc.fit(X, y);
+    Eigen::MatrixXd P = cc.predict_proba(X);
+    ASSERT_TRUE(P.rows() == X.rows());
+    ASSERT_TRUE(P.cols() == 3);
+    for (int i = 0; i < P.rows(); ++i) ASSERT_NEAR(P.row(i).sum(), 1.0, 1e-12);
+    auto pred = cc.predict(X);
+    int correct = 0;
+    for (int i = 0; i < y.size(); ++i) if (pred(i) == y(i)) ++correct;
+    ASSERT_TRUE(static_cast<double>(correct) / y.size() > 0.8);
+}
+
+void test_calibrated_multiclass_isotonic_runs() {
+    auto [X, y] = make_three_cluster_dataset();
+    Skigen::GaussianNB<double> nb;
+    Skigen::CalibratedClassifierCV<Skigen::GaussianNB<double>, double> cc(
+        nb, Skigen::CalibrationMethod::Isotonic, 3, 1, true,
+        std::optional<uint64_t>(4));
+    cc.fit(X, y);
+    Eigen::MatrixXd P = cc.predict_proba(X);
+    ASSERT_TRUE(P.rows() == X.rows());
+    ASSERT_TRUE(P.cols() == 3);
+    for (int i = 0; i < P.rows(); ++i) ASSERT_NEAR(P.row(i).sum(), 1.0, 1e-12);
 }
 
 void test_calibrated_cv_too_small_throws() {
@@ -274,8 +310,10 @@ int main() {
         test_calibrated_random_state_reproducible);
     run("works_with_bernoulli_nb",
         test_calibrated_works_with_bernoulli_nb);
-    run("multiclass_throws",
-        test_calibrated_multiclass_throws);
+    run("multiclass_sigmoid_runs",
+        test_calibrated_multiclass_sigmoid_runs);
+    run("multiclass_isotonic_runs",
+        test_calibrated_multiclass_isotonic_runs);
     run("cv_too_small_throws",
         test_calibrated_cv_too_small_throws);
     run("sigmoid_ensemble_false_runs",

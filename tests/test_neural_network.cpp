@@ -322,6 +322,16 @@ void test_mlp_classifier_lbfgs_throws() {
     ASSERT_TRUE(threw);
 }
 
+void test_mlp_regressor_lbfgs_throws() {
+    bool threw = false;
+    try {
+        Skigen::MLPRegressor<double> mlp(
+            {8}, Skigen::MLPActivation::ReLU,
+            Skigen::MLPSolver::LBFGS);
+    } catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
 int main() {
     std::cout << "Skigen NeuralNetwork tests\n";
     std::cout << "--------------------------\n";
@@ -350,6 +360,8 @@ int main() {
         test_mlp_classifier_multiclass_predict_proba_sums_to_one);
     run("mlp_classifier_lbfgs_throws",
         test_mlp_classifier_lbfgs_throws);
+    run("mlp_regressor_lbfgs_throws",
+        test_mlp_regressor_lbfgs_throws);
 
     std::cout << "--------------------------\n";
     std::cout << g_passed << " passed, " << g_failed << " failed\n";

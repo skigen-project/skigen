@@ -97,6 +97,18 @@ target_compile_options(skigen_test_discriminant_analysis PRIVATE ${SKIGEN_WARNIN
 add_test(NAME skigen_test_discriminant_analysis COMMAND skigen_test_discriminant_analysis)
 
 # ---------------------------------------------------------------------------
+# Optimization tests (NelderMead)
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_optimization
+    test_optimization.cpp
+)
+
+target_link_libraries(skigen_test_optimization PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_optimization PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_test(NAME skigen_test_optimization COMMAND skigen_test_optimization)
+
+# ---------------------------------------------------------------------------
 # Decomposition tests (PCA)
 # ---------------------------------------------------------------------------
 add_executable(skigen_test_decomposition

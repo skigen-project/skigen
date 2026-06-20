@@ -46,3 +46,6 @@ eigen
 # Python bytecode from the parity reference generators
 __pycache__/
 *.pyc
+.venv/
+tools/foundry-release-agent/.env
+tools/foundry-release-agent/
