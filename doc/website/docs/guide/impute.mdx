@@ -1,0 +1,93 @@
+---
+sidebar_position: 28
+title: Impute
+---
+
+# Impute
+
+Missing-value imputation fills incomplete numeric matrices before they enter estimators that require finite values.
+
+Skigen v1.2.0 introduces the dense numeric subset of scikit-learn's imputation API:
+
+- `SimpleImputer` replaces missing values feature-wise with the mean, median, most frequent value, or a constant.
+- `MissingIndicator` returns a 0/1 mask showing where missing values appear.
+
+## SimpleImputer
+
+`SimpleImputer` computes one statistic per input feature during `fit(X)` and uses those statistics during `transform(X)`.
+
+| Strategy | Behavior |
+|---|---|
+| `Mean` | Replace missing values with the non-missing feature mean. |
+| `Median` | Replace missing values with the non-missing feature median. |
+| `MostFrequent` | Replace missing values with the most common value; ties choose the smallest value. |
+| `Constant` | Replace missing values with `fill_value`. |
+
+All-missing features are dropped by default. With `keep_empty_features=true`, they are retained and filled with `0`, or with `fill_value` for `Constant`.
+
+## MissingIndicator
+
+`MissingIndicator` emits numeric masks with `0` for observed values and `1` for missing values. `MissingOnly` tracks only features that were missing during `fit`; `All` tracks every feature.
+
+## Constructor
+
+```cpp
+Skigen::SimpleImputer<double> imputer(
+    missing_values = NaN,
+    strategy = Skigen::ImputeStrategy::Mean,
+    fill_value = 0.0,
+    add_indicator = false,
+    keep_empty_features = false);
+
+Skigen::MissingIndicator<double> indicator(
+    missing_values = NaN,
+    features = Skigen::MissingIndicatorFeatures::MissingOnly,
+    error_on_new = true);
+```
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X)` | Learn imputation statistics or indicator columns. |
+| `transform(X)` | Return imputed values or a missingness mask. |
+| `fit_transform(X)` | Fit and transform in one call. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `statistics()` | Per-feature imputation statistics for `SimpleImputer`. |
+| `indicator_features()` | Features that will be appended as indicator columns. |
+| `features_indices()` | Features emitted by `MissingIndicator`. |
+
+## Example
+
+```cpp
+#include <Skigen/Impute>
+#include <Eigen/Core>
+#include <limits>
+
+const double nan = std::numeric_limits<double>::quiet_NaN();
+Eigen::MatrixXd X(3, 3);
+X << 1.0, nan, 3.0,
+     2.0, 4.0, nan,
+     nan, 6.0, 9.0;
+
+Skigen::SimpleImputer<double> imputer;
+Eigen::MatrixXd Z = imputer.fit_transform(X);
+
+Skigen::MissingIndicator<double> indicator(
+    nan, Skigen::MissingIndicatorFeatures::All);
+Eigen::MatrixXd M = indicator.fit_transform(X);
+```
+
+## Parity Scope
+
+Mirrors the dense numeric parts of [`sklearn.impute.SimpleImputer`](https://scikit-learn.org/stable/modules/generated/sklearn.impute.SimpleImputer.html) and [`sklearn.impute.MissingIndicator`](https://scikit-learn.org/stable/modules/generated/sklearn.impute.MissingIndicator.html).
+
+Sparse input, string/categorical values, callable strategies, `copy`, feature names, and `inverse_transform()` are deferred.
+
+:::tip API Reference
+For full signatures see the [SimpleImputer API Reference](/docs/api/impute/simple-imputer) and [MissingIndicator API Reference](/docs/api/impute/missing-indicator).
+:::

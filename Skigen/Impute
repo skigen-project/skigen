@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Christoph Dinh <christoph.dinh@mne-cpp.org>
+//
+// Skigen/Impute — Missing-value imputation and missingness indicators.
+//
+// Usage:
+//   #include <Skigen/Impute>
+
+#ifndef SKIGEN_IMPUTE
+#define SKIGEN_IMPUTE
+
+#include "Core"
+#include "src/Impute/SimpleImputer.h"
+
+#endif // SKIGEN_IMPUTE

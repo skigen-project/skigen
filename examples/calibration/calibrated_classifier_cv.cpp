@@ -22,11 +22,58 @@
 #include <Skigen/NaiveBayes>
 
 #include <Eigen/Core>
+#include <algorithm>
 #include <iomanip>
 #include <iostream>
+#include <utility>
 #include <random>
+#include <vector>
 
-int main() {
+#ifdef SKIGEN_EXAMPLE_WITH_PLOT
+#include <skigen/plot/figure.h>
+
+namespace {
+
+auto calibrationCurve(const Eigen::VectorXi& labels,
+                      const Eigen::VectorXd& positive_probabilities,
+                      int positive_label,
+                      int bin_count)
+    -> std::pair<Eigen::VectorXd, Eigen::VectorXd> {
+    std::vector<double> predicted_sum(static_cast<std::size_t>(bin_count), 0.0);
+    std::vector<double> positive_sum(static_cast<std::size_t>(bin_count), 0.0);
+    std::vector<int> sample_count(static_cast<std::size_t>(bin_count), 0);
+
+    for (Eigen::Index sample = 0; sample < positive_probabilities.size(); ++sample) {
+        const double probability = std::clamp(positive_probabilities(sample), 0.0, 1.0);
+        const int bin = std::min(bin_count - 1, static_cast<int>(probability * bin_count));
+        predicted_sum[static_cast<std::size_t>(bin)] += probability;
+        positive_sum[static_cast<std::size_t>(bin)] += labels(sample) == positive_label ? 1.0 : 0.0;
+        ++sample_count[static_cast<std::size_t>(bin)];
+    }
+
+    int non_empty_bins = 0;
+    for (const int count : sample_count) {
+        if (count > 0) ++non_empty_bins;
+    }
+
+    Eigen::VectorXd mean_predicted(non_empty_bins);
+    Eigen::VectorXd positive_fraction(non_empty_bins);
+    int output_index = 0;
+    for (int bin = 0; bin < bin_count; ++bin) {
+        const int count = sample_count[static_cast<std::size_t>(bin)];
+        if (count == 0) continue;
+        mean_predicted(output_index) = predicted_sum[static_cast<std::size_t>(bin)] / count;
+        positive_fraction(output_index) = positive_sum[static_cast<std::size_t>(bin)] / count;
+        ++output_index;
+    }
+
+    return {mean_predicted, positive_fraction};
+}
+
+} // namespace
+#endif
+
+int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     constexpr int n = 200;
     std::mt19937_64 rng(42);
     std::normal_distribution<double> nz(0.0, 1.0);
@@ -52,7 +99,8 @@ int main() {
     for (int i = 0; i < y.size(); ++i) if (pred(i) == y(i)) ++correct;
     const double acc = static_cast<double>(correct) / y.size();
 
-    Eigen::MatrixXd P_first = cc.predict_proba(X.topRows(3));
+    const Eigen::MatrixXd probabilities = cc.predict_proba(X);
+    Eigen::MatrixXd P_first = probabilities.topRows(3);
 
     std::cout << std::fixed << std::setprecision(4);
     std::cout << "=== CalibratedClassifierCV (sigmoid, 5-fold) ===\n";
@@ -67,5 +115,26 @@ int main() {
         std::cout << "    row " << i << ": ["
                   << P_first(i, 0) << ", " << P_first(i, 1) << "]\n";
     }
+
+#ifdef SKIGEN_EXAMPLE_WITH_PLOT
+    //! [example_calibrated_classifier_cv_reliability_plot]
+    const auto [mean_predicted, positive_fraction] =
+        calibrationCurve(y, probabilities.col(1), cc.classes()(1), 10);
+    Eigen::Vector2d diagonal;
+    diagonal << 0.0, 1.0;
+
+    Skigen::Plot::Figure fig;
+    fig.title("CalibratedClassifierCV Reliability")
+       .caption("Predicted positive-class probabilities compared with observed positive fractions")
+       .xlabel("mean predicted probability")
+       .ylabel("fraction of positives")
+       .plot(diagonal, diagonal, {.lineWidth = 1.2f, .opacity = 0.55f})
+       .plot(mean_predicted, positive_fraction, {.lineWidth = 2.6f})
+       .scatter(mean_predicted, positive_fraction, {.pointSize = 8.0f, .hollow = true});
+
+    return argc > 1 ? (fig.saveThemed(argv[1]) ? 0 : 1) : fig.show();
+    //! [example_calibrated_classifier_cv_reliability_plot]
+#else
     return 0;
+#endif
 }

@@ -3,9 +3,18 @@ sidebar_position: 130
 title: CalibratedClassifierCV
 ---
 
+import ExamplePlot from '@site/src/components/ExamplePlot';
+
 # CalibratedClassifierCV
 
 Post-hoc probability calibration that maps a base classifier's scores onto well-calibrated probabilities using sigmoid (Platt) or isotonic regression fit by cross-validation.
+
+The [`examples/calibration/calibrated_classifier_cv.cpp`](https://github.com/skigen-project/skigen/blob/main/examples/calibration/calibrated_classifier_cv.cpp) program renders a reliability curve comparing predicted positive-class probabilities with observed positive fractions:
+
+<ExamplePlot
+	alt="CalibratedClassifierCV reliability curve"
+	stem="calibrated_classifier_cv_reliability"
+/>
 
 ## Algorithm
 

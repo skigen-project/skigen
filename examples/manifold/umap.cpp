@@ -9,7 +9,7 @@
 //   rng = np.random.default_rng(0)
 //   X = np.vstack([rng.normal(c, 0.3, (15, 3)) for c in (-2.0, 0.0, 2.0)])
 //   reducer = umap.UMAP(n_neighbors=5, n_components=2, min_dist=0.1,
-//                       n_epochs=100, random_state=0)
+//                       learning_rate=0.01, n_epochs=100, random_state=0)
 //   Y = reducer.fit_transform(X)
 //   print(Y.shape)
 
@@ -20,7 +20,11 @@
 #include <iostream>
 #include <random>
 
-int main() {
+#ifdef SKIGEN_EXAMPLE_WITH_PLOT
+#include <skigen/plot/figure.h>
+#endif
+
+int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     constexpr int n_per = 15;
     constexpr int n = 3 * n_per;
     constexpr int d = 3;
@@ -38,7 +42,7 @@ int main() {
     }
 
     Skigen::UMAP<double> umap(/*n_components=*/2, /*n_neighbors=*/5,
-                              /*min_dist=*/0.1, /*learning_rate=*/1.0,
+                              /*min_dist=*/0.1, /*learning_rate=*/0.01,
                               /*n_epochs=*/100, /*negative_sample_rate=*/5,
                               /*random_state=*/0);
     auto Y = umap.fit_transform(X);
@@ -47,5 +51,25 @@ int main() {
     std::cout << "=== UMAP ===\n";
     std::cout << "  embedding shape = " << Y.rows() << " x " << Y.cols() << "\n";
     std::cout << "  Y[0]            = (" << Y(0, 0) << ", " << Y(0, 1) << ")\n";
+#ifdef SKIGEN_EXAMPLE_WITH_PLOT
+    //! [example_umap_plot]
+    Eigen::VectorXi labels(n);
+    for (int cluster = 0; cluster < 3; ++cluster) {
+        for (int sample = 0; sample < n_per; ++sample) {
+            labels(cluster * n_per + sample) = cluster;
+        }
+    }
+
+    Skigen::Plot::Figure fig;
+    fig.title("UMAP Embedding")
+       .caption("Three 3-D Gaussian clusters embedded into 2-D by Skigen::UMAP")
+       .xlabel("UMAP 1")
+       .ylabel("UMAP 2")
+       .scatter(Y, labels);
+
+    return argc > 1 ? (fig.saveThemed(argv[1]) ? 0 : 1) : fig.show();
+    //! [example_umap_plot]
+#else
     return 0;
+#endif
 }

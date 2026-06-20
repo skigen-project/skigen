@@ -3,9 +3,18 @@ sidebar_position: 129
 title: UMAP
 ---
 
+import ExamplePlot from '@site/src/components/ExamplePlot';
+
 # UMAP
 
 Uniform Manifold Approximation and Projection: a fast non-linear embedding that preserves both local and some global structure. An independent C++ port (BSD-3 attribution in the source header).
+
+The [`examples/manifold/umap.cpp`](https://github.com/skigen-project/skigen/blob/main/examples/manifold/umap.cpp) program embeds three synthetic 3-D clusters into two dimensions:
+
+<ExamplePlot
+	alt="UMAP embedding of three synthetic Gaussian clusters"
+	stem="umap"
+/>
 
 ## Algorithm
 

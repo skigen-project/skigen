@@ -3,9 +3,18 @@ sidebar_position: 138
 title: LocalOutlierFactor
 ---
 
+import ExamplePlot from '@site/src/components/ExamplePlot';
+
 # LocalOutlierFactor
 
 A density-based anomaly score: each point is compared to the local density of its neighbours, flagging those in relatively sparse regions as outliers.
+
+The [`examples/neighbors/local_outlier_factor.cpp`](https://github.com/skigen-project/skigen/blob/main/examples/neighbors/local_outlier_factor.cpp) program renders a dense inlier cluster with detected outliers highlighted:
+
+<ExamplePlot
+	alt="Local Outlier Factor highlights sparse outliers around a dense inlier cluster"
+	stem="local_outlier_factor"
+/>
 
 ## Algorithm
 

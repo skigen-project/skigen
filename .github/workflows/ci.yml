@@ -29,6 +29,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  docs-registry:
+    name: Docs Registry Audit
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Audit API registry
+        run: python3 doc/audit_api_registry.py --repo-root . --registry doc/api_registry.json
+
   build-linux:
     name: Linux (GCC ${{ matrix.gcc }})
     runs-on: ubuntu-24.04

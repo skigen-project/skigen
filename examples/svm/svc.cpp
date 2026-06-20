@@ -23,7 +23,11 @@
 #include <iostream>
 #include <random>
 
-int main() {
+#ifdef SKIGEN_EXAMPLE_WITH_PLOT
+#include <skigen/plot/figure.h>
+#endif
+
+int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     constexpr int n = 200;
     std::mt19937_64 rng(11);
     std::normal_distribution<double> nz(0.0, 0.5);
@@ -37,6 +41,7 @@ int main() {
         y(i)    = (cls > 0) ? 1 : 0;
     }
 
+    //! [example_svc]
     using K = Skigen::SVC<double>::Kernel;
     Skigen::SVC<double> clf(/*C=*/1.0, K::RBF, /*degree=*/3, /*gamma=*/0.5);
     clf.fit(X, y);
@@ -50,5 +55,49 @@ int main() {
     std::cout << "=== SVC (RBF kernel) ===\n";
     std::cout << "  training accuracy = " << acc << "\n";
     std::cout << "  n_support         = " << clf.n_support() << "\n";
+    //! [example_svc]
+
+#ifdef SKIGEN_EXAMPLE_WITH_PLOT
+    //! [example_svc_decision_regions_plot]
+    constexpr int grid_side = 90;
+    Eigen::MatrixXd grid(grid_side * grid_side, 2);
+    const double x_min = X.col(0).minCoeff() - 0.6;
+    const double x_max = X.col(0).maxCoeff() + 0.6;
+    const double y_min = X.col(1).minCoeff() - 0.6;
+    const double y_max = X.col(1).maxCoeff() + 0.6;
+
+    int row = 0;
+    for (int iy = 0; iy < grid_side; ++iy) {
+        const double gy = y_min + (y_max - y_min) * iy / (grid_side - 1);
+        for (int ix = 0; ix < grid_side; ++ix) {
+            const double gx = x_min + (x_max - x_min) * ix / (grid_side - 1);
+            grid(row, 0) = gx;
+            grid(row, 1) = gy;
+            ++row;
+        }
+    }
+
+    const Eigen::VectorXi grid_labels = clf.predict(grid);
+    Eigen::MatrixXd support_points(static_cast<Eigen::Index>(clf.support().size()), 2);
+    Eigen::VectorXi support_labels(static_cast<Eigen::Index>(clf.support().size()));
+    for (Eigen::Index i = 0; i < support_points.rows(); ++i) {
+        const Eigen::Index sample = clf.support()[static_cast<std::size_t>(i)];
+        support_points.row(i) = X.row(sample);
+        support_labels(i) = y(sample);
+    }
+
+    Skigen::Plot::Figure fig;
+    fig.title("SVC Decision Regions")
+       .caption("RBF-kernel Skigen::SVC decision regions with support vectors highlighted")
+       .xlabel("feature 1")
+       .ylabel("feature 2")
+       .scatter(grid, grid_labels, {.pointSize = 2.0f, .opacity = 0.16f})
+       .scatter(X, y, {.pointSize = 7.0f, .opacity = 0.92f})
+       .scatter(support_points, support_labels, {.pointSize = 15.0f, .hollow = true});
+
+    return argc > 1 ? (fig.saveThemed(argv[1]) ? 0 : 1) : fig.show();
+    //! [example_svc_decision_regions_plot]
+#else
     return 0;
+#endif
 }

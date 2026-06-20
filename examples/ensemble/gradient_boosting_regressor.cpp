@@ -26,7 +26,11 @@
 #include <iostream>
 #include <random>
 
-int main() {
+#ifdef SKIGEN_EXAMPLE_WITH_PLOT
+#include <skigen/plot/figure.h>
+#endif
+
+int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     constexpr int n = 200;
     std::mt19937_64 rng(42);
     std::normal_distribution<double> noise(0.0, 0.1);
@@ -63,5 +67,22 @@ int main() {
               << gb.train_score()(gb.train_score().size() - 1) << "\n";
     std::cout << "  feature_importances = ["
               << gb.feature_importances()(0) << "]\n";
+#ifdef SKIGEN_EXAMPLE_WITH_PLOT
+    //! [example_gradient_boosting_regressor_train_score_plot]
+    const Eigen::VectorXd stages = Eigen::VectorXd::LinSpaced(
+        gb.train_score().size(), 1.0, static_cast<double>(gb.train_score().size()));
+
+    Skigen::Plot::Figure fig;
+    fig.title("GradientBoostingRegressor Training Loss")
+       .caption("Training mean squared error decreases as boosting stages are added")
+       .xlabel("boosting stage")
+       .ylabel("training MSE")
+       .plot(stages, gb.train_score(), {.lineWidth = 2.4f})
+       .scatter(stages, gb.train_score(), {.pointSize = 4.0f, .opacity = 0.55f});
+
+    return argc > 1 ? (fig.saveThemed(argv[1]) ? 0 : 1) : fig.show();
+    //! [example_gradient_boosting_regressor_train_score_plot]
+#else
     return 0;
+#endif
 }

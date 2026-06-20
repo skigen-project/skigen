@@ -39,6 +39,11 @@ skigen_add_example(ex_label_encoder       preprocessing/label_encoder.cpp)
 skigen_add_example(ex_polynomial_features preprocessing/polynomial_features.cpp)
 
 # ---------------------------------------------------------------------------
+# Impute examples
+# ---------------------------------------------------------------------------
+skigen_add_example(ex_simple_imputer     impute/simple_imputer.cpp)
+
+# ---------------------------------------------------------------------------
 # LinearModel examples
 # ---------------------------------------------------------------------------
 skigen_add_example(ex_linear_regression   linear_model/linear_regression.cpp)
@@ -73,6 +78,7 @@ skigen_enable_plot(ex_kmeans              kmeans)
 # ---------------------------------------------------------------------------
 skigen_add_example(ex_kneighbors          neighbors/kneighbors.cpp)
 skigen_add_example(ex_lof                 neighbors/local_outlier_factor.cpp)
+skigen_enable_plot(ex_lof                 local_outlier_factor)
 
 # ---------------------------------------------------------------------------
 # Tree examples
@@ -103,6 +109,7 @@ skigen_add_example(ex_isotonic_regression isotonic/isotonic_regression.cpp)
 # Calibration examples
 # ---------------------------------------------------------------------------
 skigen_add_example(ex_calibrated_classifier_cv calibration/calibrated_classifier_cv.cpp)
+skigen_enable_plot(ex_calibrated_classifier_cv calibrated_classifier_cv_reliability)
 
 # ---------------------------------------------------------------------------
 # SVM examples
@@ -110,6 +117,7 @@ skigen_add_example(ex_calibrated_classifier_cv calibration/calibrated_classifier
 skigen_add_example(ex_linear_svc                svm/linear_svc.cpp)
 skigen_add_example(ex_linear_svr                svm/linear_svr.cpp)
 skigen_add_example(ex_svc                       svm/svc.cpp)
+skigen_enable_plot(ex_svc                       svc_decision_regions)
 skigen_add_example(ex_svr                       svm/svr.cpp)
 skigen_add_example(ex_nu_svc                    svm/nu_svc.cpp)
 skigen_add_example(ex_nu_svr                    svm/nu_svr.cpp)
@@ -125,6 +133,7 @@ skigen_add_example(ex_spectral_embedding        manifold/spectral_embedding.cpp)
 skigen_add_example(ex_tsne                      manifold/tsne.cpp)
 skigen_enable_plot(ex_tsne                      tsne)
 skigen_add_example(ex_umap                      manifold/umap.cpp)
+skigen_enable_plot(ex_umap                      umap)
 
 # ---------------------------------------------------------------------------
 # Neural network examples
@@ -138,6 +147,7 @@ skigen_add_example(ex_mlp_regressor             neural_network/mlp_regressor.cpp
 skigen_add_example(ex_random_forest_classifier    ensemble/random_forest_classifier.cpp)
 skigen_add_example(ex_random_forest_regressor     ensemble/random_forest_regressor.cpp)
 skigen_add_example(ex_gradient_boosting_regressor  ensemble/gradient_boosting_regressor.cpp)
+skigen_enable_plot(ex_gradient_boosting_regressor  gradient_boosting_regressor_train_score)
 skigen_add_example(ex_gradient_boosting_classifier ensemble/gradient_boosting_classifier.cpp)
 skigen_add_example(ex_hist_gradient_boosting_regressor  ensemble/hist_gradient_boosting_regressor.cpp)
 skigen_add_example(ex_hist_gradient_boosting_classifier ensemble/hist_gradient_boosting_classifier.cpp)

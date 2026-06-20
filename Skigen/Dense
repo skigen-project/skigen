@@ -11,6 +11,7 @@
 
 #include "Core"
 #include "Preprocessing"
+#include "Impute"
 #include "LinearModel"
 #include "Decomposition"
 #include "Cluster"

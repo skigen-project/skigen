@@ -183,15 +183,13 @@ jobs:
             libxcb-randr0 libxcb-render-util0 libxcb-cursor0 \
             libfontconfig1 libgl1-mesa-dri mesa-vulkan-drivers xvfb
 
-      - name: Build plot example
+      - name: Configure plot examples
         run: |
           cmake -B build-plot \
             -DSKIGEN_BUILD_TESTS=OFF \
             -DSKIGEN_BUILD_EXAMPLES=ON \
             -DSKIGEN_WITH_PLOT=ON \
             -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/qt;${{ github.workspace }}/skigen-plot"
-          cmake --build build-plot \
-            --target ex_kmeans ex_tsne ex_pca_clustering_workflow -j$(nproc)
 
       - name: Render example plots
         run: |
@@ -201,23 +199,10 @@ jobs:
           xvfb-run -a cmake --build build-plot \
             --target skigen_render_example_plots
           ls -la doc/website/static/img/examples
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-
-          registry = json.loads(Path('doc/api_registry.json').read_text())
-          image_dir = Path('doc/website/static/img/examples')
-          missing = []
-          for entry in registry.get('classes', []):
-            for plot in entry.get('plots', []):
-              stem = plot['stem']
-              for theme in ('light', 'dark'):
-                image = image_dir / f'{stem}_{theme}.png'
-                if not image.is_file() or image.stat().st_size == 0:
-                  missing.append(str(image))
-          if missing:
-            raise SystemExit('Missing rendered example plots:\n' + '\n'.join(missing))
-          PY
+          python3 doc/audit_api_registry.py \
+            --repo-root . \
+            --registry doc/api_registry.json \
+            --check-rendered-plots doc/website/static/img/examples
 
       - name: Build (dev)
         working-directory: doc/website

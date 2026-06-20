@@ -125,12 +125,26 @@ endif()
 # Documentation (Doxygen API docs)
 # ---------------------------------------------------------------------------
 find_package(Doxygen QUIET)
+find_package(Python3 COMPONENTS Interpreter QUIET)
 if(DOXYGEN_FOUND)
     add_custom_target(docs_api
         COMMAND doxygen ${CMAKE_SOURCE_DIR}/doc/Doxyfile
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/doc
         COMMENT "Generating Doxygen XML for API reference"
     )
+    if(Python3_FOUND)
+        add_custom_target(skigen_audit_registry
+            COMMAND ${Python3_EXECUTABLE}
+                    ${CMAKE_SOURCE_DIR}/doc/audit_api_registry.py
+                    --repo-root ${CMAKE_SOURCE_DIR}
+                    --registry ${CMAKE_SOURCE_DIR}/doc/api_registry.json
+            DEPENDS docs_api
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            COMMENT "Auditing API registry metadata"
+        )
+    else()
+        message(STATUS "Python3 not found — skigen_audit_registry target disabled")
+    endif()
 else()
     message(STATUS "Doxygen not found — docs_api target disabled")
 endif()

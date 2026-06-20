@@ -3,9 +3,18 @@ sidebar_position: 103
 title: GradientBoostingRegressor
 ---
 
+import ExamplePlot from '@site/src/components/ExamplePlot';
+
 # GradientBoostingRegressor
 
 Stage-wise boosting of shallow regression trees against the squared-error gradient.
+
+The [`examples/ensemble/gradient_boosting_regressor.cpp`](https://github.com/skigen-project/skigen/blob/main/examples/ensemble/gradient_boosting_regressor.cpp) program renders the training loss over boosting stages:
+
+<ExamplePlot
+	alt="GradientBoostingRegressor training loss over boosting stages"
+	stem="gradient_boosting_regressor_train_score"
+/>
 
 ## Algorithm
 

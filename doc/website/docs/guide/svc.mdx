@@ -3,9 +3,18 @@ sidebar_position: 111
 title: SVC
 ---
 
+import ExamplePlot from '@site/src/components/ExamplePlot';
+
 # SVC
 
 Kernel support-vector classifier built on a libsvm-style SMO solver, supporting linear, RBF, polynomial and sigmoid kernels.
+
+The [`examples/svm/svc.cpp`](https://github.com/skigen-project/skigen/blob/main/examples/svm/svc.cpp) program fits an RBF classifier on two Gaussian classes and renders its decision regions with support vectors highlighted:
+
+<ExamplePlot
+	alt="RBF SVC decision regions with support vectors highlighted"
+	stem="svc_decision_regions"
+/>
 
 ## Algorithm
 
