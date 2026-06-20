@@ -1,0 +1,85 @@
+---
+sidebar_position: 76
+title: KernelRidge
+---
+
+# KernelRidge
+
+Kernel ridge regression combines ridge regression's squared-error objective with kernel functions, fitting a linear model in an implicit feature space.
+
+## Objective
+
+Given a kernel matrix $K(X, X)$, Skigen solves the dual system:
+
+$$
+(K + \alpha I)c = y
+$$
+
+Predictions are then computed as:
+
+$$
+\hat{y}(x) = K(x, X_{fit})c
+$$
+
+## Kernels
+
+Skigen reuses its existing SVM kernel set:
+
+| Kernel | Formula |
+|---|---|
+| `Linear` | $x^T z$ |
+| `RBF` | $\exp(-\gamma \|x-z\|^2)$ |
+| `Poly` | $(\gamma x^T z + coef0)^{degree}$ |
+| `Sigmoid` | $\tanh(\gamma x^T z + coef0)$ |
+
+When `gamma=0`, Skigen uses `1 / n_features`, matching sklearn's `gamma=None` pairwise-kernel default for KernelRidge.
+
+## Constructor
+
+```cpp
+Skigen::KernelRidge<double> model(
+    alpha = 1.0,
+    kernel = Skigen::KernelRidge<double>::Kernel::Linear,
+    gamma = 0.0,
+    degree = 3,
+    coef0 = 1.0);
+```
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Fit the dual coefficients. |
+| `predict(X)` | Predict real-valued targets. |
+| `score(X, y)` | Return $R^2$. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `dual_coef()` | Dual coefficients with one value per training sample. |
+| `X_fit()` | Training samples retained for kernel prediction. |
+| `gamma_effective()` | Resolved kernel coefficient. |
+
+## Example
+
+```cpp
+#include <Skigen/KernelRidge>
+
+Skigen::KernelRidge<double> model(
+    0.05,
+    Skigen::KernelRidge<double>::Kernel::RBF,
+    1.0);
+model.fit(X, y);
+Eigen::VectorXd pred = model.predict(X_test);
+```
+
+## Parity Scope
+
+Mirrors the dense single-target subset of [`sklearn.kernel_ridge.KernelRidge`](https://scikit-learn.org/stable/modules/generated/sklearn.kernel_ridge.KernelRidge.html).
+
+Multi-output targets, sample weights, precomputed kernels, sparse input, and callable kernels are deferred.
+
+:::tip API Reference
+For full signatures see the [KernelRidge API Reference](/docs/api/kernel-ridge/).
+:::

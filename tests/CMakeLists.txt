@@ -49,6 +49,30 @@ target_compile_options(skigen_test_linear_model PRIVATE ${SKIGEN_WARNING_FLAGS})
 add_test(NAME skigen_test_linear_model COMMAND skigen_test_linear_model)
 
 # ---------------------------------------------------------------------------
+# KernelRidge tests
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_kernel_ridge
+    test_kernel_ridge.cpp
+)
+
+target_link_libraries(skigen_test_kernel_ridge PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_kernel_ridge PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_test(NAME skigen_test_kernel_ridge COMMAND skigen_test_kernel_ridge)
+
+# ---------------------------------------------------------------------------
+# DiscriminantAnalysis tests (LDA, QDA)
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_discriminant_analysis
+    test_discriminant_analysis.cpp
+)
+
+target_link_libraries(skigen_test_discriminant_analysis PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_discriminant_analysis PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_test(NAME skigen_test_discriminant_analysis COMMAND skigen_test_discriminant_analysis)
+
+# ---------------------------------------------------------------------------
 # Decomposition tests (PCA)
 # ---------------------------------------------------------------------------
 add_executable(skigen_test_decomposition

@@ -56,6 +56,16 @@ skigen_add_example(ex_bayesian_ridge      linear_model/bayesian_ridge.cpp)
 skigen_add_example(ex_ard_regression      linear_model/ard_regression.cpp)
 
 # ---------------------------------------------------------------------------
+# KernelRidge examples
+# ---------------------------------------------------------------------------
+skigen_add_example(ex_kernel_ridge        kernel_ridge/kernel_ridge.cpp)
+
+# ---------------------------------------------------------------------------
+# DiscriminantAnalysis examples
+# ---------------------------------------------------------------------------
+skigen_add_example(ex_discriminant_analysis discriminant_analysis/discriminant_analysis.cpp)
+
+# ---------------------------------------------------------------------------
 # Decomposition examples
 # ---------------------------------------------------------------------------
 skigen_add_example(ex_pca                 decomposition/pca.cpp)

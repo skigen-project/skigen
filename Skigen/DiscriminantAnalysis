@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Christoph Dinh <christoph.dinh@mne-cpp.org>
+//
+// Skigen/DiscriminantAnalysis — Linear and quadratic discriminant classifiers.
+//
+// Usage:
+//   #include <Skigen/DiscriminantAnalysis>
+
+#ifndef SKIGEN_DISCRIMINANT_ANALYSIS
+#define SKIGEN_DISCRIMINANT_ANALYSIS
+
+#include "Core"
+#include "src/DiscriminantAnalysis/DiscriminantAnalysis.h"
+
+#endif // SKIGEN_DISCRIMINANT_ANALYSIS

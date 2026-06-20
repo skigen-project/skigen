@@ -1,0 +1,85 @@
+---
+sidebar_position: 77
+title: DiscriminantAnalysis
+---
+
+# DiscriminantAnalysis
+
+Discriminant analysis classifiers model class-conditional Gaussian distributions and use Bayes' rule for classification.
+
+Skigen v1.2.0 includes dense numeric implementations of:
+
+- `LinearDiscriminantAnalysis`, which shares one covariance matrix across classes and produces linear decision boundaries.
+- `QuadraticDiscriminantAnalysis`, which fits one covariance matrix per class and produces quadratic decision boundaries.
+
+## LinearDiscriminantAnalysis
+
+LDA fits class means, inferred priors, and a pooled covariance matrix. The class score is:
+
+$$
+x^T\Sigma^{-1}\mu_k - \frac{1}{2}\mu_k^T\Sigma^{-1}\mu_k + \log \pi_k
+$$
+
+The predicted class is the one with the highest score.
+
+## QuadraticDiscriminantAnalysis
+
+QDA fits one covariance matrix per class. The class score is:
+
+$$
+-\frac{1}{2}\left((x-\mu_k)^T\Sigma_k^{-1}(x-\mu_k) + \log |\Sigma_k|\right) + \log \pi_k
+$$
+
+`reg_param` blends each class covariance with the identity matrix, which can stabilize small or nearly rank-deficient datasets.
+
+## Constructor
+
+```cpp
+Skigen::LinearDiscriminantAnalysis<double> lda(reg_param = 1e-9);
+Skigen::QuadraticDiscriminantAnalysis<double> qda(reg_param = 0.0);
+```
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Fit class priors, means, and covariance model. |
+| `predict(X)` | Predict integer class labels. |
+| `decision_function(X)` | Return class scores. |
+| `predict_proba(X)` | Return normalized class probabilities. |
+| `predict_log_proba(X)` | Return log probabilities. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `classes()` | Sorted class labels. |
+| `priors()` | Inferred class priors. |
+| `means()` | Class means. |
+| `covariance()` | Pooled covariance for LDA, per-class covariances for QDA. |
+| `coef()` | LDA class coefficients. |
+| `intercept()` | LDA class intercepts. |
+
+## Example
+
+```cpp
+#include <Skigen/DiscriminantAnalysis>
+
+Skigen::LinearDiscriminantAnalysis<double> lda;
+lda.fit(X, y);
+Eigen::VectorXi labels = lda.predict(X_test);
+
+Skigen::QuadraticDiscriminantAnalysis<double> qda(1e-6);
+qda.fit(X, y);
+Eigen::MatrixXd probabilities = qda.predict_proba(X_test);
+```
+
+## Parity Scope
+
+Mirrors the dense classification core of [`sklearn.discriminant_analysis.LinearDiscriminantAnalysis`](https://scikit-learn.org/stable/modules/generated/sklearn.discriminant_analysis.LinearDiscriminantAnalysis.html) and [`sklearn.discriminant_analysis.QuadraticDiscriminantAnalysis`](https://scikit-learn.org/stable/modules/generated/sklearn.discriminant_analysis.QuadraticDiscriminantAnalysis.html).
+
+Solver variants, shrinkage modes, custom priors, covariance estimators, sparse input, sample weights, feature names, and LDA dimensionality reduction are deferred.
+
+:::tip API Reference
+For full signatures see the [LinearDiscriminantAnalysis API Reference](/docs/api/discriminant-analysis/linear-discriminant-analysis) and [QuadraticDiscriminantAnalysis API Reference](/docs/api/discriminant-analysis/quadratic-discriminant-analysis).
+:::

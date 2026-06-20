@@ -9,6 +9,22 @@
       "benchmark": "benchmarks/bench_linear_model.cpp",
       "plot_generation": false
     },
+    "KernelRidge": {
+      "include": "Skigen/KernelRidge",
+      "dir_slug": "kernel-ridge",
+      "sidebar_label": "Skigen::KernelRidge",
+      "test": "tests/test_kernel_ridge.cpp",
+      "benchmark": null,
+      "plot_generation": false
+    },
+    "DiscriminantAnalysis": {
+      "include": "Skigen/DiscriminantAnalysis",
+      "dir_slug": "discriminant-analysis",
+      "sidebar_label": "Skigen::DiscriminantAnalysis",
+      "test": "tests/test_discriminant_analysis.cpp",
+      "benchmark": null,
+      "plot_generation": false
+    },
     "Preprocessing": {
       "include": "Skigen/Preprocessing",
       "dir_slug": "preprocessing",
@@ -231,6 +247,39 @@
       "example": "examples/linear_model/sgd.cpp",
       "example_snippet": "example_sgd_regressor",
       "sidebar_position": 7
+    },
+    {
+      "name": "KernelRidge",
+      "module": "KernelRidge",
+      "documented": true,
+      "guide": "/docs/guide/kernel-ridge",
+      "sklearn": "sklearn.kernel_ridge.KernelRidge",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.kernel_ridge.KernelRidge.html",
+      "example": "examples/kernel_ridge/kernel_ridge.cpp",
+      "example_snippet": "example_kernel_ridge",
+      "sidebar_position": 1
+    },
+    {
+      "name": "LinearDiscriminantAnalysis",
+      "module": "DiscriminantAnalysis",
+      "documented": true,
+      "guide": "/docs/guide/discriminant-analysis",
+      "sklearn": "sklearn.discriminant_analysis.LinearDiscriminantAnalysis",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.discriminant_analysis.LinearDiscriminantAnalysis.html",
+      "example": "examples/discriminant_analysis/discriminant_analysis.cpp",
+      "example_snippet": "example_lda",
+      "sidebar_position": 1
+    },
+    {
+      "name": "QuadraticDiscriminantAnalysis",
+      "module": "DiscriminantAnalysis",
+      "documented": true,
+      "guide": "/docs/guide/discriminant-analysis",
+      "sklearn": "sklearn.discriminant_analysis.QuadraticDiscriminantAnalysis",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.discriminant_analysis.QuadraticDiscriminantAnalysis.html",
+      "example": "examples/discriminant_analysis/discriminant_analysis.cpp",
+      "example_snippet": "example_qda",
+      "sidebar_position": 2
     },
     {
       "name": "StandardScaler",

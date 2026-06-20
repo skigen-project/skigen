@@ -13,6 +13,8 @@
 #include "Preprocessing"
 #include "Impute"
 #include "LinearModel"
+#include "KernelRidge"
+#include "DiscriminantAnalysis"
 #include "Decomposition"
 #include "Cluster"
 #include "Neighbors"
