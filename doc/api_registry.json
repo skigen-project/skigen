@@ -194,6 +194,17 @@
       "sidebar_position": 2
     },
     {
+      "name": "RidgeClassifier",
+      "module": "LinearModel",
+      "documented": true,
+      "guide": "/docs/guide/ridge-classifier",
+      "sklearn": "sklearn.linear_model.RidgeClassifier",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.RidgeClassifier.html",
+      "example": "examples/linear_model/ridge_classifier.cpp",
+      "example_snippet": "example_ridge_classifier",
+      "sidebar_position": 3
+    },
+    {
       "name": "Lasso",
       "module": "LinearModel",
       "documented": true,
@@ -202,7 +213,7 @@
       "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Lasso.html",
       "example": "examples/linear_model/lasso.cpp",
       "example_snippet": "example_lasso",
-      "sidebar_position": 3
+      "sidebar_position": 4
     },
     {
       "name": "LinearRegression",
@@ -213,7 +224,7 @@
       "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html",
       "example": "examples/linear_model/linear_regression.cpp",
       "example_snippet": "example_linear_regression",
-      "sidebar_position": 4
+      "sidebar_position": 5
     },
     {
       "name": "LogisticRegression",
@@ -224,7 +235,7 @@
       "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html",
       "example": "examples/linear_model/logistic_regression.cpp",
       "example_snippet": "example_logistic_regression",
-      "sidebar_position": 5
+      "sidebar_position": 6
     },
     {
       "name": "SGDClassifier",
@@ -235,7 +246,7 @@
       "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.SGDClassifier.html",
       "example": "examples/linear_model/sgd.cpp",
       "example_snippet": "example_sgd_classifier",
-      "sidebar_position": 6
+      "sidebar_position": 7
     },
     {
       "name": "SGDRegressor",
@@ -246,7 +257,18 @@
       "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.SGDRegressor.html",
       "example": "examples/linear_model/sgd.cpp",
       "example_snippet": "example_sgd_regressor",
-      "sidebar_position": 7
+      "sidebar_position": 8
+    },
+    {
+      "name": "Perceptron",
+      "module": "LinearModel",
+      "documented": true,
+      "guide": "/docs/guide/perceptron",
+      "sklearn": "sklearn.linear_model.Perceptron",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Perceptron.html",
+      "example": "examples/linear_model/perceptron.cpp",
+      "example_snippet": "example_perceptron",
+      "sidebar_position": 9
     },
     {
       "name": "KernelRidge",
@@ -567,7 +589,7 @@
       "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.BayesianRidge.html",
       "example": "examples/linear_model/bayesian_ridge.cpp",
       "example_snippet": "example_bayesian_ridge",
-      "sidebar_position": 8
+      "sidebar_position": 10
     },
     {
       "name": "ARDRegression",
@@ -578,7 +600,7 @@
       "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.ARDRegression.html",
       "example": "examples/linear_model/ard_regression.cpp",
       "example_snippet": "example_ard_regression",
-      "sidebar_position": 9
+      "sidebar_position": 11
     },
     {
       "name": "GaussianNB",

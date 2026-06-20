@@ -49,6 +49,30 @@ target_compile_options(skigen_test_linear_model PRIVATE ${SKIGEN_WARNING_FLAGS})
 add_test(NAME skigen_test_linear_model COMMAND skigen_test_linear_model)
 
 # ---------------------------------------------------------------------------
+# RidgeClassifier tests
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_ridge_classifier
+    test_ridge_classifier.cpp
+)
+
+target_link_libraries(skigen_test_ridge_classifier PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_ridge_classifier PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_test(NAME skigen_test_ridge_classifier COMMAND skigen_test_ridge_classifier)
+
+# ---------------------------------------------------------------------------
+# Perceptron tests
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_perceptron
+    test_perceptron.cpp
+)
+
+target_link_libraries(skigen_test_perceptron PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_perceptron PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_test(NAME skigen_test_perceptron COMMAND skigen_test_perceptron)
+
+# ---------------------------------------------------------------------------
 # KernelRidge tests
 # ---------------------------------------------------------------------------
 add_executable(skigen_test_kernel_ridge

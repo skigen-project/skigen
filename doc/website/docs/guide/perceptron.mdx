@@ -1,0 +1,66 @@
+---
+sidebar_position: 75
+title: Perceptron
+---
+
+# Perceptron
+
+`Perceptron` is a linear classifier trained with the perceptron update rule.
+
+Skigen implements it as a thin estimator over the shared `SGDClassifier` training path with perceptron loss, no regularization by default, and `eta0=1`.
+
+## Update Rule
+
+For a binary encoded target $y \in \{-1, 1\}$ and margin $y(w^Tx + b)$, the perceptron updates when the sample is misclassified:
+
+$$
+w \leftarrow w + \eta yx,\qquad b \leftarrow b + \eta y
+$$
+
+Multiclass classification uses one-vs-rest training, matching the existing Skigen SGD classifier architecture.
+
+## Constructor
+
+```cpp
+Skigen::Perceptron<double> clf(
+    max_iter = 1000,
+    tol = 1e-3,
+    eta0 = 1.0,
+    random_state = 42);
+```
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Train from scratch. |
+| `partial_fit(X, y, classes)` | Run one online epoch. |
+| `predict(X)` | Predict original integer class labels. |
+| `score(X, y)` | Return mean accuracy. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `coef()` | Coefficient matrix. |
+| `intercept()` | Bias vector. |
+
+## Example
+
+```cpp
+#include <Skigen/LinearModel>
+
+Skigen::Perceptron<double> clf(50, 0.0, 1.0, 0);
+clf.fit(X, y);
+Eigen::VectorXi pred = clf.predict(X_test);
+```
+
+## Parity Scope
+
+Mirrors the dense core of [`sklearn.linear_model.Perceptron`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Perceptron.html).
+
+Penalty modes, class weights, sample weights, validation-based early stopping, warm start, averaging, sparse input, and feature names are deferred.
+
+:::tip API Reference
+For full signatures see the [Perceptron API Reference](/docs/api/linear-model/perceptron).
+:::

@@ -48,10 +48,12 @@ skigen_add_example(ex_simple_imputer     impute/simple_imputer.cpp)
 # ---------------------------------------------------------------------------
 skigen_add_example(ex_linear_regression   linear_model/linear_regression.cpp)
 skigen_add_example(ex_ridge               linear_model/ridge.cpp)
+skigen_add_example(ex_ridge_classifier    linear_model/ridge_classifier.cpp)
 skigen_add_example(ex_lasso               linear_model/lasso.cpp)
 skigen_add_example(ex_elastic_net         linear_model/elastic_net.cpp)
 skigen_add_example(ex_logistic_regression linear_model/logistic_regression.cpp)
 skigen_add_example(ex_sgd                 linear_model/sgd.cpp)
+skigen_add_example(ex_perceptron          linear_model/perceptron.cpp)
 skigen_add_example(ex_bayesian_ridge      linear_model/bayesian_ridge.cpp)
 skigen_add_example(ex_ard_regression      linear_model/ard_regression.cpp)
 

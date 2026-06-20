@@ -1,0 +1,65 @@
+---
+sidebar_position: 74
+title: RidgeClassifier
+---
+
+# RidgeClassifier
+
+`RidgeClassifier` turns classification into ridge regression on encoded class targets.
+
+For binary classification, targets are encoded as `-1` for the first sorted class and `+1` for the second sorted class. For multiclass classification, Skigen fits one one-vs-rest ridge target per class and predicts with the largest decision score.
+
+## Objective
+
+The dense solver fits:
+
+$$
+\min_W \|Y - XW\|_2^2 + \alpha \|W\|_2^2
+$$
+
+where `Y` is the encoded class target matrix.
+
+## Constructor
+
+```cpp
+Skigen::RidgeClassifier<double> clf(
+    alpha = 1.0,
+    fit_intercept = true);
+```
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Fit ridge coefficients on encoded class targets. |
+| `predict(X)` | Predict original integer class labels. |
+| `decision_function(X)` | Return binary or one-vs-rest scores. |
+| `score(X, y)` | Return mean accuracy. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `classes()` | Sorted original class labels. |
+| `coef()` | Binary shape `(1, n_features)`, multiclass shape `(n_classes, n_features)`. |
+| `intercept()` | Binary shape `(1)`, multiclass shape `(n_classes)`. |
+
+## Example
+
+```cpp
+#include <Skigen/LinearModel>
+
+Skigen::RidgeClassifier<double> clf(1.0);
+clf.fit(X, y);
+Eigen::VectorXi pred = clf.predict(X_test);
+```
+
+## Parity Scope
+
+Mirrors the dense core of [`sklearn.linear_model.RidgeClassifier`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.RidgeClassifier.html).
+
+Class weights, sample weights, solver selection, iterative solver options, positivity constraints, sparse input, and feature names are deferred.
+
+:::tip API Reference
+For full signatures see the [RidgeClassifier API Reference](/docs/api/linear-model/ridge-classifier).
+:::

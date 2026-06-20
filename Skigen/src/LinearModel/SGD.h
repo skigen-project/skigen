@@ -25,8 +25,8 @@ namespace Skigen {
 /// @brief Linear classifier fitted by minimizing a regularized empirical loss with SGD.
 ///
 /// SGDClassifier implements a plain Stochastic Gradient Descent learning
-/// routine that supports hinge loss (linear SVM) and log loss (logistic
-/// regression). Binary classification uses a single weight vector;
+/// routine that supports hinge loss (linear SVM), log loss (logistic
+/// regression), and perceptron loss. Binary classification uses a single weight vector;
 /// multiclass is handled via one-vs-rest.
 ///
 /// Mirrors
@@ -36,7 +36,7 @@ namespace Skigen {
 ///
 /// | Parameter | Type | Default | Description |
 /// |-----------|------|---------|-------------|
-/// | `loss` | `Loss` | `Loss::Hinge` | The loss function to use: `Loss::Hinge` gives a linear SVM, `Loss::Log` gives logistic regression. |
+/// | `loss` | `Loss` | `Loss::Hinge` | The loss function to use: `Loss::Hinge` gives a linear SVM, `Loss::Log` gives logistic regression, `Loss::Perceptron` gives the perceptron update. |
 /// | `alpha` | `Scalar` | `1e-4` | Constant that multiplies the regularization term (L2). |
 /// | `max_iter` | `int` | `1000` | Maximum number of passes over the training data (epochs). |
 /// | `tol` | `Scalar` | `1e-3` | The stopping criterion: training stops when average update per sample is below `tol`. |
@@ -87,11 +87,11 @@ public:
     using IndexVector = Eigen::VectorXi;
 
     /// Loss function type.
-    enum class Loss { Hinge, Log };
+    enum class Loss { Hinge, Log, Perceptron };
 
     /// @brief Construct an SGDClassifier.
     ///
-    /// @param loss The loss function (`Loss::Hinge` or `Loss::Log`, default `Loss::Hinge`).
+    /// @param loss The loss function (`Loss::Hinge`, `Loss::Log`, or `Loss::Perceptron`, default `Loss::Hinge`).
     /// @param alpha Regularization constant (`Scalar`, default `1e-4`).
     /// @param max_iter Maximum number of epochs (`int`, default `1000`).
     /// @param tol Stopping tolerance (`Scalar`, default `1e-3`).
@@ -274,6 +274,14 @@ private:
 
                 if (loss_ == Loss::Hinge) {
                     if (yi * margin < Scalar{1}) {
+                        w += eta * (yi * X.row(idx) - alpha_ * w);
+                        b += eta * yi;
+                        total_update += std::abs(eta * yi);
+                    } else {
+                        w *= (Scalar{1} - eta * alpha_);
+                    }
+                } else if (loss_ == Loss::Perceptron) {
+                    if (yi * margin <= Scalar{0}) {
                         w += eta * (yi * X.row(idx) - alpha_ * w);
                         b += eta * yi;
                         total_update += std::abs(eta * yi);
