@@ -485,6 +485,17 @@
       "sidebar_position": 2
     },
     {
+      "name": "NearestNeighbors",
+      "module": "Neighbors",
+      "documented": true,
+      "guide": "/docs/guide/nearest-neighbors",
+      "sklearn": "sklearn.neighbors.NearestNeighbors",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.NearestNeighbors.html",
+      "example": "examples/neighbors/nearest_neighbors.cpp",
+      "example_snippet": "example_nearest_neighbors",
+      "sidebar_position": 1
+    },
+    {
       "name": "KNeighborsClassifier",
       "module": "Neighbors",
       "documented": true,
@@ -493,7 +504,18 @@
       "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsClassifier.html",
       "example": "examples/neighbors/kneighbors.cpp",
       "example_snippet": "example_kneighbors_classifier",
-      "sidebar_position": 1
+      "sidebar_position": 2
+    },
+    {
+      "name": "RadiusNeighborsClassifier",
+      "module": "Neighbors",
+      "documented": true,
+      "guide": "/docs/guide/radius-neighbors",
+      "sklearn": "sklearn.neighbors.RadiusNeighborsClassifier",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.RadiusNeighborsClassifier.html",
+      "example": "examples/neighbors/radius_neighbors.cpp",
+      "example_snippet": "example_radius_neighbors_classifier",
+      "sidebar_position": 3
     },
     {
       "name": "KNeighborsRegressor",
@@ -504,7 +526,18 @@
       "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsRegressor.html",
       "example": "examples/neighbors/kneighbors.cpp",
       "example_snippet": "example_kneighbors_regressor",
-      "sidebar_position": 2
+      "sidebar_position": 4
+    },
+    {
+      "name": "RadiusNeighborsRegressor",
+      "module": "Neighbors",
+      "documented": true,
+      "guide": "/docs/guide/radius-neighbors",
+      "sklearn": "sklearn.neighbors.RadiusNeighborsRegressor",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.RadiusNeighborsRegressor.html",
+      "example": "examples/neighbors/radius_neighbors.cpp",
+      "example_snippet": "example_radius_neighbors_regressor",
+      "sidebar_position": 5
     },
     {
       "name": "Pipeline",

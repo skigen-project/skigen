@@ -1,0 +1,47 @@
+---
+sidebar_position: 136
+title: NearestNeighbors
+---
+
+# NearestNeighbors
+
+`NearestNeighbors` stores a dense training matrix and answers brute-force neighbor queries with squared Euclidean distance.
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X)` | Store the training matrix. |
+| `kneighbors(X, k)` | Return neighbor indices sorted by distance. |
+| `kneighbors_distances(X, k)` | Return Euclidean neighbor distances sorted ascending. |
+| `radius_neighbors(X, radius)` | Return variable-length neighbor index lists within a radius. |
+
+## Constructor
+
+```cpp
+Skigen::NearestNeighbors<double> nn(
+    n_neighbors = 5,
+    radius = 1.0);
+```
+
+## Example
+
+```cpp
+#include <Skigen/Neighbors>
+
+Skigen::NearestNeighbors<double> nn(2, 1.0);
+nn.fit(X);
+Eigen::MatrixXi indices = nn.kneighbors(Q);
+Eigen::MatrixXd distances = nn.kneighbors_distances(Q);
+auto radius_indices = nn.radius_neighbors(Q);
+```
+
+## Parity Scope
+
+Mirrors the dense brute-force subset of [`sklearn.neighbors.NearestNeighbors`](https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.NearestNeighbors.html).
+
+Tree-based algorithms, custom metrics, sparse input, parallelism, and graph-return helpers are deferred.
+
+:::tip API Reference
+For full signatures see the [NearestNeighbors API Reference](/docs/api/neighbors/nearest-neighbors).
+:::

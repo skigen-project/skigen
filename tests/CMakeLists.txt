@@ -133,6 +133,30 @@ target_compile_options(skigen_test_neighbors PRIVATE ${SKIGEN_WARNING_FLAGS})
 add_test(NAME skigen_test_neighbors COMMAND skigen_test_neighbors)
 
 # ---------------------------------------------------------------------------
+# NearestNeighbors tests
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_nearest_neighbors
+    test_nearest_neighbors.cpp
+)
+
+target_link_libraries(skigen_test_nearest_neighbors PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_nearest_neighbors PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_test(NAME skigen_test_nearest_neighbors COMMAND skigen_test_nearest_neighbors)
+
+# ---------------------------------------------------------------------------
+# RadiusNeighbors tests
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_radius_neighbors
+    test_radius_neighbors.cpp
+)
+
+target_link_libraries(skigen_test_radius_neighbors PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_radius_neighbors PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_test(NAME skigen_test_radius_neighbors COMMAND skigen_test_radius_neighbors)
+
+# ---------------------------------------------------------------------------
 # Tree tests (DecisionTreeClassifier, DecisionTreeRegressor)
 # ---------------------------------------------------------------------------
 add_executable(skigen_test_tree

@@ -586,6 +586,56 @@ void test_select_from_model_max_features() {
     ASSERT_TRUE(count == 1);
 }
 
+void test_mutual_info_classif_ranks_signal() {
+    Eigen::MatrixXd X(12, 3);
+    Eigen::VectorXi y(12);
+    for (int i = 0; i < 12; ++i) {
+        const int cls = i < 6 ? 0 : 1;
+        y(i) = cls;
+        X(i, 0) = cls == 0 ? static_cast<double>(i) * 0.05
+                            : 5.0 + static_cast<double>(i - 6) * 0.05;
+        X(i, 1) = static_cast<double>(i % 3);
+        X(i, 2) = static_cast<double>(11 - i) * 0.01;
+    }
+
+    auto [scores, p] = Skigen::feature_selection::mutual_info_classif<double>(X, y, 2);
+    (void)p;
+    ASSERT_TRUE(scores(0) > scores(1));
+    ASSERT_TRUE(scores(0) > scores(2));
+    ASSERT_TRUE(scores(0) >= 0.0);
+
+    Skigen::SelectKBestMutualInfoClassif<double> sel(
+        Skigen::feature_selection::MutualInfoClassif<double>(2), 1);
+    sel.fit(X, y);
+    auto mask = sel.get_support_mask();
+    ASSERT_TRUE(mask(0));
+}
+
+void test_mutual_info_regression_ranks_signal() {
+    Eigen::MatrixXd X(14, 3);
+    Eigen::VectorXd y(14);
+    for (int i = 0; i < 14; ++i) {
+        const double t = static_cast<double>(i) / 13.0;
+        X(i, 0) = t;
+        X(i, 1) = (i % 2 == 0) ? 0.0 : 1.0;
+        X(i, 2) = 1.0 - t;
+        y(i) = t * t;
+    }
+
+    auto [scores, p] = Skigen::feature_selection::mutual_info_regression<double>(X, y, 3);
+    (void)p;
+    ASSERT_TRUE(scores(0) > scores(1));
+    ASSERT_TRUE(scores(2) > scores(1));
+    ASSERT_TRUE(scores(0) >= 0.0);
+
+    Skigen::SelectKBestMutualInfoRegression<double> sel(
+        Skigen::feature_selection::MutualInfoRegression<double>(3), 2);
+    sel.fit(X, y);
+    auto mask = sel.get_support_mask();
+    ASSERT_TRUE(mask(0));
+    ASSERT_TRUE(mask(2));
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -610,6 +660,8 @@ int main() {
     run_test("f_classif_pvalues_scipy",             test_f_classif_pvalues_scipy);
     run_test("f_regression_pvalues_scipy",          test_f_regression_pvalues_scipy);
     run_test("chi2_pvalues_scipy",                  test_chi2_pvalues_scipy);
+    run_test("mutual_info_classif_ranks_signal",    test_mutual_info_classif_ranks_signal);
+    run_test("mutual_info_regression_ranks_signal", test_mutual_info_regression_ranks_signal);
     run_test("select_from_model_with_ridge_mean",   test_select_from_model_with_ridge_mean);
     run_test("select_from_model_prefit",            test_select_from_model_prefit);
     run_test("rfe_with_ridge",                      test_rfe_with_ridge);

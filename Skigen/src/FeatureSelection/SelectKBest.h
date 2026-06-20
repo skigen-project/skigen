@@ -61,6 +61,35 @@ struct Chi2 {
         return chi2<Scalar, Options, StorageIndex>(X, y);
     }
 };
+
+template <typename Scalar>
+struct MutualInfoClassif {
+    using RowVec = Eigen::Matrix<Scalar, 1, Eigen::Dynamic>;
+    using Mat    = Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>;
+    explicit MutualInfoClassif(int n_neighbors = 3)
+        : n_neighbors(n_neighbors) {}
+    std::pair<RowVec, RowVec> operator()(
+        const Eigen::Ref<const Mat>& X,
+        const Eigen::Ref<const Eigen::VectorXi>& y) const {
+        return mutual_info_classif<Scalar>(X, y, n_neighbors);
+    }
+    int n_neighbors;
+};
+
+template <typename Scalar>
+struct MutualInfoRegression {
+    using RowVec = Eigen::Matrix<Scalar, 1, Eigen::Dynamic>;
+    using Mat    = Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>;
+    using Vec    = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
+    explicit MutualInfoRegression(int n_neighbors = 3)
+        : n_neighbors(n_neighbors) {}
+    std::pair<RowVec, RowVec> operator()(
+        const Eigen::Ref<const Mat>& X,
+        const Eigen::Ref<const Vec>& y) const {
+        return mutual_info_regression<Scalar>(X, y, n_neighbors);
+    }
+    int n_neighbors;
+};
 /// @endcond
 
 }  // namespace feature_selection
@@ -95,6 +124,8 @@ struct Chi2 {
 /// - Skigen::feature_selection::f_classif — ANOVA F-test for classification.
 /// - Skigen::feature_selection::f_regression — F-test for regression.
 /// - Skigen::feature_selection::chi2 — Chi-squared test.
+/// - Skigen::feature_selection::mutual_info_classif — kNN mutual information for classification.
+/// - Skigen::feature_selection::mutual_info_regression — kNN mutual information for regression.
 ///
 /// ### Limitations relative to scikit-learn Passing the score function as a string
 ///   (e.g. `"f_classif"`) is not supported — pass the callable directly.
@@ -347,6 +378,12 @@ using SelectKBestFRegression =
     SelectKBest<Scalar, feature_selection::FRegression<Scalar>>;
 template <typename Scalar = double>
 using SelectKBestChi2 = SelectKBest<Scalar, feature_selection::Chi2<Scalar>>;
+template <typename Scalar = double>
+using SelectKBestMutualInfoClassif =
+    SelectKBest<Scalar, feature_selection::MutualInfoClassif<Scalar>>;
+template <typename Scalar = double>
+using SelectKBestMutualInfoRegression =
+    SelectKBest<Scalar, feature_selection::MutualInfoRegression<Scalar>>;
 
 }  // namespace Skigen
 

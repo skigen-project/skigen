@@ -12,6 +12,7 @@
 #include <cmath>
 #include <limits>
 #include <map>
+#include <numeric>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -191,6 +192,27 @@ Scalar beta_inc_reg(Scalar a, Scalar b, Scalar x) {
         return Scalar{1} -
                static_cast<Scalar>(bt) * beta_cf(b, a, Scalar{1} - x) / b;
     }
+}
+
+// Digamma function psi(x) for x > 0 via recurrence + asymptotic series.
+// Used by the k-NN mutual-information estimators (Kraskov / Ross).
+template <typename Scalar>
+Scalar digamma(Scalar x_in) {
+    double x = static_cast<double>(x_in);
+    double result = 0.0;
+    // Recurrence up to x >= 6 for accurate asymptotic expansion.
+    while (x < 6.0) {
+        result -= 1.0 / x;
+        x += 1.0;
+    }
+    // Asymptotic series: psi(x) ~ ln(x) - 1/(2x) - sum B_{2k}/(2k x^{2k}).
+    const double inv = 1.0 / x;
+    const double inv2 = inv * inv;
+    result += std::log(x) - 0.5 * inv;
+    result -= inv2 * (1.0 / 12.0
+                      - inv2 * (1.0 / 120.0
+                                - inv2 * (1.0 / 252.0)));
+    return static_cast<Scalar>(result);
 }
 
 // Survival functions (1 - CDF)
@@ -546,6 +568,158 @@ chi2(const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X,
         pv(j) = detail::chi2_sf(s, static_cast<Scalar>(k - 1));
     }
     return {stat, pv};
+}
+
+// ---------------------------------------------------------------------------
+// mutual_info_classif / mutual_info_regression — kNN entropy estimators.
+// ---------------------------------------------------------------------------
+/// @brief Estimate mutual information between each feature and a discrete target.
+///
+/// Mirrors the dense continuous-feature subset of
+/// [sklearn.feature_selection.mutual_info_classif](https://scikit-learn.org/stable/modules/generated/sklearn.feature_selection.mutual_info_classif.html).
+///
+/// Uses the Ross (2014) k-nearest-neighbor estimator for a continuous feature
+/// and a discrete target. Negative estimates are clamped to zero, matching
+/// sklearn behavior.
+template <typename Scalar>
+std::pair<Eigen::Matrix<Scalar, 1, Eigen::Dynamic>,
+          Eigen::Matrix<Scalar, 1, Eigen::Dynamic>>
+mutual_info_classif(
+    const Eigen::Ref<const Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>>& X,
+    const Eigen::Ref<const Eigen::VectorXi>& y,
+    int n_neighbors = 3) {
+    using RowVec = Eigen::Matrix<Scalar, 1, Eigen::Dynamic>;
+    internal::check_non_empty(X);
+    internal::check_consistent_length(X, y);
+    if (n_neighbors < 1) {
+        throw std::invalid_argument("mutual_info_classif: n_neighbors must be >= 1.");
+    }
+
+    const Eigen::Index n = X.rows();
+    const Eigen::Index p = X.cols();
+    std::map<int, std::vector<Eigen::Index>> by_class;
+    for (Eigen::Index i = 0; i < n; ++i) by_class[y(i)].push_back(i);
+    if (by_class.size() < 2) {
+        throw std::invalid_argument("mutual_info_classif requires at least 2 classes.");
+    }
+
+    RowVec scores = RowVec::Zero(p);
+    RowVec pvalues = RowVec::Zero(p);
+    constexpr double kTiny = 1e-15;
+
+    for (Eigen::Index feature = 0; feature < p; ++feature) {
+        Scalar psi_k_sum{0};
+        Scalar psi_label_sum{0};
+        Scalar psi_radius_count_sum{0};
+        Eigen::Index used = 0;
+
+        for (const auto& [label, indices] : by_class) {
+            (void)label;
+            const int class_count = static_cast<int>(indices.size());
+            if (class_count <= 1) continue;
+            const int k = std::min(n_neighbors, class_count - 1);
+            for (Eigen::Index sample : indices) {
+                std::vector<Scalar> same_class_distances;
+                same_class_distances.reserve(static_cast<std::size_t>(class_count - 1));
+                for (Eigen::Index other : indices) {
+                    if (other == sample) continue;
+                    same_class_distances.push_back(std::abs(X(sample, feature) - X(other, feature)));
+                }
+                std::nth_element(same_class_distances.begin(),
+                                 same_class_distances.begin() + (k - 1),
+                                 same_class_distances.end());
+                const Scalar eps = std::max(Scalar{0}, same_class_distances[static_cast<std::size_t>(k - 1)] -
+                                                   static_cast<Scalar>(kTiny));
+
+                int radius_count = 0;
+                for (Eigen::Index other = 0; other < n; ++other) {
+                    if (other == sample) continue;
+                    if (std::abs(X(sample, feature) - X(other, feature)) <= eps) {
+                        ++radius_count;
+                    }
+                }
+                psi_k_sum += detail::digamma(static_cast<Scalar>(k));
+                psi_label_sum += detail::digamma(static_cast<Scalar>(class_count));
+                psi_radius_count_sum += detail::digamma(static_cast<Scalar>(radius_count + 1));
+                ++used;
+            }
+        }
+
+        if (used == 0) {
+            scores(feature) = Scalar{0};
+            continue;
+        }
+        const Scalar inv_used = Scalar{1} / static_cast<Scalar>(used);
+        Scalar estimate = detail::digamma(static_cast<Scalar>(n)) +
+                          psi_k_sum * inv_used -
+                          (psi_label_sum + psi_radius_count_sum) * inv_used;
+        scores(feature) = std::max(Scalar{0}, estimate);
+    }
+    return {scores, pvalues};
+}
+
+/// @brief Estimate mutual information between each feature and a continuous target.
+///
+/// Mirrors the dense continuous-target subset of
+/// [sklearn.feature_selection.mutual_info_regression](https://scikit-learn.org/stable/modules/generated/sklearn.feature_selection.mutual_info_regression.html).
+///
+/// Uses the Kraskov et al. (2004) k-nearest-neighbor estimator with the
+/// Chebyshev metric in joint `(feature, y)` space. Negative estimates are
+/// clamped to zero, matching sklearn behavior.
+template <typename Scalar>
+std::pair<Eigen::Matrix<Scalar, 1, Eigen::Dynamic>,
+          Eigen::Matrix<Scalar, 1, Eigen::Dynamic>>
+mutual_info_regression(
+    const Eigen::Ref<const Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>>& X,
+    const Eigen::Ref<const Eigen::Matrix<Scalar, Eigen::Dynamic, 1>>& y,
+    int n_neighbors = 3) {
+    using RowVec = Eigen::Matrix<Scalar, 1, Eigen::Dynamic>;
+    internal::check_non_empty(X);
+    internal::check_consistent_length(X, y);
+    if (n_neighbors < 1 || X.rows() <= n_neighbors) {
+        throw std::invalid_argument(
+            "mutual_info_regression: n_neighbors must be in [1, n_samples)." );
+    }
+
+    const Eigen::Index n = X.rows();
+    const Eigen::Index p = X.cols();
+    RowVec scores = RowVec::Zero(p);
+    RowVec pvalues = RowVec::Zero(p);
+    constexpr double kTiny = 1e-15;
+
+    for (Eigen::Index feature = 0; feature < p; ++feature) {
+        Scalar count_sum{0};
+        for (Eigen::Index sample = 0; sample < n; ++sample) {
+            std::vector<Scalar> joint_distances;
+            joint_distances.reserve(static_cast<std::size_t>(n - 1));
+            for (Eigen::Index other = 0; other < n; ++other) {
+                if (other == sample) continue;
+                const Scalar dx = std::abs(X(sample, feature) - X(other, feature));
+                const Scalar dy = std::abs(y(sample) - y(other));
+                joint_distances.push_back(std::max(dx, dy));
+            }
+            std::nth_element(joint_distances.begin(),
+                             joint_distances.begin() + (n_neighbors - 1),
+                             joint_distances.end());
+            const Scalar eps = std::max(Scalar{0}, joint_distances[static_cast<std::size_t>(n_neighbors - 1)] -
+                                               static_cast<Scalar>(kTiny));
+
+            int nx = 0;
+            int ny = 0;
+            for (Eigen::Index other = 0; other < n; ++other) {
+                if (other == sample) continue;
+                if (std::abs(X(sample, feature) - X(other, feature)) <= eps) ++nx;
+                if (std::abs(y(sample) - y(other)) <= eps) ++ny;
+            }
+            count_sum += detail::digamma(static_cast<Scalar>(nx + 1)) +
+                         detail::digamma(static_cast<Scalar>(ny + 1));
+        }
+        Scalar estimate = detail::digamma(static_cast<Scalar>(n_neighbors)) +
+                          detail::digamma(static_cast<Scalar>(n)) -
+                          count_sum / static_cast<Scalar>(n);
+        scores(feature) = std::max(Scalar{0}, estimate);
+    }
+    return {scores, pvalues};
 }
 
 }  // namespace feature_selection

@@ -1,0 +1,54 @@
+---
+sidebar_position: 137
+title: RadiusNeighbors
+---
+
+# RadiusNeighbors
+
+Radius-neighbor estimators use all training samples within a fixed Euclidean radius of each query sample.
+
+Skigen v1.2.0 includes dense brute-force implementations of:
+
+- `RadiusNeighborsClassifier`, which predicts by majority vote among neighbors inside the radius.
+- `RadiusNeighborsRegressor`, which predicts the mean target value of neighbors inside the radius.
+
+If a query sample has no neighbors inside the radius, prediction throws so the caller can choose a larger radius or handle the outlier explicitly.
+
+## Constructor
+
+```cpp
+Skigen::RadiusNeighborsClassifier<double> clf(radius = 1.0);
+Skigen::RadiusNeighborsRegressor<double> reg(radius = 1.0);
+```
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Store training samples and targets. |
+| `predict(X)` | Predict labels or target values from radius neighbors. |
+| `radius_neighbors(X, radius)` | Return sorted training indices inside the radius. |
+
+## Example
+
+```cpp
+#include <Skigen/Neighbors>
+
+Skigen::RadiusNeighborsClassifier<double> clf(0.35);
+clf.fit(X, y_class);
+Eigen::VectorXi labels = clf.predict(Q);
+
+Skigen::RadiusNeighborsRegressor<double> reg(0.35);
+reg.fit(X, y_reg);
+Eigen::VectorXd values = reg.predict(Q);
+```
+
+## Parity Scope
+
+Mirrors the dense brute-force subset of [`sklearn.neighbors.RadiusNeighborsClassifier`](https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.RadiusNeighborsClassifier.html) and [`sklearn.neighbors.RadiusNeighborsRegressor`](https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.RadiusNeighborsRegressor.html).
+
+Distance weighting, custom outlier labels, custom metrics, sparse input, parallelism, and graph-return helpers are deferred.
+
+:::tip API Reference
+For full signatures see the [RadiusNeighborsClassifier API Reference](/docs/api/neighbors/radius-neighbors-classifier) and [RadiusNeighborsRegressor API Reference](/docs/api/neighbors/radius-neighbors-regressor).
+:::

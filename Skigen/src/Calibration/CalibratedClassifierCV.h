@@ -47,7 +47,9 @@ enum class CalibrationMethod {
 /// calibrator (sigmoid or isotonic) is then fit on `(p_raw, y)` for
 /// that fold. At prediction time, all `cv` (base, calibrator) pairs are
 /// applied and their calibrated probabilities are averaged
-/// (`ensemble=true`, the sklearn 1.7 default).
+/// (`ensemble=true`, the sklearn 1.7 default). With `ensemble=false`,
+/// the out-of-fold predictions fit one calibrator and the base estimator is
+/// refit on the full training data.
 ///
 /// ### Parameters (constructor)
 ///
@@ -69,8 +71,7 @@ enum class CalibrationMethod {
 /// | `n_estimators_fitted()` | `int` (== `cv` when `ensemble=true`) |
 ///
 /// ### Limitations relative to scikit-learn Only binary classification is
-///   supported; only `ensemble=true` (default) is implemented;
-///   `n_jobs > 1` is not honoured. The base estimator should expose
+///   supported; `n_jobs > 1` is not honoured. The base estimator should expose
 ///   either `decision_function(X)` (preferred, used directly as calibration
 ///   input) or `predict_proba(X)` (logit-transformed before calibration),
 ///   matching sklearn's `_get_response_method` dispatch.
@@ -116,13 +117,6 @@ public:
                 "CalibratedClassifierCV: cv must be >= 2; got " +
                 std::to_string(cv_));
         }
-        if (!ensemble_) {
-            throw std::invalid_argument(
-                "CalibratedClassifierCV: only ensemble=true is "
-                "implemented. ensemble=false (single base + single "
-                "calibrator from out-of-fold predictions) is not "
-                "implemented.");
-        }
     }
 
     // -- Accessors ----------------------------------------------------------
@@ -138,7 +132,8 @@ public:
         this->check_is_fitted(); return static_cast<int>(classes_.size());
     }
     [[nodiscard]] int n_estimators_fitted() const {
-        this->check_is_fitted(); return static_cast<int>(folds_.size());
+        this->check_is_fitted();
+        return ensemble_ ? static_cast<int>(folds_.size()) : 1;
     }
     [[nodiscard]] const std::vector<FoldFit>& folds() const {
         this->check_is_fitted(); return folds_;
@@ -186,7 +181,10 @@ public:
         for (int r = 0; r < static_cast<int>(n) % K; ++r) fold_sizes[r] += 1;
 
         folds_.clear();
-        folds_.reserve(static_cast<std::size_t>(K));
+        single_fit_.reset();
+        if (ensemble_) folds_.reserve(static_cast<std::size_t>(K));
+        VectorType calibration_scores(n);
+        VectorType calibration_targets(n);
 
         Eigen::Index cursor = 0;
         for (int k = 0; k < K; ++k) {
@@ -247,11 +245,23 @@ public:
             switch (method_) {
                 case CalibrationMethod::Sigmoid: {
                     VectorType s = get_scores(ff.base, X_val);
+                    if (!ensemble_) {
+                        for (std::size_t i = 0; i < val_idx.size(); ++i) {
+                            calibration_scores(val_idx[i]) = s(static_cast<Eigen::Index>(i));
+                            calibration_targets(val_idx[i]) = y_val_pos(static_cast<Eigen::Index>(i));
+                        }
+                    }
                     internal::fit_platt_sigmoid<Scalar>(
                         s, y_val_pos, ff.A, ff.B);
                     break;
                 }
                 case CalibrationMethod::Isotonic: {
+                    if (!ensemble_) {
+                        for (std::size_t i = 0; i < val_idx.size(); ++i) {
+                            calibration_scores(val_idx[i]) = p_pos(static_cast<Eigen::Index>(i));
+                            calibration_targets(val_idx[i]) = y_val_pos(static_cast<Eigen::Index>(i));
+                        }
+                    }
                     MatrixType S(p_pos.size(), 1);
                     S.col(0) = p_pos;
                     IsotonicRegression<Scalar> iso(
@@ -264,7 +274,31 @@ public:
                     break;
                 }
             }
-            folds_.push_back(std::move(ff));
+            if (ensemble_) folds_.push_back(std::move(ff));
+        }
+
+        if (!ensemble_) {
+            FoldFit ff{estimator_, Scalar{0}, Scalar{0}, std::nullopt};
+            ff.base.fit(X, y);
+            switch (method_) {
+                case CalibrationMethod::Sigmoid:
+                    internal::fit_platt_sigmoid<Scalar>(
+                        calibration_scores, calibration_targets, ff.A, ff.B);
+                    break;
+                case CalibrationMethod::Isotonic: {
+                    MatrixType S(calibration_scores.size(), 1);
+                    S.col(0) = calibration_scores;
+                    IsotonicRegression<Scalar> iso(
+                        std::optional<Scalar>(Scalar{0}),
+                        std::optional<Scalar>(Scalar{1}),
+                        IsotonicIncreasing::True,
+                        OutOfBounds::Clip);
+                    iso.fit(S, calibration_targets);
+                    ff.iso = std::move(iso);
+                    break;
+                }
+            }
+            single_fit_ = std::move(ff);
         }
 
         this->fitted_ = true;
@@ -287,27 +321,20 @@ public:
         const Eigen::Ref<const MatrixType>& X) const {
         this->check_is_fitted();
         this->validate_feature_count(X);
+        if (!ensemble_) {
+            MatrixType out(X.rows(), 2);
+            const VectorType p_cal = calibrated_positive_probability(*single_fit_, X);
+            for (Eigen::Index i = 0; i < X.rows(); ++i) {
+                out(i, 0) = Scalar{1} - p_cal(i);
+                out(i, 1) = p_cal(i);
+            }
+            return out;
+        }
+
         MatrixType acc = MatrixType::Zero(X.rows(), 2);
 
         for (const auto& ff : folds_) {
-            VectorType p_cal(X.rows());
-
-            switch (method_) {
-                case CalibrationMethod::Sigmoid: {
-                    VectorType s = get_scores(ff.base, X);
-                    p_cal = internal::apply_platt_sigmoid<Scalar>(
-                        s, ff.A, ff.B);
-                    break;
-                }
-                case CalibrationMethod::Isotonic: {
-                    MatrixType P = ff.base.predict_proba(X);
-                    VectorType p_pos = P.col(1);
-                    MatrixType S(p_pos.size(), 1);
-                    S.col(0) = p_pos;
-                    p_cal = ff.iso->predict(S);
-                    break;
-                }
-            }
+            VectorType p_cal = calibrated_positive_probability(ff, X);
             for (Eigen::Index i = 0; i < X.rows(); ++i) {
                 acc(i, 0) += Scalar{1} - p_cal(i);
                 acc(i, 1) += p_cal(i);
@@ -320,6 +347,25 @@ public:
     }
 
 private:
+    [[nodiscard]] VectorType calibrated_positive_probability(
+        const FoldFit& ff,
+        const Eigen::Ref<const MatrixType>& X) const {
+        switch (method_) {
+            case CalibrationMethod::Sigmoid: {
+                VectorType s = get_scores(ff.base, X);
+                return internal::apply_platt_sigmoid<Scalar>(s, ff.A, ff.B);
+            }
+            case CalibrationMethod::Isotonic: {
+                MatrixType P = ff.base.predict_proba(X);
+                VectorType p_pos = P.col(1);
+                MatrixType S(p_pos.size(), 1);
+                S.col(0) = p_pos;
+                return ff.iso->predict(S);
+            }
+        }
+        return VectorType::Zero(X.rows());
+    }
+
     static VectorType get_scores(const Base& est,
                                  const Eigen::Ref<const MatrixType>& X) {
         if constexpr (requires(const Base& b, const MatrixType& m) {
@@ -355,6 +401,7 @@ private:
 
     Eigen::VectorXi classes_;
     std::vector<FoldFit> folds_;
+    std::optional<FoldFit> single_fit_;
 };
 
 /// @}

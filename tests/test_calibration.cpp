@@ -218,16 +218,35 @@ void test_calibrated_cv_too_small_throws() {
     ASSERT_TRUE(threw);
 }
 
-void test_calibrated_ensemble_false_throws() {
+void test_calibrated_sigmoid_ensemble_false_runs() {
+    auto [X, y] = make_two_cluster_dataset(160, 1.4, 88);
     Skigen::GaussianNB<double> nb;
-    bool threw = false;
-    try {
-        Skigen::CalibratedClassifierCV<Skigen::GaussianNB<double>, double> cc(
-            nb, Skigen::CalibrationMethod::Sigmoid, 5, 1,
-            /*ensemble=*/false);
-        (void)cc;
-    } catch (const std::invalid_argument&) { threw = true; }
-    ASSERT_TRUE(threw);
+    Skigen::CalibratedClassifierCV<Skigen::GaussianNB<double>, double> cc(
+        nb, Skigen::CalibrationMethod::Sigmoid, 4, 1,
+        /*ensemble=*/false, std::optional<uint64_t>(88));
+    cc.fit(X, y);
+    ASSERT_TRUE(cc.n_estimators_fitted() == 1);
+    Eigen::MatrixXd P = cc.predict_proba(X);
+    ASSERT_TRUE(P.rows() == X.rows());
+    ASSERT_TRUE(P.cols() == 2);
+    for (int i = 0; i < P.rows(); ++i) {
+        ASSERT_NEAR(P(i, 0) + P(i, 1), 1.0, 1e-12);
+    }
+}
+
+void test_calibrated_isotonic_ensemble_false_runs() {
+    auto [X, y] = make_two_cluster_dataset(160, 1.4, 89);
+    Skigen::GaussianNB<double> nb;
+    Skigen::CalibratedClassifierCV<Skigen::GaussianNB<double>, double> cc(
+        nb, Skigen::CalibrationMethod::Isotonic, 4, 1,
+        /*ensemble=*/false, std::optional<uint64_t>(89));
+    cc.fit(X, y);
+    ASSERT_TRUE(cc.n_estimators_fitted() == 1);
+    Eigen::MatrixXd P = cc.predict_proba(X);
+    for (int i = 0; i < P.rows(); ++i) {
+        ASSERT_NEAR(P(i, 0) + P(i, 1), 1.0, 1e-12);
+        ASSERT_TRUE(P(i, 1) >= 0.0 && P(i, 1) <= 1.0);
+    }
 }
 
 void test_calibrated_not_fitted_throws() {
@@ -259,8 +278,10 @@ int main() {
         test_calibrated_multiclass_throws);
     run("cv_too_small_throws",
         test_calibrated_cv_too_small_throws);
-    run("ensemble_false_throws",
-        test_calibrated_ensemble_false_throws);
+    run("sigmoid_ensemble_false_runs",
+        test_calibrated_sigmoid_ensemble_false_runs);
+    run("isotonic_ensemble_false_runs",
+        test_calibrated_isotonic_ensemble_false_runs);
     run("not_fitted_throws",
         test_calibrated_not_fitted_throws);
 

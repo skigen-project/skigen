@@ -7,11 +7,14 @@
 #include "../Core/Params.h"
 
 #include <Eigen/Core>
+#include <array>
+#include <algorithm>
 #include <stdexcept>
 #include <string>
 #include <string_view>
 #include <tuple>
 #include <utility>
+#include <vector>
 
 namespace Skigen {
 
@@ -69,7 +72,15 @@ public:
 
     /// @brief Construct a Pipeline from individual steps.
     /// @param steps The transformer and estimator steps (moved into the pipeline).
-    explicit Pipeline(Steps... steps) : steps_(std::move(steps)...) {}
+    explicit Pipeline(Steps... steps)
+        : steps_(std::move(steps)...), step_names_(default_step_names()) {}
+
+    /// @brief Construct a Pipeline from explicit step names and steps.
+    explicit Pipeline(std::array<std::string, sizeof...(Steps)> names,
+                      Steps... steps)
+        : steps_(std::move(steps)...), step_names_(std::move(names)) {
+        validate_step_names();
+    }
 
     /// @brief Fit all transformers and the final estimator.
     ///
@@ -142,7 +153,11 @@ public:
     /// @return `true` if `fit()` has been called successfully.
     [[nodiscard]] bool is_fitted() const noexcept { return fitted_; }
 
-    /// @brief Route a `"<step_index>__<param>"` setting to the addressed step.
+    /// @brief Return the configured step names.
+    [[nodiscard]] const auto& step_names() const noexcept { return step_names_; }
+
+    /// @brief Route a `"<step_index>__<param>"` or `"<step_name>__<param>"`
+    /// setting to the addressed step.
     ///
     /// Enables hyperparameter search over pipeline steps: a `GridSearchCV`
     /// parameter grid keyed by e.g. `"1__alpha"` updates `alpha` on step 1.
@@ -156,17 +171,8 @@ public:
                 "Pipeline::set_param: expected '<step_index>__<param>', got '" +
                 std::string(name) + "'");
         }
-        const std::string index_str(name.substr(0, sep));
-        std::size_t index = 0;
-        try {
-            std::size_t consumed = 0;
-            index = static_cast<std::size_t>(std::stoul(index_str, &consumed));
-            if (consumed != index_str.size()) throw std::invalid_argument("");
-        } catch (const std::exception&) {
-            throw std::invalid_argument(
-                "Pipeline::set_param: step prefix '" + index_str +
-                "' is not a numeric index");
-        }
+        const std::string prefix(name.substr(0, sep));
+        const std::size_t index = resolve_step_index(prefix);
         const std::string_view param = name.substr(sep + 2);
         const bool routed = route_set_param(
             index, param, value, std::index_sequence_for<Steps...>{});
@@ -177,6 +183,41 @@ public:
     }
 
 private:
+    static auto default_step_names() -> std::array<std::string, sizeof...(Steps)> {
+        std::array<std::string, sizeof...(Steps)> names{};
+        for (std::size_t i = 0; i < names.size(); ++i) names[i] = std::to_string(i);
+        return names;
+    }
+
+    void validate_step_names() const {
+        for (std::size_t i = 0; i < step_names_.size(); ++i) {
+            if (step_names_[i].empty()) {
+                throw std::invalid_argument("Pipeline: step names must not be empty.");
+            }
+            for (std::size_t j = i + 1; j < step_names_.size(); ++j) {
+                if (step_names_[i] == step_names_[j]) {
+                    throw std::invalid_argument(
+                        "Pipeline: duplicate step name '" + step_names_[i] + "'.");
+                }
+            }
+        }
+    }
+
+    std::size_t resolve_step_index(const std::string& prefix) const {
+        std::size_t consumed = 0;
+        try {
+            const std::size_t index = static_cast<std::size_t>(std::stoul(prefix, &consumed));
+            if (consumed == prefix.size()) return index;
+        } catch (const std::exception&) {
+        }
+        const auto it = std::find(step_names_.begin(), step_names_.end(), prefix);
+        if (it == step_names_.end()) {
+            throw std::invalid_argument(
+                "Pipeline::set_param: unknown step prefix '" + prefix + "'");
+        }
+        return static_cast<std::size_t>(std::distance(step_names_.begin(), it));
+    }
+
     template <std::size_t I>
     bool route_set_param_single(std::size_t index, std::string_view param,
                                 const ParameterValue& value) {
@@ -200,6 +241,7 @@ private:
     }
 
     std::tuple<Steps...> steps_;
+    std::array<std::string, sizeof...(Steps)> step_names_;
     bool fitted_ = false;
 
     // fit_transform through transformer steps [0, N-1)
@@ -242,6 +284,20 @@ private:
 template <typename... Steps>
 [[nodiscard]] Pipeline<Steps...> make_pipeline(Steps... steps) {
     return Pipeline<Steps...>(std::move(steps)...);
+}
+
+/// @brief Pair a step name with an estimator/transformer for named pipelines.
+template <typename Step>
+[[nodiscard]] auto named_step(std::string name, Step step) {
+    return std::make_pair(std::move(name), std::move(step));
+}
+
+/// @brief Factory for sklearn-style named pipelines.
+template <typename... Steps>
+[[nodiscard]] Pipeline<Steps...> make_pipeline(std::pair<std::string, Steps>... steps) {
+    return Pipeline<Steps...>(
+        std::array<std::string, sizeof...(Steps)>{steps.first...},
+        std::move(steps.second)...);
 }
 
 /// @}

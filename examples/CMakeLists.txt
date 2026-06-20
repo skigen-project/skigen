@@ -88,6 +88,8 @@ skigen_enable_plot(ex_kmeans              kmeans)
 # ---------------------------------------------------------------------------
 # Neighbors examples
 # ---------------------------------------------------------------------------
+skigen_add_example(ex_nearest_neighbors  neighbors/nearest_neighbors.cpp)
+skigen_add_example(ex_radius_neighbors   neighbors/radius_neighbors.cpp)
 skigen_add_example(ex_kneighbors          neighbors/kneighbors.cpp)
 skigen_add_example(ex_lof                 neighbors/local_outlier_factor.cpp)
 skigen_enable_plot(ex_lof                 local_outlier_factor)

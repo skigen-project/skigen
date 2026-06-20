@@ -307,6 +307,32 @@ void test_pipeline_set_param_index_routing() {
                  std::out_of_range);
 }
 
+void test_pipeline_set_param_named_routing() {
+    auto pipe = Skigen::make_pipeline(
+        Skigen::named_step("scale", Skigen::StandardScaler<double>()),
+        Skigen::named_step("ridge", Skigen::Ridge<double>(0.5)));
+
+    ASSERT_TRUE(pipe.step_names()[0] == "scale");
+    ASSERT_TRUE(pipe.step_names()[1] == "ridge");
+
+    pipe.set_param("ridge__alpha", Skigen::ParameterValue(2.5));
+    ASSERT_NEAR(pipe.template get<1>().alpha(), 2.5, 1e-12);
+
+    pipe.set_param("scale__with_mean", Skigen::ParameterValue(false));
+    ASSERT_TRUE(!pipe.template get<0>().with_mean());
+
+    ASSERT_THROW(pipe.set_param("missing__alpha", Skigen::ParameterValue(1.0)),
+                 std::invalid_argument);
+}
+
+void test_pipeline_duplicate_names_rejected() {
+    ASSERT_THROW(
+        Skigen::make_pipeline(
+            Skigen::named_step("step", Skigen::StandardScaler<double>()),
+            Skigen::named_step("step", Skigen::Ridge<double>())),
+        std::invalid_argument);
+}
+
 int main() {
     std::cout << "=== TrainTestSplit Tests ===\n";
     run_test("tts_basic", test_tts_basic);
@@ -328,6 +354,10 @@ int main() {
              test_grid_search_cv_njobs_matches_serial);
     run_test("pipeline_set_param_index_routing",
              test_pipeline_set_param_index_routing);
+    run_test("pipeline_set_param_named_routing",
+             test_pipeline_set_param_named_routing);
+    run_test("pipeline_duplicate_names_rejected",
+             test_pipeline_duplicate_names_rejected);
 
     std::cout << "\n=== RandomizedSearchCV Tests ===\n";
     run_test("randomized_search_cv_basic", test_randomized_search_cv_basic);

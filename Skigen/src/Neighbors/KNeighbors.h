@@ -9,6 +9,7 @@
 
 #include <Eigen/Core>
 #include <algorithm>
+#include <cmath>
 #include <map>
 #include <vector>
 
@@ -24,6 +25,28 @@ namespace Skigen {
 // ---------------------------------------------------------------------------
 
 namespace internal {
+
+/// @brief Compute sorted squared distances and indices for every query row.
+template <typename Scalar>
+std::vector<std::vector<std::pair<Scalar, int>>> sorted_neighbor_pairs(
+    const Eigen::Ref<const Eigen::Matrix<Scalar, Eigen::Dynamic,
+                                         Eigen::Dynamic>>& X_train,
+    const Eigen::Ref<const Eigen::Matrix<Scalar, Eigen::Dynamic,
+                                         Eigen::Dynamic>>& X_query) {
+    std::vector<std::vector<std::pair<Scalar, int>>> all;
+    all.reserve(static_cast<std::size_t>(X_query.rows()));
+    for (Eigen::Index i = 0; i < X_query.rows(); ++i) {
+        std::vector<std::pair<Scalar, int>> row;
+        row.reserve(static_cast<std::size_t>(X_train.rows()));
+        for (Eigen::Index j = 0; j < X_train.rows(); ++j) {
+            row.push_back({(X_query.row(i) - X_train.row(j)).squaredNorm(),
+                           static_cast<int>(j)});
+        }
+        std::sort(row.begin(), row.end());
+        all.push_back(std::move(row));
+    }
+    return all;
+}
 
 /// @brief Compute indices of the k nearest training rows to each query row.
 ///
@@ -58,6 +81,115 @@ Eigen::MatrixXi kneighbors_indices(
 }
 
 } // namespace internal
+
+// ---------------------------------------------------------------------------
+// NearestNeighbors
+// ---------------------------------------------------------------------------
+
+/// @brief Unsupervised nearest-neighbor search.
+///
+/// Uses brute-force squared Euclidean distances and returns neighbors sorted by
+/// ascending distance.
+///
+/// Mirrors the dense core of
+/// [sklearn.neighbors.NearestNeighbors](https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.NearestNeighbors.html).
+///
+/// ### Examples
+///
+/// @snippet nearest_neighbors.cpp example_nearest_neighbors
+template <typename Scalar = double>
+class NearestNeighbors : public Estimator<NearestNeighbors<Scalar>, Scalar> {
+public:
+    using Base = Estimator<NearestNeighbors<Scalar>, Scalar>;
+    using typename Base::MatrixType;
+    using typename Base::IndexType;
+
+    explicit NearestNeighbors(int n_neighbors = 5, Scalar radius = Scalar{1})
+        : n_neighbors_(n_neighbors), radius_(radius) {}
+
+    [[nodiscard]] int n_neighbors() const noexcept { return n_neighbors_; }
+    [[nodiscard]] Scalar radius() const noexcept { return radius_; }
+
+    SKIGEN_PARAMS(
+        (n_neighbors, n_neighbors_, int),
+        (radius, radius_, double))
+
+    NearestNeighbors& fit(const Eigen::Ref<const MatrixType>& X) {
+        internal::check_non_empty(X);
+        if (n_neighbors_ <= 0) {
+            throw std::invalid_argument("NearestNeighbors: n_neighbors must be positive.");
+        }
+        if (X.rows() < n_neighbors_) {
+            throw std::invalid_argument(
+                "n_samples (" + std::to_string(X.rows()) +
+                ") must be >= n_neighbors (" +
+                std::to_string(n_neighbors_) + ").");
+        }
+        if (radius_ < Scalar{0}) {
+            throw std::invalid_argument("NearestNeighbors: radius must be non-negative.");
+        }
+        X_train_ = X;
+        this->n_features_in_ = X.cols();
+        this->fitted_ = true;
+        return *this;
+    }
+
+    [[nodiscard]] Eigen::MatrixXi kneighbors(
+        const Eigen::Ref<const MatrixType>& X,
+        int n_neighbors = 0) const {
+        this->check_is_fitted();
+        this->validate_feature_count(X);
+        const int k = n_neighbors > 0 ? n_neighbors : n_neighbors_;
+        if (k <= 0 || X_train_.rows() < k) {
+            throw std::invalid_argument("NearestNeighbors.kneighbors: invalid n_neighbors.");
+        }
+        return internal::kneighbors_indices<Scalar>(X_train_, X, k);
+    }
+
+    [[nodiscard]] MatrixType kneighbors_distances(
+        const Eigen::Ref<const MatrixType>& X,
+        int n_neighbors = 0) const {
+        this->check_is_fitted();
+        this->validate_feature_count(X);
+        const int k = n_neighbors > 0 ? n_neighbors : n_neighbors_;
+        if (k <= 0 || X_train_.rows() < k) {
+            throw std::invalid_argument("NearestNeighbors.kneighbors_distances: invalid n_neighbors.");
+        }
+        MatrixType distances(X.rows(), k);
+        auto pairs = internal::sorted_neighbor_pairs<Scalar>(X_train_, X);
+        for (Eigen::Index i = 0; i < X.rows(); ++i) {
+            for (int j = 0; j < k; ++j) {
+                distances(i, j) = std::sqrt(pairs[static_cast<std::size_t>(i)][static_cast<std::size_t>(j)].first);
+            }
+        }
+        return distances;
+    }
+
+    [[nodiscard]] std::vector<std::vector<int>> radius_neighbors(
+        const Eigen::Ref<const MatrixType>& X,
+        Scalar radius = Scalar{-1}) const {
+        this->check_is_fitted();
+        this->validate_feature_count(X);
+        const Scalar r = radius >= Scalar{0} ? radius : radius_;
+        const Scalar r2 = r * r;
+        auto pairs = internal::sorted_neighbor_pairs<Scalar>(X_train_, X);
+        std::vector<std::vector<int>> out;
+        out.reserve(static_cast<std::size_t>(X.rows()));
+        for (Eigen::Index i = 0; i < X.rows(); ++i) {
+            std::vector<int> row;
+            for (const auto& [dist2, index] : pairs[static_cast<std::size_t>(i)]) {
+                if (dist2 <= r2) row.push_back(index);
+            }
+            out.push_back(std::move(row));
+        }
+        return out;
+    }
+
+private:
+    int n_neighbors_;
+    Scalar radius_;
+    MatrixType X_train_;
+};
 
 // ---------------------------------------------------------------------------
 // KNeighborsClassifier
@@ -371,6 +503,202 @@ private:
         }
         return y_train_matrix_view_;
     }
+};
+
+// ---------------------------------------------------------------------------
+// RadiusNeighborsClassifier
+// ---------------------------------------------------------------------------
+
+/// @brief Classifier implementing radius-nearest-neighbor voting.
+///
+/// Uses all training samples within `radius` of each query point. If a query
+/// has no neighbors inside the radius, prediction throws.
+///
+/// Mirrors the dense brute-force subset of
+/// [sklearn.neighbors.RadiusNeighborsClassifier](https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.RadiusNeighborsClassifier.html).
+///
+/// ### Examples
+///
+/// @snippet radius_neighbors.cpp example_radius_neighbors_classifier
+template <typename Scalar = double>
+class RadiusNeighborsClassifier
+    : public Classifier<RadiusNeighborsClassifier<Scalar>, Scalar> {
+public:
+    using Base = Classifier<RadiusNeighborsClassifier<Scalar>, Scalar>;
+    using typename Base::MatrixType;
+    using typename Base::IndexType;
+    using typename Base::LabelType;
+
+    explicit RadiusNeighborsClassifier(Scalar radius = Scalar{1})
+        : radius_(radius) {}
+
+    [[nodiscard]] Scalar radius() const noexcept { return radius_; }
+
+    SKIGEN_PARAMS((radius, radius_, double))
+
+    RadiusNeighborsClassifier& fit_impl(const Eigen::Ref<const MatrixType>& X,
+                                        const Eigen::Ref<const LabelType>& y) {
+        internal::check_non_empty(X);
+        internal::check_consistent_length(X, y);
+        if (radius_ < Scalar{0}) {
+            throw std::invalid_argument(
+                "RadiusNeighborsClassifier: radius must be non-negative.");
+        }
+        X_train_ = X;
+        y_train_ = y;
+        this->n_features_in_ = X.cols();
+        this->fitted_ = true;
+        return *this;
+    }
+
+    [[nodiscard]] std::vector<std::vector<int>> radius_neighbors(
+        const Eigen::Ref<const MatrixType>& X,
+        Scalar radius = Scalar{-1}) const {
+        this->check_is_fitted();
+        this->validate_feature_count(X);
+        const Scalar r = radius >= Scalar{0} ? radius : radius_;
+        const Scalar r2 = r * r;
+        auto pairs = internal::sorted_neighbor_pairs<Scalar>(X_train_, X);
+        std::vector<std::vector<int>> out;
+        out.reserve(static_cast<std::size_t>(X.rows()));
+        for (Eigen::Index i = 0; i < X.rows(); ++i) {
+            std::vector<int> row;
+            for (const auto& [dist2, index] : pairs[static_cast<std::size_t>(i)]) {
+                if (dist2 <= r2) row.push_back(index);
+            }
+            out.push_back(std::move(row));
+        }
+        return out;
+    }
+
+    [[nodiscard]] LabelType predict_impl(const Eigen::Ref<const MatrixType>& X) const {
+        auto neighbors = radius_neighbors(X);
+        LabelType predictions(X.rows());
+        for (Eigen::Index i = 0; i < X.rows(); ++i) {
+            if (neighbors[static_cast<std::size_t>(i)].empty()) {
+                throw std::runtime_error(
+                    "RadiusNeighborsClassifier: query sample has no neighbors within radius.");
+            }
+            std::map<int, int> votes;
+            for (const int index : neighbors[static_cast<std::size_t>(i)]) {
+                ++votes[y_train_(index)];
+            }
+            int best_label = votes.begin()->first;
+            int best_count = votes.begin()->second;
+            for (const auto& [label, count] : votes) {
+                if (count > best_count) {
+                    best_label = label;
+                    best_count = count;
+                }
+            }
+            predictions(i) = best_label;
+        }
+        return predictions;
+    }
+
+private:
+    Scalar radius_;
+    MatrixType X_train_;
+    LabelType y_train_;
+};
+
+// ---------------------------------------------------------------------------
+// RadiusNeighborsRegressor
+// ---------------------------------------------------------------------------
+
+/// @brief Regression based on targets of all neighbors within a radius.
+///
+/// Uses the mean target value of all training samples within `radius`. If a
+/// query has no neighbors inside the radius, prediction throws.
+///
+/// Mirrors the dense brute-force subset of
+/// [sklearn.neighbors.RadiusNeighborsRegressor](https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.RadiusNeighborsRegressor.html).
+///
+/// ### Examples
+///
+/// @snippet radius_neighbors.cpp example_radius_neighbors_regressor
+template <typename Scalar = double>
+class RadiusNeighborsRegressor
+    : public Predictor<RadiusNeighborsRegressor<Scalar>, Scalar> {
+public:
+    using Base = Predictor<RadiusNeighborsRegressor<Scalar>, Scalar>;
+    using typename Base::MatrixType;
+    using typename Base::VectorType;
+    using typename Base::IndexType;
+    using typename Base::ScalarType;
+
+    explicit RadiusNeighborsRegressor(Scalar radius = Scalar{1})
+        : radius_(radius) {}
+
+    [[nodiscard]] Scalar radius() const noexcept { return radius_; }
+
+    SKIGEN_PARAMS((radius, radius_, double))
+
+    RadiusNeighborsRegressor& fit_impl(const Eigen::Ref<const MatrixType>& X,
+                                       const Eigen::Ref<const VectorType>& y) {
+        internal::check_non_empty(X);
+        internal::check_consistent_length(X, y);
+        if (radius_ < Scalar{0}) {
+            throw std::invalid_argument(
+                "RadiusNeighborsRegressor: radius must be non-negative.");
+        }
+        X_train_ = X;
+        y_train_ = y;
+        this->n_features_in_ = X.cols();
+        this->fitted_ = true;
+        return *this;
+    }
+
+    [[nodiscard]] std::vector<std::vector<int>> radius_neighbors(
+        const Eigen::Ref<const MatrixType>& X,
+        Scalar radius = Scalar{-1}) const {
+        this->check_is_fitted();
+        this->validate_feature_count(X);
+        const Scalar r = radius >= Scalar{0} ? radius : radius_;
+        const Scalar r2 = r * r;
+        auto pairs = internal::sorted_neighbor_pairs<Scalar>(X_train_, X);
+        std::vector<std::vector<int>> out;
+        out.reserve(static_cast<std::size_t>(X.rows()));
+        for (Eigen::Index i = 0; i < X.rows(); ++i) {
+            std::vector<int> row;
+            for (const auto& [dist2, index] : pairs[static_cast<std::size_t>(i)]) {
+                if (dist2 <= r2) row.push_back(index);
+            }
+            out.push_back(std::move(row));
+        }
+        return out;
+    }
+
+    [[nodiscard]] VectorType predict_impl(const Eigen::Ref<const MatrixType>& X) const {
+        auto neighbors = radius_neighbors(X);
+        VectorType predictions(X.rows());
+        for (Eigen::Index i = 0; i < X.rows(); ++i) {
+            if (neighbors[static_cast<std::size_t>(i)].empty()) {
+                throw std::runtime_error(
+                    "RadiusNeighborsRegressor: query sample has no neighbors within radius.");
+            }
+            Scalar sum{0};
+            for (const int index : neighbors[static_cast<std::size_t>(i)]) {
+                sum += y_train_(index);
+            }
+            predictions(i) = sum / static_cast<Scalar>(neighbors[static_cast<std::size_t>(i)].size());
+        }
+        return predictions;
+    }
+
+    [[nodiscard]] ScalarType score_impl(const Eigen::Ref<const MatrixType>& X,
+                                        const Eigen::Ref<const VectorType>& y) const {
+        VectorType y_pred = predict_impl(X);
+        Scalar ss_res = (y - y_pred).squaredNorm();
+        Scalar ss_tot = (y.array() - y.mean()).matrix().squaredNorm();
+        if (ss_tot == Scalar{0}) return Scalar{0};
+        return Scalar{1} - ss_res / ss_tot;
+    }
+
+private:
+    Scalar radius_;
+    MatrixType X_train_;
+    VectorType y_train_;
 };
 
 /// @}
