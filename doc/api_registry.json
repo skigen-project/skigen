@@ -1031,6 +1031,7 @@
       "sklearn": "sklearn.svm.OneClassSVM",
       "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.svm.OneClassSVM.html",
       "example": "examples/svm/one_class_svm.cpp",
+      "example_snippet": "example_one_class_svm",
       "sidebar_position": 7
     },
     {

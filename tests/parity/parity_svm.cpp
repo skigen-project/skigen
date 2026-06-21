@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 The Skigen Contributors
 //
-// Behavioural parity for the SVM estimators. The nu-SVM family and
-// OneClassSVM ship as documented placeholders whose fit() throws; their
-// parity check asserts that error behaviour.
+// Behavioural parity for the SVM estimators. The nu-SVM family (NuSVC /
+// NuSVR) still ship as documented placeholders whose fit() throws; their
+// parity check asserts that error behaviour. OneClassSVM is implemented and
+// checked for basic one-class detection behaviour instead.
 
 #include <Skigen/Dense>
 
@@ -76,9 +77,24 @@ void parity_svm() {
         Skigen::NuSVR<double> m;
         expect_throws([&] { m.fit(X, y); }, "NuSVR");
     });
-    run("OneClassSVM (placeholder)", [] {
-        Eigen::MatrixXd X = tiny_X();
-        Skigen::OneClassSVM<double> m;
-        expect_throws([&] { m.fit(X); }, "OneClassSVM");
+    run("OneClassSVM", [] {
+        // Dense cluster plus two outliers; the model must fit and flag at
+        // least one outlier while keeping the cluster mostly inlying.
+        Eigen::MatrixXd X(20, 2);
+        for (int i = 0; i < 18; ++i) {
+            X(i, 0) = 0.2 * std::sin(0.7 * i);
+            X(i, 1) = 0.2 * std::cos(0.7 * i);
+        }
+        X(18, 0) = 2.5;  X(18, 1) = 2.5;
+        X(19, 0) = -2.5; X(19, 1) = 2.2;
+        Skigen::OneClassSVM<double> m(
+            Skigen::OneClassSVM<double>::Kernel::RBF, 3, 0.5, 0.0, 0.2);
+        m.fit(X);
+        const Eigen::VectorXi labels = m.predict(X);
+        int outliers = 0;
+        for (int i = 0; i < labels.size(); ++i)
+            if (labels(i) == -1) ++outliers;
+        if (outliers < 1 || outliers >= labels.size())
+            throw ParityFailure("OneClassSVM: expected a partial outlier set");
     });
 }

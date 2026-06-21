@@ -300,12 +300,51 @@ void test_nu_svr_throws_at_fit() {
     ASSERT_TRUE(threw);
 }
 
-void test_one_class_svm_throws_at_fit() {
-    Skigen::OneClassSVM<double> oc;
+void test_one_class_svm_fits_and_flags_some_outliers() {
+    // Dense cluster near the origin plus a couple of outliers.
+    Eigen::MatrixXd X(20, 2);
+    std::mt19937_64 rng(7);
+    std::normal_distribution<double> ns(0.0, 0.3);
+    for (int i = 0; i < 18; ++i) { X(i, 0) = ns(rng); X(i, 1) = ns(rng); }
+    X(18, 0) = 2.5;  X(18, 1) = 2.5;
+    X(19, 0) = -2.5; X(19, 1) = 2.2;
+
+    Skigen::OneClassSVM<double> oc(
+        Skigen::OneClassSVM<double>::Kernel::RBF,
+        3, /*gamma=*/0.5, 0.0, /*nu=*/0.2, 1e-3, 80,
+        std::optional<uint64_t>(0));
+    oc.fit(X);
+
+    const Eigen::VectorXi labels = oc.predict(X);
+    const Eigen::VectorXd scores = oc.score_samples(X);
+    const Eigen::VectorXd decisions = oc.decision_function(X);
+    ASSERT_TRUE(labels.size() == 20);
+    ASSERT_TRUE(scores.allFinite());
+    ASSERT_TRUE(decisions.allFinite());
+    ASSERT_TRUE(oc.n_support() > 0);
+    ASSERT_TRUE(oc.dual_coef().size() == oc.n_support());
+    // decision_function = score_samples + offset.
+    for (int i = 0; i < 20; ++i) {
+        ASSERT_NEAR(decisions(i), scores(i) + oc.offset(), 1e-9);
+    }
+    // At least one point is flagged as an outlier and not everything is.
+    int outliers = 0;
+    for (int i = 0; i < 20; ++i) if (labels(i) == -1) ++outliers;
+    ASSERT_TRUE(outliers >= 1);
+    ASSERT_TRUE(outliers < 20);
+    // labels are strictly +1 / -1.
+    for (int i = 0; i < 20; ++i) {
+        ASSERT_TRUE(labels(i) == 1 || labels(i) == -1);
+    }
+}
+
+void test_one_class_svm_invalid_nu_throws() {
+    Skigen::OneClassSVM<double> oc(
+        Skigen::OneClassSVM<double>::Kernel::RBF, 3, 0.0, 0.0, /*nu=*/0.0);
     Eigen::MatrixXd X(3, 1); X << 0, 1, 2;
     bool threw = false;
     try { oc.fit(X); }
-    catch (const std::runtime_error&) { threw = true; }
+    catch (const std::invalid_argument&) { threw = true; }
     ASSERT_TRUE(threw);
 }
 
@@ -327,7 +366,9 @@ int main() {
     run("svr_rbf_recovers_nonlinear_signal", test_svr_rbf_recovers_nonlinear_signal);
     run("nu_svc_throws_at_fit",              test_nu_svc_throws_at_fit);
     run("nu_svr_throws_at_fit",              test_nu_svr_throws_at_fit);
-    run("one_class_svm_throws_at_fit",       test_one_class_svm_throws_at_fit);
+    run("one_class_svm_fits_and_flags_some_outliers",
+        test_one_class_svm_fits_and_flags_some_outliers);
+    run("one_class_svm_invalid_nu_throws",   test_one_class_svm_invalid_nu_throws);
 
     std::cout << "----------------\n";
     std::cout << g_passed << " passed, " << g_failed << " failed\n";
