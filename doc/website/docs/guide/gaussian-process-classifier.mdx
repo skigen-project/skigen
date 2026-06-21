@@ -1,0 +1,70 @@
+---
+sidebar_position: 80
+title: GaussianProcessClassifier
+---
+
+# GaussianProcessClassifier
+
+`GaussianProcessClassifier` fits a dense binary Gaussian Process classifier with a logistic
+likelihood and Laplace posterior approximation.
+
+## Objective
+
+The classifier learns latent function values `f` under a Gaussian-process prior and a Bernoulli likelihood:
+
+$$
+p(y_i = 1 \mid f_i) = \sigma(f_i)
+$$
+
+Skigen uses Newton-Laplace iterations to approximate the posterior over `f`, then predicts class
+probabilities from the posterior latent mean and variance.
+
+## Constructor
+
+```cpp
+using GPC = Skigen::GaussianProcessClassifier<double>;
+GPC model(
+    kernel = GPC::Kernel::RBF,
+    alpha = 1e-10,
+    length_scale = 1.0,
+    constant_value = 1.0,
+    noise_level = 1.0,
+    nu = 1.5,
+    rational_quadratic_alpha = 1.0,
+    periodicity = 1.0,
+    sigma_0 = 1.0,
+    max_iter = 100,
+    tol = 1e-6);
+```
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Fit a binary dense Gaussian Process classifier. |
+| `predict(X)` | Return class labels. |
+| `predict_proba(X)` | Return two class-probability columns ordered by `classes()`. |
+| `decision_function(X)` | Return posterior latent mean scores. |
+| `score(X, y)` | Return mean accuracy. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `classes()` | Sorted binary class labels. |
+| `X_train()` | Training samples retained for kernel prediction. |
+| `latent_mean()` | Fitted latent function values at training samples. |
+| `dual_coef()` | Posterior dual coefficients. |
+| `n_iter()` | Number of Laplace iterations used. |
+
+## Parity Scope
+
+Mirrors the dense fixed-hyperparameter binary subset of `sklearn.gaussian_process.GaussianProcessClassifier`.
+
+Multiclass one-vs-rest/one-vs-one modes, hyperparameter optimization, callable/composite kernels,
+sample weights, sparse input, and kernel sums/products are deferred.
+
+:::tip API Reference
+For full signatures see the
+[GaussianProcessClassifier API Reference](/docs/api/gaussian-process/gaussian-process-classifier).
+:::

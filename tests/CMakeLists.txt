@@ -97,6 +97,18 @@ target_compile_options(skigen_test_gaussian_process PRIVATE ${SKIGEN_WARNING_FLA
 add_test(NAME skigen_test_gaussian_process COMMAND skigen_test_gaussian_process)
 
 # ---------------------------------------------------------------------------
+# CrossDecomposition tests (PLSRegression, CCA)
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_cross_decomposition
+    test_cross_decomposition.cpp
+)
+
+target_link_libraries(skigen_test_cross_decomposition PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_cross_decomposition PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_test(NAME skigen_test_cross_decomposition COMMAND skigen_test_cross_decomposition)
+
+# ---------------------------------------------------------------------------
 # DiscriminantAnalysis tests (LDA, QDA)
 # ---------------------------------------------------------------------------
 add_executable(skigen_test_discriminant_analysis
@@ -252,6 +264,18 @@ target_link_libraries(skigen_test_covariance PRIVATE Skigen::Skigen)
 target_compile_options(skigen_test_covariance PRIVATE ${SKIGEN_WARNING_FLAGS})
 
 add_test(NAME skigen_test_covariance COMMAND skigen_test_covariance)
+
+# ---------------------------------------------------------------------------
+# Anomaly tests (EllipticEnvelope, IsolationForest)
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_anomaly
+    test_anomaly.cpp
+)
+
+target_link_libraries(skigen_test_anomaly PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_anomaly PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_test(NAME skigen_test_anomaly COMMAND skigen_test_anomaly)
 
 # ---------------------------------------------------------------------------
 # Naive Bayes tests (GaussianNB, MultinomialNB, BernoulliNB)

@@ -1,0 +1,77 @@
+---
+sidebar_position: 80
+title: CrossDecomposition
+---
+
+# CrossDecomposition
+
+Cross-decomposition estimators learn paired latent spaces from dense `X` and `Y` matrices.
+
+Skigen v1.2.0 includes:
+
+- `PLSRegression`, a NIPALS partial least-squares regressor for dense multi-output targets.
+- `CCA`, a NIPALS canonical-correlation estimator for paired dense matrices.
+
+## PLSRegression
+
+`PLSRegression` extracts latent components from `X` that explain covariance with `Y`, then fits a
+linear prediction map back to the original target scale.
+
+```cpp
+Skigen::PLSRegression<double> pls(
+	n_components = 2,
+	scale = true,
+	max_iter = 500,
+	tol = 1e-6);
+pls.fit(X, Y);
+Eigen::MatrixXd prediction = pls.predict(X_test);
+```
+
+## CCA
+
+`CCA` learns paired rotations for `X` and `Y` whose transformed scores have high linear correlation.
+
+```cpp
+Skigen::CCA<double> cca(
+	n_components = 2,
+	scale = true,
+	max_iter = 500,
+	tol = 1e-6);
+cca.fit(X, Y);
+auto [x_scores, y_scores] = cca.transform(X, Y);
+```
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, Y)` | Fit paired latent components with NIPALS. |
+| `transform(X)` | Project `X` into latent component space. |
+| `transform(X, Y)` | Project both views and return paired score matrices. |
+| `predict(X)` | Predict `Y` from `X` using the fitted linear map. |
+| `score(X, Y)` | Return multi-output $R^2$ for `predict(X)`. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `x_weights()` / `y_weights()` | NIPALS weight vectors. |
+| `x_loadings()` / `y_loadings()` | Deflation loadings. |
+| `x_scores()` / `y_scores()` | Training latent scores. |
+| `x_rotations()` / `y_rotations()` | Projection rotations used by `transform`. |
+| `coef()` | Original-scale linear prediction coefficients. |
+| `intercept()` | Original-scale prediction intercept. |
+| `n_iter()` | Iterations used per component. |
+
+## Parity Scope
+
+Mirrors the dense NIPALS core of `sklearn.cross_decomposition.PLSRegression` and
+`sklearn.cross_decomposition.CCA`. The generated API entries link to the sklearn reference pages.
+
+Sparse input, sample weights, feature-name propagation, `copy`, and the broader `PLSCanonical` /
+`PLSSVD` family are deferred.
+
+:::tip API Reference
+For full signatures see the [PLSRegression API Reference](/docs/api/cross-decomposition/pls-regression)
+and [CCA API Reference](/docs/api/cross-decomposition/cca).
+:::

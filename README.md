@@ -94,8 +94,10 @@ Skigen/                     # Header library (Eigen-style)
 ├── Core                    # Module header — base classes, traits, concepts
 ├── Preprocessing           # Module header — scalers, normalizers, ...
 ├── LinearModel             # Module header — regression, classification, Bayesian
+├── CrossDecomposition      # Module header — PLSRegression, CCA
 ├── Decomposition           # Module header — PCA, TruncatedSVD, FactorAnalysis
 ├── Covariance              # Module header — Empirical, LedoitWolf, OAS
+├── Anomaly                 # Module header — EllipticEnvelope, IsolationForest
 ├── Cluster                 # Module header — KMeans, MiniBatchKMeans
 ├── Neighbors               # Module header — KNN classifier/regressor, LOF
 ├── Tree                    # Module header — decision trees
@@ -115,8 +117,10 @@ Skigen/                     # Header library (Eigen-style)
     ├── Core/               # Traits, Concepts, Base, Validation, EigenHelpers
     ├── Preprocessing/      # StandardScaler, MinMaxScaler, MaxAbsScaler, ...
     ├── LinearModel/        # LinearRegression, Ridge, Lasso, BayesianRidge, ARD
+    ├── CrossDecomposition/ # PLSRegression, CCA
     ├── Decomposition/      # PCA, TruncatedSVD, FactorAnalysis
     ├── Covariance/         # EmpiricalCovariance, LedoitWolf, OAS
+    ├── Anomaly/            # EllipticEnvelope, IsolationForest
     ├── Cluster/            # KMeans, MiniBatchKMeans
     ├── Neighbors/          # KNeighborsClassifier, KNeighborsRegressor, LocalOutlierFactor
     ├── Tree/               # DecisionTreeClassifier, DecisionTreeRegressor

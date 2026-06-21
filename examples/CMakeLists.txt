@@ -66,6 +66,12 @@ skigen_add_example(ex_kernel_ridge        kernel_ridge/kernel_ridge.cpp)
 # GaussianProcess examples
 # ---------------------------------------------------------------------------
 skigen_add_example(ex_gaussian_process_regressor gaussian_process/gaussian_process_regressor.cpp)
+skigen_add_example(ex_gaussian_process_classifier gaussian_process/gaussian_process_classifier.cpp)
+
+# ---------------------------------------------------------------------------
+# CrossDecomposition examples
+# ---------------------------------------------------------------------------
+skigen_add_example(ex_cross_decomposition cross_decomposition/cross_decomposition.cpp)
 
 # ---------------------------------------------------------------------------
 # DiscriminantAnalysis examples
@@ -88,6 +94,11 @@ skigen_add_example(ex_factor_analysis     decomposition/factor_analysis.cpp)
 # Covariance examples
 # ---------------------------------------------------------------------------
 skigen_add_example(ex_covariance          covariance/covariance.cpp)
+
+# ---------------------------------------------------------------------------
+# Anomaly examples
+# ---------------------------------------------------------------------------
+skigen_add_example(ex_anomaly             anomaly/anomaly.cpp)
 
 # ---------------------------------------------------------------------------
 # Cluster examples

@@ -11,5 +11,6 @@
 
 #include "Core"
 #include "src/GaussianProcess/GaussianProcessRegressor.h"
+#include "src/GaussianProcess/GaussianProcessClassifier.h"
 
 #endif // SKIGEN_GAUSSIAN_PROCESS

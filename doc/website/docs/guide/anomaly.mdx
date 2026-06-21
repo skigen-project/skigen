@@ -1,0 +1,71 @@
+---
+sidebar_position: 81
+title: Anomaly
+---
+
+# Anomaly
+
+Anomaly estimators assign higher scores to inliers and lower scores to outliers. Skigen v1.2.0
+includes dense numeric implementations of `EllipticEnvelope` and `IsolationForest`.
+
+## EllipticEnvelope
+
+`EllipticEnvelope` fits an empirical Gaussian covariance model and scores samples by negative Mahalanobis distance.
+
+```cpp
+Skigen::EllipticEnvelope<double> model(
+    contamination = 0.1,
+    assume_centered = false,
+    regularization = 1e-9);
+model.fit(X);
+Eigen::VectorXi labels = model.predict(X_test);
+```
+
+## IsolationForest
+
+`IsolationForest` builds random isolation trees. Samples isolated by shorter average paths receive
+lower `score_samples` values.
+
+```cpp
+Skigen::IsolationForest<double> model(
+    n_estimators = 100,
+    max_samples = 256,
+    contamination = 0.1,
+    max_depth = -1,
+    random_state = 7);
+model.fit(X);
+Eigen::VectorXd scores = model.score_samples(X_test);
+```
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X)` | Fit the detector on dense numeric samples. |
+| `score_samples(X)` | Return higher-is-more-normal anomaly scores. |
+| `decision_function(X)` | Return scores shifted by `offset()`. |
+| `predict(X)` | Return `1` for inliers and `-1` for outliers. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `offset()` | Score threshold selected from `contamination`. |
+| `location()` | EllipticEnvelope fitted center. |
+| `covariance()` | EllipticEnvelope covariance estimate. |
+| `precision()` | EllipticEnvelope precision matrix. |
+| `dist()` | EllipticEnvelope fitted Mahalanobis distances. |
+| `max_samples_effective()` | IsolationForest resolved sample count per tree. |
+
+## Parity Scope
+
+Mirrors the dense scoring and labeling semantics of `sklearn.covariance.EllipticEnvelope` and
+`sklearn.ensemble.IsolationForest`.
+
+Robust minimum-covariance determinant support, sparse input, warm starts, bootstrap sampling,
+feature subsampling, parallel fitting, and `contamination="auto"` are deferred.
+
+:::tip API Reference
+For full signatures see the [EllipticEnvelope API Reference](/docs/api/anomaly/elliptic-envelope)
+and [IsolationForest API Reference](/docs/api/anomaly/isolation-forest).
+:::

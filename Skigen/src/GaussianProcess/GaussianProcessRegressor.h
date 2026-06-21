@@ -4,6 +4,7 @@
 #ifndef SKIGEN_GAUSSIAN_PROCESS_REGRESSOR_H
 #define SKIGEN_GAUSSIAN_PROCESS_REGRESSOR_H
 
+#include "Kernels.h"
 #include "../Core/Base.h"
 #include "../Core/Validation.h"
 
@@ -22,24 +23,6 @@ namespace Skigen {
 /// @brief Dense Gaussian process regression.
 /// @{
 
-namespace gaussian_process {
-
-/// @brief Built-in dense covariance kernels for GaussianProcessRegressor.
-///
-/// The enum mirrors the highest-value sklearn.gaussian_process.kernels
-/// primitives while keeping Skigen dependency-free and header-only.
-enum class Kernel {
-    RBF,
-    Matern,
-    RationalQuadratic,
-    ExpSineSquared,
-    DotProduct,
-    White,
-    Constant
-};
-
-}  // namespace gaussian_process
-
 /// @brief Dense single-target Gaussian Process regressor.
 ///
 /// Fits the Cholesky system
@@ -49,7 +32,7 @@ enum class Kernel {
 /// and predicts posterior means and optional posterior uncertainty.
 ///
 /// Mirrors the dense, fixed-hyperparameter subset of
-/// [sklearn.gaussian_process.GaussianProcessRegressor](https://scikit-learn.org/stable/modules/generated/sklearn.gaussian_process.GaussianProcessRegressor.html).
+/// `sklearn.gaussian_process.GaussianProcessRegressor`.
 ///
 /// ### Parameters (constructor)
 ///
@@ -208,7 +191,7 @@ public:
             -Scalar{0.5} * y_centered.dot(dual_coef_) -
             L_.diagonal().array().log().sum() -
             Scalar{0.5} * static_cast<Scalar>(X.rows()) *
-                std::log(Scalar{2} * pi());
+                std::log(Scalar{2} * gaussian_process::detail::pi<Scalar>());
 
         this->fitted_ = true;
         return *this;
@@ -260,105 +243,35 @@ public:
     }
 
 private:
-    static constexpr Scalar pi() noexcept {
-        return Scalar{3.141592653589793238462643383279502884L};
-    }
-
-    static bool approx_equal(Scalar a, Scalar b) noexcept {
-        return std::abs(a - b) <= Scalar{1e-12};
-    }
-
     void validate_parameters() const {
-        if (alpha_ < Scalar{0}) {
-            throw std::invalid_argument(
-                "GaussianProcessRegressor: alpha must be non-negative.");
-        }
-        if (length_scale_ <= Scalar{0}) {
-            throw std::invalid_argument(
-                "GaussianProcessRegressor: length_scale must be positive.");
-        }
-        if (constant_value_ < Scalar{0}) {
-            throw std::invalid_argument(
-                "GaussianProcessRegressor: constant_value must be non-negative.");
-        }
-        if (noise_level_ < Scalar{0}) {
-            throw std::invalid_argument(
-                "GaussianProcessRegressor: noise_level must be non-negative.");
-        }
-        if (rational_quadratic_alpha_ <= Scalar{0}) {
-            throw std::invalid_argument(
-                "GaussianProcessRegressor: rational_quadratic_alpha must be positive.");
-        }
-        if (periodicity_ <= Scalar{0}) {
-            throw std::invalid_argument(
-                "GaussianProcessRegressor: periodicity must be positive.");
-        }
-        if (sigma_0_ < Scalar{0}) {
-            throw std::invalid_argument(
-                "GaussianProcessRegressor: sigma_0 must be non-negative.");
-        }
-        if (kernel_ == Kernel::Matern &&
-            !(approx_equal(nu_, Scalar{0.5}) || approx_equal(nu_, Scalar{1.5}) ||
-              approx_equal(nu_, Scalar{2.5}))) {
-            throw std::invalid_argument(
-                "GaussianProcessRegressor: Matern nu must be 0.5, 1.5, or 2.5.");
-        }
+        gaussian_process::detail::validate_kernel_parameters(
+            kernel_,
+            alpha_,
+            length_scale_,
+            constant_value_,
+            noise_level_,
+            nu_,
+            rational_quadratic_alpha_,
+            periodicity_,
+            sigma_0_,
+            "GaussianProcessRegressor");
     }
 
     [[nodiscard]] MatrixType kernel_matrix(const Eigen::Ref<const MatrixType>& A,
                                            const Eigen::Ref<const MatrixType>& B,
                                            bool same_matrix) const {
-        MatrixType out(A.rows(), B.rows());
-        for (IndexType i = 0; i < A.rows(); ++i) {
-            for (IndexType j = 0; j < B.rows(); ++j) {
-                out(i, j) = kernel_value(A.row(i), B.row(j), same_matrix && i == j);
-            }
-        }
-        return out;
-    }
-
-    template <typename DerivedA, typename DerivedB>
-    [[nodiscard]] Scalar kernel_value(const Eigen::MatrixBase<DerivedA>& a,
-                                      const Eigen::MatrixBase<DerivedB>& b,
-                                      bool same_observation) const {
-        const Scalar distance = (a - b).norm();
-        const Scalar d2 = distance * distance;
-        const Scalar length2 = length_scale_ * length_scale_;
-
-        switch (kernel_) {
-            case Kernel::RBF:
-                return constant_value_ * std::exp(-Scalar{0.5} * d2 / length2);
-            case Kernel::Matern:
-                return constant_value_ * matern_value(distance);
-            case Kernel::RationalQuadratic:
-                return constant_value_ * std::pow(
-                    Scalar{1} + d2 / (Scalar{2} * rational_quadratic_alpha_ * length2),
-                    -rational_quadratic_alpha_);
-            case Kernel::ExpSineSquared: {
-                const Scalar s = std::sin(pi() * distance / periodicity_);
-                return constant_value_ * std::exp(-Scalar{2} * s * s / length2);
-            }
-            case Kernel::DotProduct:
-                return sigma_0_ * sigma_0_ + a.dot(b);
-            case Kernel::White:
-                return same_observation ? noise_level_ : Scalar{0};
-            case Kernel::Constant:
-                return constant_value_;
-        }
-        return Scalar{0};
-    }
-
-    [[nodiscard]] Scalar matern_value(Scalar distance) const {
-        const Scalar scaled = distance / length_scale_;
-        if (approx_equal(nu_, Scalar{0.5})) {
-            return std::exp(-scaled);
-        }
-        if (approx_equal(nu_, Scalar{1.5})) {
-            const Scalar r = std::sqrt(Scalar{3}) * scaled;
-            return (Scalar{1} + r) * std::exp(-r);
-        }
-        const Scalar r = std::sqrt(Scalar{5}) * scaled;
-        return (Scalar{1} + r + r * r / Scalar{3}) * std::exp(-r);
+        return gaussian_process::detail::kernel_matrix(
+            kernel_,
+            A,
+            B,
+            same_matrix,
+            length_scale_,
+            constant_value_,
+            noise_level_,
+            nu_,
+            rational_quadratic_alpha_,
+            periodicity_,
+            sigma_0_);
     }
 
     Kernel kernel_;

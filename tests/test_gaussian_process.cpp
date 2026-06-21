@@ -201,12 +201,82 @@ void test_invalid_and_unfitted_errors() {
     ASSERT_THROW(gpr.predict(wrong), std::invalid_argument);
 }
 
+void test_classifier_binary_probabilities() {
+    Eigen::MatrixXd X(8, 2);
+    X << -2.0, -1.0,
+         -1.5, -0.6,
+         -1.0, -1.2,
+         -0.7, -0.3,
+          0.7,  0.4,
+          1.0,  1.1,
+          1.4,  0.5,
+          2.0,  1.2;
+    Eigen::VectorXi y(8);
+    y << 0, 0, 0, 0, 1, 1, 1, 1;
+
+    Skigen::GaussianProcessClassifier<double> gpc(
+        Skigen::GaussianProcessClassifier<double>::Kernel::RBF,
+        1e-6,
+        1.0,
+        1.0,
+        1.0,
+        1.5,
+        1.0,
+        1.0,
+        1.0,
+        50,
+        1e-7);
+    gpc.fit(X, y);
+
+    const Eigen::VectorXi predictions = gpc.predict(X);
+    const Eigen::MatrixXd probabilities = gpc.predict_proba(X);
+    ASSERT_TRUE(gpc.classes().size() == 2);
+    ASSERT_TRUE(gpc.classes()(0) == 0);
+    ASSERT_TRUE(gpc.classes()(1) == 1);
+    ASSERT_TRUE(probabilities.rows() == X.rows());
+    ASSERT_TRUE(probabilities.cols() == 2);
+    ASSERT_TRUE(probabilities.allFinite());
+    ASSERT_TRUE(gpc.latent_mean().size() == X.rows());
+    ASSERT_TRUE(gpc.dual_coef().size() == X.rows());
+    ASSERT_TRUE(gpc.n_iter() > 0);
+    for (Eigen::Index row = 0; row < probabilities.rows(); ++row) {
+        ASSERT_NEAR(probabilities.row(row).sum(), 1.0, 1e-12);
+        ASSERT_TRUE(probabilities(row, 0) >= 0.0 && probabilities(row, 0) <= 1.0);
+        ASSERT_TRUE(probabilities(row, 1) >= 0.0 && probabilities(row, 1) <= 1.0);
+    }
+    ASSERT_TRUE((predictions.array() == y.array()).all());
+    ASSERT_TRUE(gpc.score(X, y) == 1.0);
+}
+
+void test_classifier_invalid_inputs() {
+    Eigen::MatrixXd X(4, 2);
+    X << 0.0, 0.0,
+         1.0, 0.0,
+         0.0, 1.0,
+         1.0, 1.0;
+    Eigen::VectorXi three_classes(4);
+    three_classes << 0, 1, 2, 1;
+
+    Skigen::GaussianProcessClassifier<double> gpc;
+    ASSERT_THROW(gpc.predict(X), std::runtime_error);
+    ASSERT_THROW(gpc.fit(X, three_classes), std::invalid_argument);
+
+    Skigen::GaussianProcessClassifier<double> bad_alpha(
+        Skigen::GaussianProcessClassifier<double>::Kernel::RBF,
+        -1.0);
+    Eigen::VectorXi y(4);
+    y << 0, 0, 1, 1;
+    ASSERT_THROW(bad_alpha.fit(X, y), std::invalid_argument);
+}
+
 int main() {
     std::cout << "Running GaussianProcess tests...\n";
     run_test("RBF interpolates training data", test_rbf_interpolates_training_data);
     run_test("posterior covariance is symmetric", test_predict_covariance_is_symmetric);
     run_test("supported kernels are finite", test_supported_kernels_are_finite);
     run_test("invalid and unfitted errors", test_invalid_and_unfitted_errors);
+    run_test("classifier binary probabilities", test_classifier_binary_probabilities);
+    run_test("classifier invalid inputs", test_classifier_invalid_inputs);
 
     std::cout << "\nPassed: " << g_passed << ", Failed: " << g_failed << "\n";
     return g_failed == 0 ? 0 : 1;

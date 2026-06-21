@@ -25,6 +25,14 @@
       "benchmark": null,
       "plot_generation": false
     },
+    "CrossDecomposition": {
+      "include": "Skigen/CrossDecomposition",
+      "dir_slug": "cross-decomposition",
+      "sidebar_label": "Skigen::CrossDecomposition",
+      "test": "tests/test_cross_decomposition.cpp",
+      "benchmark": null,
+      "plot_generation": false
+    },
     "DiscriminantAnalysis": {
       "include": "Skigen/DiscriminantAnalysis",
       "dir_slug": "discriminant-analysis",
@@ -118,6 +126,14 @@
       "dir_slug": "covariance",
       "sidebar_label": "Skigen::Covariance",
       "test": "tests/test_covariance.cpp",
+      "benchmark": null,
+      "plot_generation": false
+    },
+    "Anomaly": {
+      "include": "Skigen/Anomaly",
+      "dir_slug": "anomaly",
+      "sidebar_label": "Skigen::Anomaly",
+      "test": "tests/test_anomaly.cpp",
       "benchmark": null,
       "plot_generation": false
     },
@@ -307,6 +323,39 @@
       "example": "examples/gaussian_process/gaussian_process_regressor.cpp",
       "example_snippet": "example_gaussian_process_regressor",
       "sidebar_position": 1
+    },
+    {
+      "name": "GaussianProcessClassifier",
+      "module": "GaussianProcess",
+      "documented": true,
+      "guide": "/docs/guide/gaussian-process-classifier",
+      "sklearn": "sklearn.gaussian_process.GaussianProcessClassifier",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.gaussian_process.GaussianProcessClassifier.html",
+      "example": "examples/gaussian_process/gaussian_process_classifier.cpp",
+      "example_snippet": "example_gaussian_process_classifier",
+      "sidebar_position": 2
+    },
+    {
+      "name": "PLSRegression",
+      "module": "CrossDecomposition",
+      "documented": true,
+      "guide": "/docs/guide/cross-decomposition",
+      "sklearn": "sklearn.cross_decomposition.PLSRegression",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.cross_decomposition.PLSRegression.html",
+      "example": "examples/cross_decomposition/cross_decomposition.cpp",
+      "example_snippet": "example_pls_regression",
+      "sidebar_position": 1
+    },
+    {
+      "name": "CCA",
+      "module": "CrossDecomposition",
+      "documented": true,
+      "guide": "/docs/guide/cross-decomposition",
+      "sklearn": "sklearn.cross_decomposition.CCA",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.cross_decomposition.CCA.html",
+      "example": "examples/cross_decomposition/cross_decomposition.cpp",
+      "example_snippet": "example_cca",
+      "sidebar_position": 2
     },
     {
       "name": "LinearDiscriminantAnalysis",
@@ -664,6 +713,28 @@
       "example": "examples/covariance/covariance.cpp",
       "example_snippet": "example_oas",
       "sidebar_position": 3
+    },
+    {
+      "name": "EllipticEnvelope",
+      "module": "Anomaly",
+      "documented": true,
+      "guide": "/docs/guide/anomaly",
+      "sklearn": "sklearn.covariance.EllipticEnvelope",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.covariance.EllipticEnvelope.html",
+      "example": "examples/anomaly/anomaly.cpp",
+      "example_snippet": "example_elliptic_envelope",
+      "sidebar_position": 1
+    },
+    {
+      "name": "IsolationForest",
+      "module": "Anomaly",
+      "documented": true,
+      "guide": "/docs/guide/anomaly",
+      "sklearn": "sklearn.ensemble.IsolationForest",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest.html",
+      "example": "examples/anomaly/anomaly.cpp",
+      "example_snippet": "example_isolation_forest",
+      "sidebar_position": 2
     },
     {
       "name": "FactorAnalysis",

@@ -5,7 +5,8 @@ title: GaussianProcessRegressor
 
 # GaussianProcessRegressor
 
-`GaussianProcessRegressor` fits a Bayesian non-parametric regression model using a dense covariance matrix and a Cholesky solve. It provides both posterior means and uncertainty estimates.
+`GaussianProcessRegressor` fits a Bayesian non-parametric regression model using a dense covariance
+matrix and a Cholesky solve. It provides both posterior means and uncertainty estimates.
 
 ## Objective
 
@@ -21,7 +22,8 @@ $$
 \hat{y}(X_*) = K(X_*, X)a
 $$
 
-Posterior covariance is computed with the Cholesky factor of the regularized Gram matrix, matching the standard Gaussian-process conditioning equations.
+Posterior covariance is computed with the Cholesky factor of the regularized Gram matrix, matching
+the standard Gaussian-process conditioning equations.
 
 ## Kernels
 
@@ -90,9 +92,12 @@ Eigen::VectorXd std = model.predict_std(X_test);
 
 ## Parity Scope
 
-Mirrors the dense fixed-hyperparameter subset of [`sklearn.gaussian_process.GaussianProcessRegressor`](https://scikit-learn.org/stable/modules/generated/sklearn.gaussian_process.GaussianProcessRegressor.html).
+Mirrors the dense fixed-hyperparameter subset of
+`sklearn.gaussian_process.GaussianProcessRegressor`.
 
-Hyperparameter optimization, callable/composite kernels, kernel sums/products, multi-output targets, sample weights, sparse input, and `GaussianProcessClassifier` are deferred.
+Hyperparameter optimization, callable/composite kernels, kernel sums/products, multi-output targets,
+sample weights, and sparse input are deferred for the regressor. Binary classification is available
+through `GaussianProcessClassifier`.
 
 :::tip API Reference
 For full signatures see the [GaussianProcess API Reference](/docs/api/gaussian-process/).
