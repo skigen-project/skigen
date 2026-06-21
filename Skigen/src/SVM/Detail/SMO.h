@@ -19,14 +19,166 @@
 namespace Skigen {
 namespace internal {
 
+/// @brief libsvm-style SMO for binary C-SVM with second-order working-set
+///   selection (WSS3).
+///
+/// Solves the C-SVM dual
+/// @f[
+///   \min_\alpha \tfrac12 \alpha^\top Q \alpha - e^\top \alpha,\quad
+///   0 \le \alpha_i \le C,\ y^\top \alpha = 0,\quad Q_{ij}=y_i y_j K_{ij}.
+/// @f]
+/// Each iteration selects the maximal-violating index `i` from the
+/// up-set and the index `j` that minimises the second-order objective
+/// decrease (Fan, Chen & Lin, "Working Set Selection Using Second Order
+/// Information for Training SVM", JMLR 2005 — the selection libsvm and
+/// scikit-learn use). The projected gradient gap drives the stopping rule,
+/// so the solver terminates at the true KKT point rather than after a fixed
+/// number of passes. The intercept follows libsvm's free-SV averaging.
+///
+/// Inputs:
+///   y: ±1 labels
+///   K: precomputed Gram matrix (n × n)
+///   C, tol: regularisation and KKT tolerance
+///   max_iter: hard cap on iterations (libsvm uses max(1e7, 100*n))
+/// Outputs:
+///   alpha: dual coefficients (length n)
+///   b: bias term
+template <typename Scalar>
+void smo_binary_wss3(
+    const Eigen::Matrix<Scalar, Eigen::Dynamic, 1>& y,
+    const Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& K, Scalar C,
+    Scalar tol, int max_iter,
+    Eigen::Matrix<Scalar, Eigen::Dynamic, 1>& alpha, Scalar& b) {
+    using Vector = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
+    const Eigen::Index n = K.rows();
+    alpha.setZero(n);
+
+    // Gradient G_i = (Q alpha)_i - 1; starts at -1 since alpha = 0.
+    Vector G = Vector::Constant(n, Scalar{-1});
+
+    const Scalar tau = Scalar{1e-12};  // libsvm's TAU guard for eta.
+    const Eigen::Index iter_cap =
+        (max_iter > 0) ? static_cast<Eigen::Index>(max_iter)
+                       : std::max<Eigen::Index>(10000000, 100 * n);
+
+    auto is_up = [&](Eigen::Index t) {
+        return (y(t) > Scalar{0}) ? (alpha(t) < C) : (alpha(t) > Scalar{0});
+    };
+    auto is_low = [&](Eigen::Index t) {
+        return (y(t) > Scalar{0}) ? (alpha(t) > Scalar{0}) : (alpha(t) < C);
+    };
+
+    for (Eigen::Index iter = 0; iter < iter_cap; ++iter) {
+        // --- Working-set selection (WSS3) ---
+        // i = argmax over up-set of -y_t G_t.
+        Eigen::Index i = -1;
+        Scalar Gmax = -std::numeric_limits<Scalar>::infinity();
+        Scalar Gmin = std::numeric_limits<Scalar>::infinity();
+        for (Eigen::Index t = 0; t < n; ++t) {
+            if (is_up(t)) {
+                const Scalar v = -y(t) * G(t);
+                if (v >= Gmax) { Gmax = v; i = t; }
+            }
+        }
+        // j minimises the second-order objective decrease over the low-set.
+        Eigen::Index j = -1;
+        Scalar obj_min = std::numeric_limits<Scalar>::infinity();
+        for (Eigen::Index t = 0; t < n; ++t) {
+            if (is_low(t)) {
+                const Scalar grad_diff = Gmax + y(t) * G(t);
+                if (-y(t) * G(t) <= Gmin) Gmin = -y(t) * G(t);
+                if (grad_diff > Scalar{0} && i >= 0) {
+                    Scalar quad =
+                        K(i, i) + K(t, t) - Scalar{2} * K(i, t);
+                    if (quad <= Scalar{0}) quad = tau;
+                    const Scalar obj = -(grad_diff * grad_diff) / quad;
+                    if (obj <= obj_min) { obj_min = obj; j = t; }
+                }
+            }
+        }
+
+        // Stopping: projected-gradient gap below tolerance.
+        if (Gmax - Gmin < tol || i < 0 || j < 0) break;
+
+        // --- Two-variable update on (i, j) ---
+        Scalar quad = K(i, i) + K(j, j) - Scalar{2} * K(i, j);
+        if (quad <= Scalar{0}) quad = tau;
+        const Scalar old_ai = alpha(i);
+        const Scalar old_aj = alpha(j);
+
+        if (y(i) != y(j)) {
+            const Scalar delta = (-G(i) - G(j)) / quad;
+            const Scalar diff = alpha(i) - alpha(j);
+            alpha(i) += delta;
+            alpha(j) += delta;
+            if (diff > Scalar{0}) {
+                if (alpha(j) < Scalar{0}) { alpha(j) = Scalar{0}; alpha(i) = diff; }
+            } else {
+                if (alpha(i) < Scalar{0}) { alpha(i) = Scalar{0}; alpha(j) = -diff; }
+            }
+            if (diff > Scalar{0}) {
+                if (alpha(i) > C) { alpha(i) = C; alpha(j) = C - diff; }
+            } else {
+                if (alpha(j) > C) { alpha(j) = C; alpha(i) = C + diff; }
+            }
+        } else {
+            const Scalar delta = (G(i) - G(j)) / quad;
+            const Scalar sum = alpha(i) + alpha(j);
+            alpha(i) -= delta;
+            alpha(j) += delta;
+            if (sum > C) {
+                if (alpha(i) > C) { alpha(i) = C; alpha(j) = sum - C; }
+            } else {
+                if (alpha(j) < Scalar{0}) { alpha(j) = Scalar{0}; alpha(i) = sum; }
+            }
+            if (sum > C) {
+                if (alpha(j) > C) { alpha(j) = C; alpha(i) = sum - C; }
+            } else {
+                if (alpha(i) < Scalar{0}) { alpha(i) = Scalar{0}; alpha(j) = sum; }
+            }
+        }
+
+        // --- Gradient update ---
+        const Scalar dai = alpha(i) - old_ai;
+        const Scalar daj = alpha(j) - old_aj;
+        for (Eigen::Index t = 0; t < n; ++t) {
+            G(t) += y(t) * y(i) * K(t, i) * dai +
+                    y(t) * y(j) * K(t, j) * daj;
+        }
+    }
+
+    // --- Intercept: average the free-SV margins (libsvm's rho). ---
+    Scalar ub = std::numeric_limits<Scalar>::infinity();
+    Scalar lb = -std::numeric_limits<Scalar>::infinity();
+    Scalar sum_free{0};
+    Eigen::Index n_free = 0;
+    for (Eigen::Index t = 0; t < n; ++t) {
+        const Scalar yG = y(t) * G(t);
+        if (alpha(t) >= C) {
+            if (y(t) > Scalar{0}) lb = std::max(lb, yG);
+            else ub = std::min(ub, yG);
+        } else if (alpha(t) <= Scalar{0}) {
+            if (y(t) < Scalar{0}) lb = std::max(lb, yG);
+            else ub = std::min(ub, yG);
+        } else {
+            ++n_free;
+            sum_free += yG;
+        }
+    }
+    const Scalar rho = (n_free > 0)
+        ? sum_free / static_cast<Scalar>(n_free)
+        : (ub + lb) / Scalar{2};
+    // libsvm stores -rho as the bias for the decision sum_i alpha_i y_i K + b.
+    b = -rho;
+}
+
 /// @brief Simplified SMO (Sequential Minimal Optimization) for binary
 ///   C-SVM classification with kernels.
 ///
-/// This is the simplified "Platt's pseudo-code" SMO from his 1998
-/// tutorial — not libsvm's full second-order working-set selection —
-/// but the converged solution matches libsvm's at the optimum. Operates
-/// on a precomputed kernel cache so per-iteration cost is O(n) inner
-/// product lookups.
+/// Delegates to the libsvm-style second-order working-set selection solver
+/// (`smo_binary_wss3`). The legacy `max_passes` parameter is mapped to an
+/// iteration cap; `random_state` is unused by the deterministic WSS3 path
+/// and retained only for API compatibility.
 ///
 /// Inputs:
 ///   y: ±1 labels
@@ -44,6 +196,22 @@ void smo_binary(const Eigen::Matrix<Scalar, Eigen::Dynamic, 1>& y,
                 std::optional<uint64_t> random_state,
                 Eigen::Matrix<Scalar, Eigen::Dynamic, 1>& alpha,
                 Scalar& b) {
+    (void)random_state;
+    // Map the legacy pass budget to an iteration cap (>= libsvm's floor).
+    const int max_iter = (max_passes > 0)
+        ? std::max(max_passes, 1000) * static_cast<int>(K.rows() + 1)
+        : 0;
+    smo_binary_wss3<Scalar>(y, K, C, tol > Scalar{0} ? tol : Scalar{1e-3},
+                            max_iter, alpha, b);
+}
+
+/// @brief Legacy simplified Platt SMO (kept for reference / fallback).
+template <typename Scalar>
+void smo_binary_platt(
+    const Eigen::Matrix<Scalar, Eigen::Dynamic, 1>& y,
+    const Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& K, Scalar C,
+    Scalar tol, int max_passes, std::optional<uint64_t> random_state,
+    Eigen::Matrix<Scalar, Eigen::Dynamic, 1>& alpha, Scalar& b) {
     const Eigen::Index n = K.rows();
     alpha.setZero(n);
     b = Scalar{0};

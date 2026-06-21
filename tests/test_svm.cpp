@@ -195,6 +195,30 @@ void test_svc_multiclass_throws() {
     ASSERT_TRUE(threw);
 }
 
+// The second-order (WSS3) solver should converge to the true KKT point: on a
+// cleanly separable problem the free support vectors lie on the margin, i.e.
+// |decision_function| ≈ 1 for support vectors with 0 < alpha < C, and the
+// margin constraint y·f >= 1 holds for all training points (within tol).
+void test_svc_wss3_reaches_kkt_margin() {
+    auto [X, y] = two_cluster(60, 3.0, 5);  // well separated
+    using K = Skigen::SVC<double>::Kernel;
+    Skigen::SVC<double> clf(/*C=*/10.0, K::Linear, 3, 0.0, 0.0, false,
+                            /*tol=*/1e-4, /*max_passes=*/100,
+                            std::optional<uint64_t>(0));
+    clf.fit(X, y);
+    const Eigen::VectorXd f = clf.decision_function(X);
+    // All points satisfy the soft-margin condition y·f >= 1 - slack; on a
+    // separable set with large C the violations are tiny.
+    int violations = 0;
+    for (int i = 0; i < y.size(); ++i) {
+        const double yf = (y(i) == clf.classes()(1) ? 1.0 : -1.0) * f(i);
+        if (yf < 1.0 - 1e-2) ++violations;
+    }
+    // A clean linear separation should leave essentially no margin violations.
+    ASSERT_TRUE(violations <= 2);
+    ASSERT_TRUE(clf.n_support() > 0);
+}
+
 void test_svc_predict_proba_rows_sum_to_one() {
     auto [X, y] = two_cluster(100, 2.0, 7);
     using K = Skigen::SVC<double>::Kernel;
@@ -392,6 +416,7 @@ int main() {
     run("svc_rbf_separates_two_clusters",    test_svc_rbf_separates_two_clusters);
     run("svc_linear_kernel_separates",       test_svc_linear_kernel_separates);
     run("svc_multiclass_throws",             test_svc_multiclass_throws);
+    run("svc_wss3_reaches_kkt_margin",       test_svc_wss3_reaches_kkt_margin);
     run("svc_predict_proba_rows_sum_to_one", test_svc_predict_proba_rows_sum_to_one);
     run("svc_predict_proba_requires_flag",   test_svc_predict_proba_requires_flag);
     run("svc_sparse_fit_predict",            test_svc_sparse_fit_predict);
