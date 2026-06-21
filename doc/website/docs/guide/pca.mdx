@@ -42,30 +42,54 @@ $$
 \text{explained\_variance\_ratio}_j = \frac{\sigma_j^2}{\sum_{i=1}^{p} \sigma_i^2}
 $$
 
+## SVD Solvers
+
+The `svd_solver` parameter selects how the SVD is computed:
+
+- **`"full"`** (default) — exact decomposition via `Eigen::JacobiSVD`. Best for small to medium dense data where exactness matters.
+- **`"randomized"`** — the Halko-Martinsson-Tropp randomized range finder. Draws a Gaussian projection of width `n_components + n_oversamples`, runs `n_iter` QR-stabilised power iterations, then performs a small dense SVD. Much faster than the full SVD when only the top components are needed.
+
+## Sparse Input
+
+PCA supports sparse matrices **natively** via *implicit centering*. The data is mean-centered through a linear operator
+$$
+(X - \mathbf{1}\mu)\,M = X M - \mathbf{1}(\mu M),
+$$
+so the sparse matrix is never materialised dense. Sparse fitting always uses the randomized solver — this mirrors scikit-learn, where explicitly centering a sparse matrix would destroy its sparsity. The per-feature mean is computed directly from the sparse column sums.
+
 ## Key Properties
 
-- PCA **always centers** the data before decomposition. For data that should not be centered (e.g., sparse matrices, TF-IDF), use TruncatedSVD instead.
+- PCA **always centers** the data before decomposition. For data that should *not* be centered (e.g., TF-IDF), use TruncatedSVD instead.
 - The components are ordered by decreasing explained variance.
 - `inverse_transform` reconstructs an approximation: $\hat{X} = Z V_k^\top + \mathbf{1}\bar{x}^\top$.
-- Skigen uses `Eigen::JacobiSVD` for full SVD.
 
 Mirrors [`sklearn.decomposition.PCA`](https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html).
 
 ## Constructor
 
 ```cpp
-Skigen::PCA<Scalar> pca(Eigen::Index n_components = 0);
+Skigen::PCA<Scalar> pca(
+    Eigen::Index n_components = 0,
+    std::string svd_solver = "full",
+    int n_oversamples = 10,
+    int n_iter = 5,
+    std::optional<uint64_t> random_state = std::nullopt);
 ```
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `n_components` | `0` | Number of components to keep ($0$ = all) |
+| `svd_solver` | `"full"` | `"full"` (exact) or `"randomized"` |
+| `n_oversamples` | `10` | Extra random dimensions for the randomized solver |
+| `n_iter` | `5` | Power iterations for the randomized solver |
+| `random_state` | `nullopt` | Seed for the randomized solver |
 
 ## Methods
 
 | Method | Description |
 |--------|-------------|
-| `fit(X)` | Compute the SVD of the centered data |
+| `fit(X)` | Compute the SVD of the centered dense data (`full` or `randomized`) |
+| `fit(X_sparse)` | Native sparse fit via implicit centering (randomized) |
 | `transform(X)` | Project $X$ onto the principal components |
 | `fit_transform(X)` | Fit and project in one call |
 | `inverse_transform(Z)` | Reconstruct from the reduced representation |

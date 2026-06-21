@@ -3,11 +3,13 @@
 
 #include <Skigen/Dense>
 
+#include <Eigen/SparseCore>
 #include <cmath>
 #include <iostream>
 #include <sstream>
 #include <string>
 #include <functional>
+#include <optional>
 #include <random>
 
 // ---------------------------------------------------------------------------
@@ -181,6 +183,94 @@ void test_pca_not_fitted() {
     ASSERT_THROW(pca.transform(X), std::runtime_error);
 }
 
+// Build a structured low-rank-ish fixture so the randomized solver has a
+// clear dominant subspace to recover.
+static Eigen::MatrixXd pca_fixture(int n, int p, unsigned seed) {
+    std::mt19937 gen(seed);
+    std::normal_distribution<double> dist(0.0, 1.0);
+    const int rank = 3;
+    Eigen::MatrixXd Z(n, rank), W(rank, p);
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < rank; ++j) Z(i, j) = dist(gen);
+    for (int i = 0; i < rank; ++i)
+        for (int j = 0; j < p; ++j) W(i, j) = dist(gen);
+    Eigen::MatrixXd X = Z * W;
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < p; ++j) X(i, j) += 0.01 * dist(gen);
+    return X;
+}
+
+void test_pca_randomized_matches_full() {
+    const Eigen::MatrixXd X = pca_fixture(120, 8, 7);
+
+    Skigen::PCA<double> full(3, "full");
+    full.fit(X);
+    Skigen::PCA<double> rnd(3, "randomized", 10, 7, std::optional<uint64_t>(0));
+    rnd.fit(X);
+
+    // Dominant singular values should agree within a small tolerance.
+    for (Eigen::Index i = 0; i < full.singular_values().size(); ++i)
+        ASSERT_NEAR(full.singular_values()(i), rnd.singular_values()(i), 1e-2);
+
+    // Explained-variance ratios agree on the captured components.
+    for (Eigen::Index i = 0; i < full.explained_variance_ratio().size(); ++i)
+        ASSERT_NEAR(full.explained_variance_ratio()(i),
+                    rnd.explained_variance_ratio()(i), 1e-2);
+}
+
+void test_pca_sparse_matches_dense() {
+    const Eigen::MatrixXd Xd = pca_fixture(150, 6, 11);
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+
+    Skigen::PCA<double> dense(3, "full");
+    dense.fit(Xd);
+    Skigen::PCA<double> sparse(3, "randomized", 10, 7,
+                               std::optional<uint64_t>(0));
+    sparse.fit(Xs);
+
+    // The implicitly-centered sparse path must recover the same mean...
+    for (Eigen::Index j = 0; j < Xd.cols(); ++j)
+        ASSERT_NEAR(dense.mean()(j), sparse.mean()(j), 1e-10);
+
+    // ...and the same dominant singular values / variance ratios.
+    for (Eigen::Index i = 0; i < dense.singular_values().size(); ++i)
+        ASSERT_NEAR(dense.singular_values()(i), sparse.singular_values()(i),
+                    1e-2);
+    for (Eigen::Index i = 0; i < dense.explained_variance_ratio().size(); ++i)
+        ASSERT_NEAR(dense.explained_variance_ratio()(i),
+                    sparse.explained_variance_ratio()(i), 1e-2);
+}
+
+void test_pca_sparse_transform_shapes() {
+    const Eigen::MatrixXd Xd = pca_fixture(40, 5, 3);
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+
+    Skigen::PCA<double> pca(2, "randomized", 10, 7, std::optional<uint64_t>(1));
+    pca.fit(Xs);
+
+    // transform_impl works on dense input after a sparse fit.
+    Eigen::MatrixXd Z = pca.transform(Xd);
+    ASSERT_TRUE(Z.rows() == 40);
+    ASSERT_TRUE(Z.cols() == 2);
+
+    Eigen::MatrixXd Xhat = pca.inverse_transform(Z);
+    ASSERT_TRUE(Xhat.rows() == 40);
+    ASSERT_TRUE(Xhat.cols() == 5);
+}
+
+void test_pca_unknown_solver_throws() {
+    Eigen::MatrixXd X(5, 2);
+    X << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10;
+    Skigen::PCA<double> pca(2, "arpack");
+    ASSERT_THROW(pca.fit(X), std::invalid_argument);
+}
+
+void test_pca_empty_sparse_throws() {
+    Eigen::SparseMatrix<double> Xs(0, 0);
+    Skigen::PCA<double> pca(2, "randomized");
+    ASSERT_THROW(pca.fit(Xs), std::invalid_argument);
+}
+
 // ===================================================================
 // FactorAnalysis Tests
 // ===================================================================
@@ -293,6 +383,11 @@ int main() {
     run_test("pca_inverse_transform", test_pca_inverse_transform);
     run_test("pca_fit_transform", test_pca_fit_transform);
     run_test("pca_not_fitted", test_pca_not_fitted);
+    run_test("pca_randomized_matches_full", test_pca_randomized_matches_full);
+    run_test("pca_sparse_matches_dense", test_pca_sparse_matches_dense);
+    run_test("pca_sparse_transform_shapes", test_pca_sparse_transform_shapes);
+    run_test("pca_unknown_solver_throws", test_pca_unknown_solver_throws);
+    run_test("pca_empty_sparse_throws", test_pca_empty_sparse_throws);
 
     std::cout << "\n=== FactorAnalysis Tests ===\n";
     run_test("fa_basic", test_fa_basic);

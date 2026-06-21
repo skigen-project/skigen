@@ -6,14 +6,15 @@
 
 #include "../Core/Base.h"
 #include "../Core/Validation.h"
+#include "Detail/RandomizedSVD.h"
 
 #include <optional>
 
 #include <Eigen/Core>
-#include <Eigen/QR>
 #include <Eigen/SVD>
 #include <Eigen/SparseCore>
 #include <algorithm>
+#include <cstdint>
 #include <random>
 
 namespace Skigen {
@@ -183,59 +184,27 @@ public:
             Eigen::SparseMatrix<Scalar, Eigen::ColMajor, StorageIndex>;
         const ColSparse Xc = X;
 
-        const Eigen::Index k = n_components_actual_ +
-                               static_cast<Eigen::Index>(n_oversamples);
-        const Eigen::Index k_eff = std::min(k, std::min(n, p));
-
-        // Random Gaussian test matrix Ω of shape (p, k_eff).
+        // Randomised SVD via the shared Halko-Martinsson-Tropp helper. No
+        // centering — the operator wraps X directly so sparse input is
+        // never materialised dense.
         std::mt19937_64 rng(random_state.value_or(
             static_cast<uint64_t>(std::random_device{}())));
-        std::normal_distribution<Scalar> dist(Scalar{0}, Scalar{1});
+        internal::SparseLinearOperator<Scalar, Eigen::ColMajor, StorageIndex>
+            op(Xc);
+        const auto svd = internal::randomized_svd<Scalar>(
+            op, n_components_actual_, n_oversamples, n_iter, rng);
 
-        MatrixType Omega(p, k_eff);
-        for (Eigen::Index j = 0; j < k_eff; ++j) {
-            for (Eigen::Index i = 0; i < p; ++i) {
-                Omega(i, j) = dist(rng);
-            }
-        }
-
-        // Y = X * Ω, with QR-stabilised power iterations.
-        MatrixType Y = Xc * Omega;
-        for (int q = 0; q < n_iter; ++q) {
-            Eigen::HouseholderQR<MatrixType> qr_y(Y);
-            MatrixType Q = qr_y.householderQ() * MatrixType::Identity(n, k_eff);
-            // Z = X^T * Q ; Y = X * Z
-            MatrixType Z = Xc.transpose() * Q;
-            Eigen::HouseholderQR<MatrixType> qr_z(Z);
-            MatrixType Qz = qr_z.householderQ() * MatrixType::Identity(p, k_eff);
-            Y = Xc * Qz;
-        }
-
-        // Final orthonormal basis Q for the column space of Y.
-        Eigen::HouseholderQR<MatrixType> qr_final(Y);
-        MatrixType Q = qr_final.householderQ() * MatrixType::Identity(n, k_eff);
-
-        // B = Q^T * X — small dense matrix of shape (k_eff, p).
-        MatrixType B = Q.transpose() * Xc;
-
-        Eigen::JacobiSVD<MatrixType> svd(
-            B, Eigen::ComputeThinU | Eigen::ComputeThinV);
-
-        // Truncate to n_components.
-        components_ =
-            svd.matrixV().leftCols(n_components_actual_).transpose();
-        singular_values_ = svd.singularValues().head(n_components_actual_);
+        components_ = svd.V.transpose();
+        singular_values_ = svd.singular_values;
 
         const Scalar denom = static_cast<Scalar>(n - 1);
         explained_variance_ =
             (singular_values_.array().square() / denom).matrix();
 
-        // Total variance: sum over all singular values of B (which captures
-        // the captured-subspace energy). For sparse-randomised SVD we use
-        // sum(B singular values²) as a proxy for the subspace's variance,
-        // matching sklearn's randomised path.
+        // Total variance proxy: the captured-subspace energy, matching
+        // sklearn's randomised path.
         const Scalar total_var =
-            (svd.singularValues().array().square() / denom).sum();
+            (singular_values_.array().square() / denom).sum();
         if (total_var > Scalar{0}) {
             explained_variance_ratio_ = explained_variance_ / total_var;
         } else {

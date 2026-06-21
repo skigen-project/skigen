@@ -5,8 +5,10 @@
 #include <Skigen/Decomposition>
 #include <Skigen/Preprocessing>
 #include <Eigen/Core>
+#include <Eigen/SparseCore>
 #include <iostream>
 #include <iomanip>
+#include <optional>
 #include <random>
 
 int main() {
@@ -57,7 +59,28 @@ int main() {
     //! [example_pca]
     double reconstruction_error =
         (X_scaled - X_approx).squaredNorm() / static_cast<double>(n * d);
-    std::cout << "Mean reconstruction error: " << reconstruction_error << "\n";
+    std::cout << "Mean reconstruction error: " << reconstruction_error << "\n\n";
+
+    // -- Randomized solver (Halko-Martinsson-Tropp) ----------------------
+    // For large data, the randomized solver approximates the top components
+    // far faster than the exact full SVD.
+    Skigen::PCA<double> pca_rnd(3, "randomized", /*n_oversamples=*/10,
+                               /*n_iter=*/5, std::optional<uint64_t>(0));
+    pca_rnd.fit(X_scaled);
+    std::cout << "=== Randomized solver ===\n";
+    std::cout << "Explained variance ratio: "
+              << pca_rnd.explained_variance_ratio().transpose() << "\n\n";
+
+    // -- Native sparse PCA via implicit centering ------------------------
+    // Sparse input is mean-centered through a linear operator, so the
+    // matrix is never materialised dense.
+    Eigen::SparseMatrix<double> X_sparse = X_scaled.sparseView();
+    Skigen::PCA<double> pca_sparse(3, "randomized", 10, 5,
+                                   std::optional<uint64_t>(0));
+    pca_sparse.fit(X_sparse);
+    std::cout << "=== Native sparse PCA ===\n";
+    std::cout << "Explained variance ratio: "
+              << pca_sparse.explained_variance_ratio().transpose() << "\n";
 
     return 0;
 }
