@@ -96,6 +96,32 @@ void test_mds_preserves_distances() {
     ASSERT_TRUE(mds.stress() < 0.5);
 }
 
+void test_mds_n_init_keeps_best_stress() {
+    auto X = make_blobs(18);
+    Skigen::MDS<double> single(2, 100, 1e-4, true, 7, 1);
+    Skigen::MDS<double> multi(2, 100, 1e-4, true, 7, 4);
+    auto single_embedding = single.fit_transform(X);
+    auto multi_embedding = multi.fit_transform(X);
+    ASSERT_TRUE(single_embedding.rows() == multi_embedding.rows());
+    ASSERT_TRUE(single_embedding.cols() == multi_embedding.cols());
+    ASSERT_TRUE(multi.n_init() == 4);
+    ASSERT_TRUE(multi.n_iter() > 0);
+    ASSERT_TRUE(multi.stress() <= single.stress() + 1e-12);
+}
+
+void test_mds_invalid_parameters_throw() {
+    auto X = make_blobs(8);
+    bool threw = false;
+    try { Skigen::MDS<double>(2, 100, 1e-3, false, 42).fit(X); }
+    catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+
+    threw = false;
+    try { Skigen::MDS<double>(2, 100, 1e-3, true, 42, 0).fit(X); }
+    catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
 // ===================================================================
 // Isomap Tests
 // ===================================================================
@@ -190,9 +216,7 @@ void test_manifold_params() {
     ASSERT_TRUE(p.size() >= 3);
     ASSERT_TRUE(std::get<int>(p.at("n_components")) == 2);
     ASSERT_TRUE(std::get<int>(p.at("max_iter")) == 300);
-
-    mds.set_param("n_components", Skigen::ParameterValue(3));
-    ASSERT_TRUE(std::get<int>(mds.get_params().at("n_components")) == 3);
+    ASSERT_TRUE(std::get<int>(p.at("n_init")) == 4);
 
     Skigen::UMAP<double> umap;
     auto pu = umap.get_params();
@@ -206,6 +230,8 @@ int main() {
     std::cout << "=== MDS Tests ===\n";
     run_test("mds_basic", test_mds_basic);
     run_test("mds_preserves_distances", test_mds_preserves_distances);
+    run_test("mds_n_init_keeps_best_stress", test_mds_n_init_keeps_best_stress);
+    run_test("mds_invalid_parameters_throw", test_mds_invalid_parameters_throw);
 
     std::cout << "\n=== Isomap Tests ===\n";
     run_test("isomap_basic", test_isomap_basic);

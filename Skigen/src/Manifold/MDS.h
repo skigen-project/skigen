@@ -13,6 +13,7 @@
 #include <limits>
 #include <optional>
 #include <random>
+#include <stdexcept>
 
 namespace Skigen {
 
@@ -41,6 +42,7 @@ namespace Skigen {
 /// | `tol` | `Scalar` | `1e-3` | Convergence tolerance on stress change. |
 /// | `metric` | `bool` | `true` | Only metric MDS is supported. |
 /// | `random_state` | `std::optional<uint64_t>` | `nullopt` | Seed for the RNG used to initialise positions. |
+/// | `n_init` | `int` | `4` | Number of random SMACOF initialisations. |
 ///
 /// ### Attributes (after fitting)
 ///
@@ -49,12 +51,12 @@ namespace Skigen {
 /// | `embedding()` | `MatrixType` | Embedding coordinates (n_samples x n_components). |
 /// | `stress()` | `Scalar` | Final raw stress value. |
 /// | `n_iter()` | `int` | Number of iterations actually performed. |
+/// | `n_init()` | `int` | Number of random initialisations tried. |
 ///
 /// ### Limitations relative to scikit-learn
 ///
 /// Only metric MDS is implemented (`metric=true`).  The parameters
-/// `dissimilarity`, `n_init`, `n_jobs`, `normalized_stress`, and
-/// `verbose` are not supported.
+/// `dissimilarity`, `n_jobs`, `normalized_stress`, and `verbose` are not supported.
 ///
 /// ### Examples
 ///
@@ -76,16 +78,19 @@ public:
     /// @param tol Convergence tolerance on relative stress change (default 1e-3).
     /// @param metric If true, metric MDS is used (default true, the only mode supported).
     /// @param random_state Optional seed for reproducible initialisation.
+        /// @param n_init Number of random initialisations; the best stress is retained.
     explicit MDS(int n_components = 2,
                  int max_iter = 300,
                  Scalar tol = Scalar{1e-3},
                  bool metric = true,
-                 std::optional<uint64_t> random_state = std::nullopt)
+                                 std::optional<uint64_t> random_state = std::nullopt,
+                                 int n_init = 4)
         : n_components_(n_components),
           max_iter_(max_iter),
           tol_(tol),
           metric_(metric),
-          random_state_(random_state) {}
+                    random_state_(random_state),
+                    n_init_(n_init) {}
 
     // -- Accessors ----------------------------------------------------------
 
@@ -104,12 +109,15 @@ public:
     [[nodiscard]] int n_iter() const {
         this->check_is_fitted(); return n_iter_;
     }
+    /// @brief Number of random SMACOF initialisations tried.
+    [[nodiscard]] int n_init() const noexcept { return n_init_; }
 
     SKIGEN_PARAMS(
         (n_components, n_components_, int),
         (max_iter, max_iter_, int),
         (tol, tol_, double),
-        (metric, metric_, bool))
+        (metric, metric_, bool),
+        (n_init, n_init_, int))
 
     // -- Implementation (called by CRTP base) --------------------------------
 
@@ -123,63 +131,33 @@ public:
     /// @return Reference to the fitted transformer (`*this`).
     MDS& fit_impl(const Eigen::Ref<const MatrixType>& X) {
         internal::check_non_empty(X);
+        validate_parameters(X.rows());
 
         this->n_features_in_ = X.cols();
-        const Eigen::Index n = X.rows();
-        constexpr Scalar eps = std::numeric_limits<Scalar>::epsilon();
-
         // 1. Pairwise Euclidean distance matrix D (n x n).
         MatrixType D = pairwise_distances(X);
 
         // Denominator for stress: sum(D^2).
         const Scalar sum_D_sq = D.array().square().sum();
 
-        // 2. Initialise embedding Y randomly.
         std::mt19937_64 rng(random_state_.value_or(
             std::random_device{}()));
-        std::normal_distribution<Scalar> dist(Scalar{0}, Scalar{1});
 
-        MatrixType Y(n, n_components_);
-        for (Eigen::Index i = 0; i < n; ++i)
-            for (Eigen::Index j = 0; j < n_components_; ++j)
-                Y(i, j) = dist(rng);
-
-        // 3. SMACOF iterations.
-        Scalar prev_stress = std::numeric_limits<Scalar>::max();
-        n_iter_ = 0;
-
-        for (int iter = 0; iter < max_iter_; ++iter) {
-            // a. Distance matrix of current positions.
-            MatrixType D_Y = pairwise_distances(Y);
-
-            // b. Guttman transform matrix B.
-            MatrixType B = MatrixType::Zero(n, n);
-            for (Eigen::Index i = 0; i < n; ++i) {
-                for (Eigen::Index j = 0; j < n; ++j) {
-                    if (i == j) continue;
-                    Scalar d_y = std::max(D_Y(i, j), eps);
-                    B(i, j) = -D(i, j) / d_y;
-                }
-                // Diagonal: negative row-sum of off-diagonal entries.
-                B(i, i) = -B.row(i).sum() + B(i, i);
+        Scalar best_stress = std::numeric_limits<Scalar>::max();
+        MatrixType best_embedding;
+        int best_iter = 0;
+        for (int init = 0; init < n_init_; ++init) {
+            auto result = run_smacof(D, sum_D_sq, rng);
+            if (result.stress < best_stress) {
+                best_stress = result.stress;
+                best_embedding = std::move(result.embedding);
+                best_iter = result.n_iter;
             }
-
-            // c. Update positions.
-            Y = (Scalar{1} / static_cast<Scalar>(n)) * B * Y;
-
-            // d. Stress = sqrt( sum((D - D_Y)^2) / sum(D^2) ).
-            D_Y = pairwise_distances(Y);
-            stress_ = (sum_D_sq > Scalar{0})
-                ? std::sqrt((D - D_Y).array().square().sum() / sum_D_sq)
-                : Scalar{0};
-            n_iter_ = iter + 1;
-
-            // e. Convergence check.
-            if (std::abs(prev_stress - stress_) < tol_) break;
-            prev_stress = stress_;
         }
 
-        embedding_ = std::move(Y);
+        embedding_ = std::move(best_embedding);
+        stress_ = best_stress;
+        n_iter_ = best_iter;
         this->fitted_ = true;
         return *this;
     }
@@ -202,10 +180,79 @@ private:
     Scalar tol_;
     bool metric_;
     std::optional<uint64_t> random_state_;
+    int n_init_;
 
     MatrixType embedding_;
     Scalar stress_ = Scalar{0};
     int n_iter_ = 0;
+
+    struct SmacofResult {
+        MatrixType embedding;
+        Scalar stress = Scalar{0};
+        int n_iter = 0;
+    };
+
+    void validate_parameters(Eigen::Index n_samples) const {
+        if (n_components_ <= 0) {
+            throw std::invalid_argument("MDS: n_components must be positive.");
+        }
+        if (n_components_ > n_samples) {
+            throw std::invalid_argument("MDS: n_components cannot exceed n_samples.");
+        }
+        if (max_iter_ <= 0) {
+            throw std::invalid_argument("MDS: max_iter must be positive.");
+        }
+        if (tol_ < Scalar{0}) {
+            throw std::invalid_argument("MDS: tol must be non-negative.");
+        }
+        if (!metric_) {
+            throw std::invalid_argument("MDS: only metric=true is supported.");
+        }
+        if (n_init_ <= 0) {
+            throw std::invalid_argument("MDS: n_init must be positive.");
+        }
+    }
+
+    [[nodiscard]] SmacofResult run_smacof(const MatrixType& D,
+                                          Scalar sum_D_sq,
+                                          std::mt19937_64& rng) const {
+        const Eigen::Index n = D.rows();
+        constexpr Scalar eps = std::numeric_limits<Scalar>::epsilon();
+        std::normal_distribution<Scalar> dist(Scalar{0}, Scalar{1});
+
+        MatrixType Y(n, n_components_);
+        for (Eigen::Index i = 0; i < n; ++i) {
+            for (Eigen::Index j = 0; j < n_components_; ++j) {
+                Y(i, j) = dist(rng);
+            }
+        }
+
+        Scalar stress = std::numeric_limits<Scalar>::max();
+        Scalar prev_stress = std::numeric_limits<Scalar>::max();
+        int n_iter = 0;
+        for (int iter = 0; iter < max_iter_; ++iter) {
+            MatrixType D_Y = pairwise_distances(Y);
+            MatrixType B = MatrixType::Zero(n, n);
+            for (Eigen::Index i = 0; i < n; ++i) {
+                for (Eigen::Index j = 0; j < n; ++j) {
+                    if (i == j) continue;
+                    const Scalar d_y = std::max(D_Y(i, j), eps);
+                    B(i, j) = -D(i, j) / d_y;
+                }
+                B(i, i) = -B.row(i).sum() + B(i, i);
+            }
+
+            Y = (Scalar{1} / static_cast<Scalar>(n)) * B * Y;
+            D_Y = pairwise_distances(Y);
+            stress = (sum_D_sq > Scalar{0})
+                ? std::sqrt((D - D_Y).array().square().sum() / sum_D_sq)
+                : Scalar{0};
+            n_iter = iter + 1;
+            if (std::abs(prev_stress - stress) < tol_) break;
+            prev_stress = stress;
+        }
+        return {std::move(Y), stress, n_iter};
+    }
 
     /// @brief Compute the pairwise Euclidean distance matrix.
     ///

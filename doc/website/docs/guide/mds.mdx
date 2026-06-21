@@ -5,7 +5,8 @@ title: MDS
 
 # MDS
 
-Multidimensional scaling: places points in a low-dimensional space so that pairwise distances match the originals as closely as possible.
+Multidimensional scaling places points in a low-dimensional space so that pairwise distances match
+the originals as closely as possible.
 
 ## Algorithm
 
@@ -14,7 +15,13 @@ Metric (and non-metric) MDS via the SMACOF majorisation iteration, which monoton
 ## Constructor
 
 ```cpp
-Skigen::MDS<Scalar> model(int n_components = 2, int max_iter = 300, Scalar eps = 1e-3, bool metric = true, uint64_t random_state = 0);
+Skigen::MDS<Scalar> model(
+	int n_components = 2,
+	int max_iter = 300,
+	Scalar tol = 1e-3,
+	bool metric = true,
+	std::optional<uint64_t> random_state = std::nullopt,
+	int n_init = 4);
 ```
 
 ## Parameters
@@ -23,8 +30,10 @@ Skigen::MDS<Scalar> model(int n_components = 2, int max_iter = 300, Scalar eps =
 |---|---|---|
 | `n_components` | `2` | Embedding dimensionality. |
 | `max_iter` | `300` | SMACOF iterations. |
-| `eps` | `1e-3` | Stress-convergence tolerance. |
-| `metric` | `true` | Metric vs non-metric MDS. |
+| `tol` | `1e-3` | Stress-convergence tolerance. |
+| `metric` | `true` | Metric MDS; non-metric MDS is deferred. |
+| `random_state` | `nullopt` | Optional seed for reproducible starts. |
+| `n_init` | `4` | Number of random SMACOF starts; the best stress is retained. |
 
 ## Methods
 
@@ -37,6 +46,8 @@ Skigen::MDS<Scalar> model(int n_components = 2, int max_iter = 300, Scalar eps =
 | Accessor | Description |
 |---|---|
 | `stress()` | Final stress value. |
+| `n_iter()` | Number of SMACOF iterations used by the best start. |
+| `n_init()` | Number of random starts tried. |
 
 ## Example
 
@@ -46,7 +57,9 @@ auto Y = mds.fit_transform(X);
 ```
 
 :::note Verified against scikit-learn
-This estimator is checked by the parity suite. See the generator `tests/parity/generate_manifold_reference.py` and the reference fixtures in `tests/parity/data/mds/`, exercised by `tests/parity/parity_manifold.cpp`.
+This estimator is checked by the parity suite. See the generator
+`tests/parity/generate_manifold_reference.py` and the reference fixtures in
+`tests/parity/data/mds/`, exercised by `tests/parity/parity_manifold.cpp`.
 :::
 
 :::tip API Reference
