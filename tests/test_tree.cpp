@@ -4,10 +4,12 @@
 #include <Skigen/Dense>
 
 #include <cmath>
+#include <functional>
 #include <iostream>
+#include <optional>
+#include <random>
 #include <sstream>
 #include <string>
-#include <functional>
 
 // ---------------------------------------------------------------------------
 // Minimal test harness
@@ -262,7 +264,7 @@ void test_dtr_multi_target_dim_mismatch_throws() {
     ASSERT_THROW(dt.fit_multi(X, Y), std::invalid_argument);
 }
 
-// -- Sparse fit overloads (densify-and-fit) -----------------------------
+// -- Native sparse split-finding (no densification) ---------------------
 
 void test_dtc_sparse_fit_predict_matches_dense() {
     Eigen::MatrixXd Xd(8, 2);
@@ -317,6 +319,67 @@ void test_dt_sparse_empty_throws() {
     ASSERT_THROW(dt.fit(X, y), std::invalid_argument);
 }
 
+// Wide, mostly-zero fixture: native sparse split-finding must produce the
+// SAME tree as the dense path (identical predictions AND feature
+// importances) while treating implicit zeros as value 0.
+void test_dtc_sparse_wide_matches_dense_structure() {
+    constexpr int n = 60, p = 12;
+    Eigen::MatrixXd Xd = Eigen::MatrixXd::Zero(n, p);
+    Eigen::VectorXi y(n);
+    std::mt19937_64 rng(7);
+    std::uniform_int_distribution<int> col(0, p - 1);
+    std::uniform_real_distribution<double> val(0.5, 3.0);
+    for (int i = 0; i < n; ++i) {
+        // Sprinkle a few nonzeros per row; label depends on feature 0/1.
+        for (int k = 0; k < 3; ++k) Xd(i, col(rng)) = val(rng);
+        y(i) = (Xd(i, 0) + Xd(i, 1) > 1.5) ? 1 : 0;
+    }
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+
+    Skigen::DecisionTreeClassifier<double> dt_d(-1, 2, 0, 0.0,
+                                                std::optional<uint64_t>(0));
+    Skigen::DecisionTreeClassifier<double> dt_s(-1, 2, 0, 0.0,
+                                                std::optional<uint64_t>(0));
+    dt_d.fit(Xd, y);
+    dt_s.fit(Xs, y);
+
+    auto pd = dt_d.predict(Xd);
+    auto ps = dt_s.predict(Xs);
+    for (int i = 0; i < n; ++i) ASSERT_TRUE(pd(i) == ps(i));
+    // Identical tree ⇒ identical feature importances.
+    const auto fid = dt_d.feature_importances();
+    const auto fis = dt_s.feature_importances();
+    for (int j = 0; j < p; ++j) ASSERT_NEAR(fid(j), fis(j), 1e-12);
+}
+
+void test_dtr_sparse_wide_matches_dense_structure() {
+    constexpr int n = 50, p = 8;
+    Eigen::MatrixXd Xd = Eigen::MatrixXd::Zero(n, p);
+    Eigen::VectorXd y(n);
+    std::mt19937_64 rng(3);
+    std::uniform_int_distribution<int> col(0, p - 1);
+    std::uniform_real_distribution<double> val(-2.0, 2.0);
+    for (int i = 0; i < n; ++i) {
+        for (int k = 0; k < 2; ++k) Xd(i, col(rng)) = val(rng);
+        y(i) = 2.0 * Xd(i, 0) - Xd(i, 3);
+    }
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+
+    Skigen::DecisionTreeRegressor<double> dt_d(-1, 2, 0, 0.0,
+                                               std::optional<uint64_t>(1));
+    Skigen::DecisionTreeRegressor<double> dt_s(-1, 2, 0, 0.0,
+                                               std::optional<uint64_t>(1));
+    dt_d.fit(Xd, y);
+    dt_s.fit(Xs, y);
+
+    auto pd = dt_d.predict(Xd);
+    auto ps = dt_s.predict(Xs);
+    for (int i = 0; i < n; ++i) ASSERT_NEAR(pd(i), ps(i), 1e-12);
+    const auto fid = dt_d.feature_importances();
+    const auto fis = dt_s.feature_importances();
+    for (int j = 0; j < p; ++j) ASSERT_NEAR(fid(j), fis(j), 1e-12);
+}
+
 // ===================================================================
 
 int main() {
@@ -348,6 +411,10 @@ int main() {
              test_dt_sparse_feature_count_check);
     run_test("dt_sparse_empty_throws",
              test_dt_sparse_empty_throws);
+    run_test("dtc_sparse_wide_matches_dense_structure",
+             test_dtc_sparse_wide_matches_dense_structure);
+    run_test("dtr_sparse_wide_matches_dense_structure",
+             test_dtr_sparse_wide_matches_dense_structure);
 
     std::cout << "\n" << g_passed << " passed, " << g_failed << " failed.\n";
     return g_failed > 0 ? 1 : 0;

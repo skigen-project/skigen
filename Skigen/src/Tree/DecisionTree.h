@@ -6,6 +6,7 @@
 
 #include "../Core/Base.h"
 #include "../Core/Validation.h"
+#include "Detail/FeatureColumns.h"
 
 #include <Eigen/Core>
 #include <Eigen/SparseCore>
@@ -147,14 +148,13 @@ public:
 
     // -- Sparse-aware overloads ----------------------------------------------
 
-    /// @brief Fit on a sparse design matrix.
+    /// @brief Fit natively on a sparse design matrix without densifying.
     ///
-    /// The sparse input is converted to a dense `MatrixType` internally
-    /// and forwarded to the regular split-finding path. The numerical
-    /// results match a dense fit; a native sparse split finder
-    /// (skip-zero column scans accumulating per-class counts only over
-    /// explicit nonzeros) would avoid the densification but is not
-    /// implemented.
+    /// Split finding runs through a CSC column accessor that materialises one
+    /// feature column at a time (implicit zeros filled as `0`), so the full
+    /// dense @f$n \times p@f$ matrix is never built. Results match a dense
+    /// fit exactly (scikit-learn's sparse splitter treats implicit zeros as
+    /// value 0 in the sorted order).
     template <int Options, typename StorageIndex>
     DecisionTreeClassifier& fit(
         const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X,
@@ -163,8 +163,15 @@ public:
             throw std::invalid_argument(
                 "DecisionTreeClassifier.fit: empty sparse matrix.");
         }
-        MatrixType Xd = MatrixType(X);
-        return this->fit(Xd, y);
+        if (X.rows() != y.size()) {
+            throw std::invalid_argument(
+                "DecisionTreeClassifier.fit: X has " +
+                std::to_string(X.rows()) + " rows but y has " +
+                std::to_string(y.size()) + ".");
+        }
+        internal::SparseFeatureColumns<Scalar, Options, StorageIndex> cols(X);
+        fit_columns(cols, y, {}, X.rows(), X.cols());
+        return *this;
     }
 
     /// @brief Predict using a sparse design matrix (densifies internally).
@@ -190,47 +197,8 @@ public:
                                              const std::vector<Eigen::Index>& sample_indices) {
         internal::check_non_empty(X);
         internal::check_consistent_length(X, y);
-
-        this->n_features_in_ = X.cols();
-
-        // Discover unique class labels (sorted ascending).
-        std::vector<int> uniq;
-        uniq.reserve(static_cast<std::size_t>(y.size()));
-        for (Eigen::Index i = 0; i < y.size(); ++i) uniq.push_back(y(i));
-        std::sort(uniq.begin(), uniq.end());
-        uniq.erase(std::unique(uniq.begin(), uniq.end()), uniq.end());
-        classes_ = Eigen::VectorXi(static_cast<Eigen::Index>(uniq.size()));
-        class_to_idx_.clear();
-        for (std::size_t i = 0; i < uniq.size(); ++i) {
-            classes_(static_cast<Eigen::Index>(i)) = uniq[i];
-            class_to_idx_[uniq[i]] = static_cast<int>(i);
-        }
-        n_classes_ = static_cast<int>(uniq.size());
-
-        std::vector<Eigen::Index> indices;
-        if (sample_indices.empty()) {
-            indices.resize(static_cast<std::size_t>(X.rows()));
-            std::iota(indices.begin(), indices.end(), Eigen::Index{0});
-        } else {
-            indices = sample_indices;
-        }
-
-        feature_importances_ = RowVectorType::Zero(X.cols());
-        total_weight_ = static_cast<Scalar>(indices.size());
-
-        if (random_state_.has_value()) rng_ = std::mt19937_64(*random_state_);
-        else {
-            std::random_device rd;
-            rng_ = std::mt19937_64(static_cast<uint64_t>(rd()));
-        }
-
-        root_ = build_tree(X, y, indices, 0);
-
-        // Normalise feature importances so they sum to 1 (sklearn convention).
-        Scalar s = feature_importances_.sum();
-        if (s > Scalar{0}) feature_importances_ /= s;
-
-        this->fitted_ = true;
+        internal::DenseFeatureColumns<Scalar> cols(X);
+        fit_columns(cols, y, sample_indices, X.rows(), X.cols());
         return *this;
     }
 
@@ -309,8 +277,59 @@ private:
         return imp;
     }
 
+    // Shared fit driver for dense and native-sparse column accessors. Builds
+    // the tree through a uniform `cols(row, f)` interface so the dense and
+    // sparse paths produce identical trees.
+    template <typename Columns>
+    void fit_columns(const Columns& cols,
+                     const Eigen::Ref<const IndexVector>& y,
+                     const std::vector<Eigen::Index>& sample_indices,
+                     Eigen::Index n_rows, Eigen::Index n_cols) {
+        this->n_features_in_ = n_cols;
+
+        // Discover unique class labels (sorted ascending).
+        std::vector<int> uniq;
+        uniq.reserve(static_cast<std::size_t>(y.size()));
+        for (Eigen::Index i = 0; i < y.size(); ++i) uniq.push_back(y(i));
+        std::sort(uniq.begin(), uniq.end());
+        uniq.erase(std::unique(uniq.begin(), uniq.end()), uniq.end());
+        classes_ = Eigen::VectorXi(static_cast<Eigen::Index>(uniq.size()));
+        class_to_idx_.clear();
+        for (std::size_t i = 0; i < uniq.size(); ++i) {
+            classes_(static_cast<Eigen::Index>(i)) = uniq[i];
+            class_to_idx_[uniq[i]] = static_cast<int>(i);
+        }
+        n_classes_ = static_cast<int>(uniq.size());
+
+        std::vector<Eigen::Index> indices;
+        if (sample_indices.empty()) {
+            indices.resize(static_cast<std::size_t>(n_rows));
+            std::iota(indices.begin(), indices.end(), Eigen::Index{0});
+        } else {
+            indices = sample_indices;
+        }
+
+        feature_importances_ = RowVectorType::Zero(n_cols);
+        total_weight_ = static_cast<Scalar>(indices.size());
+
+        if (random_state_.has_value()) rng_ = std::mt19937_64(*random_state_);
+        else {
+            std::random_device rd;
+            rng_ = std::mt19937_64(static_cast<uint64_t>(rd()));
+        }
+
+        root_ = build_tree(cols, y, indices, 0);
+
+        // Normalise feature importances so they sum to 1 (sklearn convention).
+        Scalar s = feature_importances_.sum();
+        if (s > Scalar{0}) feature_importances_ /= s;
+
+        this->fitted_ = true;
+    }
+
+    template <typename Columns>
     std::unique_ptr<Node> build_tree(
-        const Eigen::Ref<const MatrixType>& X,
+        const Columns& X,
         const Eigen::Ref<const IndexVector>& y,
         const std::vector<Eigen::Index>& indices,
         int depth) {
@@ -487,24 +506,6 @@ public:
 
     // -- Sparse-aware overloads ----------------------------------------------
 
-    /// @brief Fit on a sparse design matrix.
-    ///
-    /// The sparse input is converted to a dense `MatrixType` internally
-    /// and forwarded to the regular split-finding path. The numerical
-    /// results match a dense fit; native sparse split-finding is not
-    /// implemented.
-    template <int Options, typename StorageIndex>
-    DecisionTreeRegressor& fit(
-        const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X,
-        const Eigen::Ref<const VectorType>& y) {
-        if (X.rows() == 0 || X.cols() == 0) {
-            throw std::invalid_argument(
-                "DecisionTreeRegressor.fit: empty sparse matrix.");
-        }
-        MatrixType Xd = MatrixType(X);
-        return this->fit(Xd, y);
-    }
-
     /// @brief Predict using a sparse design matrix (densifies internally).
     template <int Options, typename StorageIndex>
     [[nodiscard]] VectorType predict(
@@ -525,21 +526,56 @@ public:
                                             const std::vector<Eigen::Index>& sample_indices) {
         internal::check_non_empty(X);
         internal::check_consistent_length(X, y);
+        internal::DenseFeatureColumns<Scalar> cols(X);
+        fit_columns(cols, y, sample_indices, X.rows(), X.cols());
+        return *this;
+    }
 
-        this->n_features_in_ = X.cols();
+    /// @brief Fit natively on a sparse design matrix without densifying.
+    ///
+    /// Split finding runs through a CSC column accessor that materialises one
+    /// feature column at a time (implicit zeros filled as `0`), so the full
+    /// dense @f$n \times p@f$ matrix is never built. Results match a dense
+    /// fit exactly.
+    template <int Options, typename StorageIndex>
+    DecisionTreeRegressor& fit(
+        const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X,
+        const Eigen::Ref<const VectorType>& y) {
+        if (X.rows() == 0 || X.cols() == 0) {
+            throw std::invalid_argument(
+                "DecisionTreeRegressor.fit: empty sparse matrix.");
+        }
+        if (X.rows() != y.size()) {
+            throw std::invalid_argument(
+                "DecisionTreeRegressor.fit: X has " +
+                std::to_string(X.rows()) + " rows but y has " +
+                std::to_string(y.size()) + ".");
+        }
+        internal::SparseFeatureColumns<Scalar, Options, StorageIndex> cols(X);
+        fit_columns(cols, y, {}, X.rows(), X.cols());
+        return *this;
+    }
+
+    // Shared fit driver for dense and native-sparse column accessors.
+    template <typename Columns>
+    void fit_columns(const Columns& cols,
+                     const Eigen::Ref<const VectorType>& y,
+                     const std::vector<Eigen::Index>& sample_indices,
+                     Eigen::Index n_rows, Eigen::Index n_cols) {
+        this->n_features_in_ = n_cols;
         // Single-target fit clears any prior multi-target state.
         per_target_trees_.clear();
         n_targets_ = 1;
 
         std::vector<Eigen::Index> indices;
         if (sample_indices.empty()) {
-            indices.resize(static_cast<std::size_t>(X.rows()));
+            indices.resize(static_cast<std::size_t>(n_rows));
             std::iota(indices.begin(), indices.end(), Eigen::Index{0});
         } else {
             indices = sample_indices;
         }
 
-        feature_importances_ = RowVectorType::Zero(X.cols());
+        feature_importances_ = RowVectorType::Zero(n_cols);
         total_weight_ = static_cast<Scalar>(indices.size());
 
         if (random_state_.has_value()) rng_ = std::mt19937_64(*random_state_);
@@ -548,13 +584,12 @@ public:
             rng_ = std::mt19937_64(static_cast<uint64_t>(rd()));
         }
 
-        root_ = build_tree(X, y, indices, 0);
+        root_ = build_tree(cols, y, indices, 0);
 
         Scalar s = feature_importances_.sum();
         if (s > Scalar{0}) feature_importances_ /= s;
 
         this->fitted_ = true;
-        return *this;
     }
 
     /// @brief Predict target values for X.
@@ -700,8 +735,9 @@ private:
 
     using Node = internal::TreeNode<Scalar>;
 
+    template <typename Columns>
     std::unique_ptr<Node> build_tree(
-        const Eigen::Ref<const MatrixType>& X,
+        const Columns& X,
         const Eigen::Ref<const VectorType>& y,
         const std::vector<Eigen::Index>& indices,
         int depth) {
