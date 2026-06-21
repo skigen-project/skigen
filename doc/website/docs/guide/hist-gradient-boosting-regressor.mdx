@@ -9,12 +9,33 @@ Histogram-based gradient boosting for regression — the fast, large-data GB pat
 
 ## Algorithm
 
-Features are quantile-binned, then squared-error boosting proceeds on the binned representation with histogram split finding.
+Features are quantile-binned into a compact `uint8` representation, then squared-error boosting proceeds with a **native gradient/hessian histogram split finder**. Each tree is grown **leaf-wise** (best-first): the leaf with the highest second-order split gain
+$$
+\text{gain} = \frac{G_L^2}{H_L + \lambda} + \frac{G_R^2}{H_R + \lambda} - \frac{G^2}{H + \lambda}
+$$
+is split next, bounded by `max_leaf_nodes`. Leaf values are the Newton step $-G/(H + \lambda)$. The grower honours **L2 regularisation** ($\lambda$), per-feature **monotonic constraints**, and **holdout-based early stopping**.
+
+For squared error the per-sample gradient is $g_i = F_i - y_i$ and the hessian is $h_i = 1$.
 
 ## Constructor
 
 ```cpp
-Skigen::HistGradientBoostingRegressor<Scalar> model(Scalar learning_rate = 0.1, int max_iter = 100, ...);
+Skigen::HistGradientBoostingRegressor<Scalar> model(
+    Loss loss = Loss::SquaredError,
+    Scalar learning_rate = 0.1,
+    int max_iter = 100,
+    std::optional<int> max_leaf_nodes = 31,
+    std::optional<int> max_depth = std::nullopt,
+    int min_samples_leaf = 20,
+    Scalar l2_regularization = 0.0,
+    int max_bins = 255,
+    std::optional<std::vector<int>> categorical_features = std::nullopt,
+    std::optional<std::vector<int>> monotonic_cst = std::nullopt,
+    bool early_stopping = false,
+    Scalar validation_fraction = 0.1,
+    int n_iter_no_change = 10,
+    Scalar tol = 1e-7,
+    std::optional<uint64_t> random_state = std::nullopt);
 ```
 
 ## Parameters
@@ -22,10 +43,18 @@ Skigen::HistGradientBoostingRegressor<Scalar> model(Scalar learning_rate = 0.1, 
 | Parameter | Default | Description |
 |---|---|---|
 | `learning_rate` | `0.1` | Shrinkage per iteration. |
-| `max_iter` | `100` | Number of iterations. |
-| `max_bins` | `255` | Bin resolution. |
-| `max_leaf_nodes` | `31` | Leaves per tree. |
-| `random_state` | `nullopt` | Seed. |
+| `max_iter` | `100` | Number of boosting iterations. |
+| `max_leaf_nodes` | `31` | Leaf-wise growth bound (`nullopt` = unbounded). |
+| `max_depth` | `nullopt` | Optional depth cap. |
+| `min_samples_leaf` | `20` | Minimum samples per leaf. |
+| `l2_regularization` | `0.0` | L2 penalty on the Newton step. |
+| `max_bins` | `255` | Bin resolution (2–255). |
+| `monotonic_cst` | `nullopt` | Per-feature `+1` / `-1` / `0` constraint. |
+| `early_stopping` | `false` | Enable holdout-based stopping. |
+| `validation_fraction` | `0.1` | Holdout size for early stopping. |
+| `n_iter_no_change` | `10` | Patience before stopping. |
+| `tol` | `1e-7` | Minimum validation improvement. |
+| `random_state` | `nullopt` | Seed for the holdout split. |
 
 ## Methods
 

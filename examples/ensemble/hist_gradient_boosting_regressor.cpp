@@ -46,7 +46,12 @@ int main() {
              /*min_samples_leaf=*/2,
              /*l2=*/0.0,
              /*max_bins=*/64,
-             std::nullopt, std::nullopt, false, 1e-7,
+             /*categorical_features=*/std::nullopt,
+             /*monotonic_cst=*/std::nullopt,
+             /*early_stopping=*/false,
+             /*validation_fraction=*/0.1,
+             /*n_iter_no_change=*/10,
+             /*tol=*/1e-7,
              std::optional<uint64_t>(42));
     hgb.fit(X, y);
 

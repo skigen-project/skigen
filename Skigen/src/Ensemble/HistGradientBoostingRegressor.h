@@ -6,12 +6,14 @@
 
 #include "../Core/Base.h"
 #include "../Core/Validation.h"
-#include "../Tree/DecisionTree.h"
+#include "Detail/HistTree.h"
 
 #include <Eigen/Core>
 #include <algorithm>
 #include <cstdint>
+#include <limits>
 #include <optional>
+#include <random>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -41,15 +43,17 @@ namespace Skigen {
 /// | `loss` | `Loss` | `SquaredError` |
 /// | `learning_rate` | `Scalar` | `0.1` |
 /// | `max_iter` | `int` | `100` |
-/// | `max_leaf_nodes` | `optional<int>` | `31` *(accepted but not enforced — depth-first growth is used instead of leaf-wise)* |
+/// | `max_leaf_nodes` | `optional<int>` | `31` *(leaf-wise growth bound; `nullopt` = unbounded)* |
 /// | `max_depth` | `optional<int>` | `nullopt` *(unlimited)* |
 /// | `min_samples_leaf` | `int` | `20` |
-/// | `l2_regularization` | `Scalar` | `0.0` *(accepted but currently ignored)* |
+/// | `l2_regularization` | `Scalar` | `0.0` *(Newton-step shrinkage)* |
 /// | `max_bins` | `int` | `255` |
-/// | `categorical_features` | `optional<vector<int>>` | `nullopt` *(accepted but ignored — categoricals treated as ordinals)* |
-/// | `monotonic_cst` | `optional<vector<int>>` | `nullopt` *(accepted but ignored)* |
-/// | `early_stopping` | `bool` | `false` *(accepted but ignored — full max_iter is always run)* |
-/// | `tol` | `Scalar` | `1e-7` *(accepted but ignored)* |
+/// | `categorical_features` | `optional<vector<int>>` | `nullopt` *(ignored — treated as ordinals)* |
+/// | `monotonic_cst` | `optional<vector<int>>` | `nullopt` *(per-feature +1 / -1 / 0)* |
+/// | `early_stopping` | `bool` | `false` *(holdout-based stopping on `validation_fraction`)* |
+/// | `validation_fraction` | `Scalar` | `0.1` *(holdout size for early stopping)* |
+/// | `n_iter_no_change` | `int` | `10` *(patience for early stopping)* |
+/// | `tol` | `Scalar` | `1e-7` *(min validation improvement)* |
 /// | `random_state` | `optional<uint64_t>` | `nullopt` |
 ///
 /// ### Attributes (after fitting)
@@ -64,15 +68,13 @@ namespace Skigen {
 /// ### Limitations relative to scikit-learn
 ///
 /// Only `loss=SquaredError` is supported; AbsoluteError, Poisson, and
-/// Quantile losses raise on construction. Once X is binned, the
-/// existing `DecisionTreeRegressor` is used for split selection
-/// (sort-based, not the native histogram-based split finder) — this
-/// produces equivalent predictions when the binning is fine enough but
-/// does **not** realise the scaling-on-large-n advantage that a
-/// histogram split finder would. Leaf-wise growth (`max_leaf_nodes`),
-/// native categoricals, monotonic constraints, early stopping, and
-/// `l2_regularization` are accepted as constructor parameters but are
-/// not honoured at fit time.
+/// Quantile losses raise on construction. Split selection uses a native
+/// gradient/hessian **histogram** finder with a second-order (Newton)
+/// split-gain criterion, best-first **leaf-wise** growth bounded by
+/// `max_leaf_nodes`, L2 regularisation, monotonic constraints, and
+/// holdout-based early stopping. Native categorical features and a
+/// native sparse input path remain deferred — `categorical_features` is
+/// accepted but treated as ordinal.
 template <typename Scalar = double>
 class HistGradientBoostingRegressor
     : public Predictor<HistGradientBoostingRegressor<Scalar>, Scalar> {
@@ -98,6 +100,8 @@ public:
         std::optional<std::vector<int>> categorical_features = std::nullopt,
         std::optional<std::vector<int>> monotonic_cst = std::nullopt,
         bool early_stopping = false,
+        Scalar validation_fraction = Scalar{0.1},
+        int n_iter_no_change = 10,
         Scalar tol = Scalar{1e-7},
         std::optional<uint64_t> random_state = std::nullopt)
         : loss_(loss),
@@ -111,6 +115,8 @@ public:
           categorical_features_(std::move(categorical_features)),
           monotonic_cst_(std::move(monotonic_cst)),
           early_stopping_(early_stopping),
+          validation_fraction_(validation_fraction),
+          n_iter_no_change_(n_iter_no_change),
           tol_(tol),
           random_state_(random_state) {
         if (loss_ != Loss::SquaredError) {
@@ -153,6 +159,8 @@ public:
         (l2_regularization,  l2_regularization_,  double),
         (max_bins,           max_bins_,           int),
         (early_stopping,     early_stopping_,     bool),
+        (validation_fraction, validation_fraction_, double),
+        (n_iter_no_change,   n_iter_no_change_,   int),
         (tol,                tol_,                double))
 
     // -- Fit / Predict ------------------------------------------------------
@@ -164,74 +172,77 @@ public:
         internal::check_consistent_length(X, y);
         this->n_features_in_ = X.cols();
         const Eigen::Index n = X.rows();
-        const Eigen::Index p = X.cols();
 
-        // 1. Bin each feature using quantile-based thresholds.
-        bin_edges_.assign(static_cast<std::size_t>(p), {});
-        MatrixType X_binned(n, p);
-        for (Eigen::Index j = 0; j < p; ++j) {
-            std::vector<Scalar> col(static_cast<std::size_t>(n));
-            for (Eigen::Index i = 0; i < n; ++i) col[i] = X(i, j);
-            std::vector<Scalar> sorted_col = col;
-            std::sort(sorted_col.begin(), sorted_col.end());
+        // 1. Quantile-bin each feature into a compact uint8 representation.
+        using BinnedMatrix = typename internal::HistTree<Scalar>::BinnedMatrix;
+        BinnedMatrix X_binned = build_bins(X);
 
-            std::vector<Scalar> thresholds;
-            const int n_thresh = max_bins_ - 1;
-            // Quantile-based bin edges.
-            for (int b = 1; b <= n_thresh; ++b) {
-                const std::size_t idx = std::min(
-                    static_cast<std::size_t>(
-                        static_cast<double>(b) * static_cast<double>(n) /
-                        static_cast<double>(max_bins_)),
-                    sorted_col.size() - 1);
-                Scalar t = sorted_col[idx];
-                if (thresholds.empty() || t > thresholds.back()) {
-                    thresholds.push_back(t);
-                }
-            }
-            bin_edges_[static_cast<std::size_t>(j)] = thresholds;
+        // 2. Optional holdout split for early stopping.
+        std::vector<int> train_rows, val_rows;
+        make_holdout(n, train_rows, val_rows);
+        const bool use_es = early_stopping_ && !val_rows.empty();
 
-            // Map values to bin indices [0, n_bins - 1].
-            for (Eigen::Index i = 0; i < n; ++i) {
-                auto it = std::upper_bound(
-                    thresholds.begin(), thresholds.end(), X(i, j));
-                X_binned(i, j) = static_cast<Scalar>(
-                    std::distance(thresholds.begin(), it));
-            }
-        }
-
-        // 2. Initialise predictions at the marginal mean (matches
-        //    sklearn's DummyRegressor(strategy="mean") default init).
+        // 3. Initialise predictions at the marginal mean (matches sklearn's
+        //    DummyRegressor(strategy="mean") default init).
         init_ = y.mean();
         VectorType F = VectorType::Constant(n, init_);
 
         estimators_.clear();
         estimators_.reserve(static_cast<std::size_t>(max_iter_));
-        train_score_ = VectorType::Zero(max_iter_);
+        std::vector<Scalar> train_scores;
+        train_scores.reserve(static_cast<std::size_t>(max_iter_));
 
-        const uint64_t base_seed = random_state_.value_or(0ULL);
-        const int max_depth_eff = max_depth_.value_or(-1);
+        internal::HistTreeParams<Scalar> params = make_params();
+
+        Scalar best_val = std::numeric_limits<Scalar>::infinity();
+        int no_change = 0;
 
         for (int stage = 0; stage < max_iter_; ++stage) {
-            VectorType residuals = y - F;
+            // Squared-error: gradient = F - y, hessian = 1.
+            VectorType grad(n), hess(n);
+            for (Eigen::Index i = 0; i < n; ++i) {
+                grad(i) = F(i) - y(i);
+                hess(i) = Scalar{1};
+            }
 
-            DecisionTreeRegressor<Scalar> tree(
-                max_depth_eff,
-                min_samples_leaf_ * 2,             // min_samples_split
-                /*max_features_mode=*/0,
-                /*max_features_value=*/0.0,
-                random_state_.has_value()
-                    ? std::optional<uint64_t>(
-                          base_seed ^ static_cast<uint64_t>(stage))
-                    : std::nullopt);
-            tree.fit(X_binned, residuals);
+            internal::HistTree<Scalar> tree;
+            if (use_es) {
+                // Fit only on the training rows by zeroing the holdout
+                // hessian so those samples carry no weight in any split.
+                VectorType hess_tr = hess;
+                for (int v : val_rows) hess_tr(v) = Scalar{0};
+                tree.fit(X_binned, grad, hess_tr, params);
+            } else {
+                tree.fit(X_binned, grad, hess, params);
+            }
 
-            VectorType update = tree.predict(X_binned);
+            const VectorType update = tree.predict(X_binned);
             F.noalias() += learning_rate_ * update;
-            train_score_(stage) =
-                ((y - F).array().square().sum()) / static_cast<Scalar>(n);
+
+            train_scores.push_back(
+                ((y - F).array().square().sum()) / static_cast<Scalar>(n));
             estimators_.push_back(std::move(tree));
+
+            if (use_es) {
+                Scalar val_err{0};
+                for (int v : val_rows) {
+                    const Scalar r = y(v) - F(v);
+                    val_err += r * r;
+                }
+                val_err /= static_cast<Scalar>(val_rows.size());
+                if (val_err + tol_ < best_val) {
+                    best_val = val_err;
+                    no_change = 0;
+                } else if (++no_change >= n_iter_no_change_) {
+                    break;
+                }
+            }
         }
+
+        train_score_ = VectorType(static_cast<Eigen::Index>(
+            train_scores.size()));
+        for (std::size_t i = 0; i < train_scores.size(); ++i)
+            train_score_(static_cast<Eigen::Index>(i)) = train_scores[i];
 
         this->fitted_ = true;
         return *this;
@@ -240,20 +251,7 @@ public:
     [[nodiscard]] VectorType predict_impl(
         const Eigen::Ref<const MatrixType>& X) const {
         const Eigen::Index n = X.rows();
-        const Eigen::Index p = X.cols();
-        // Bin X using stored thresholds.
-        MatrixType X_binned(n, p);
-        for (Eigen::Index j = 0; j < p; ++j) {
-            const auto& thresholds =
-                bin_edges_[static_cast<std::size_t>(j)];
-            for (Eigen::Index i = 0; i < n; ++i) {
-                auto it = std::upper_bound(
-                    thresholds.begin(), thresholds.end(), X(i, j));
-                X_binned(i, j) = static_cast<Scalar>(
-                    std::distance(thresholds.begin(), it));
-            }
-        }
-
+        const auto X_binned = bin(X);
         VectorType F = VectorType::Constant(n, init_);
         for (const auto& tree : estimators_) {
             F.noalias() += learning_rate_ * tree.predict(X_binned);
@@ -278,6 +276,81 @@ public:
     }
 
 private:
+    using BinnedMatrix = typename internal::HistTree<Scalar>::BinnedMatrix;
+
+    // Build per-feature quantile thresholds and the binned matrix.
+    BinnedMatrix build_bins(const Eigen::Ref<const MatrixType>& X) {
+        const Eigen::Index n = X.rows();
+        const Eigen::Index p = X.cols();
+        bin_edges_.assign(static_cast<std::size_t>(p), {});
+        for (Eigen::Index j = 0; j < p; ++j) {
+            std::vector<Scalar> sorted_col(static_cast<std::size_t>(n));
+            for (Eigen::Index i = 0; i < n; ++i) sorted_col[i] = X(i, j);
+            std::sort(sorted_col.begin(), sorted_col.end());
+            std::vector<Scalar> thresholds;
+            const int n_thresh = max_bins_ - 1;
+            for (int b = 1; b <= n_thresh; ++b) {
+                const std::size_t idx = std::min(
+                    static_cast<std::size_t>(
+                        static_cast<double>(b) * static_cast<double>(n) /
+                        static_cast<double>(max_bins_)),
+                    sorted_col.size() - 1);
+                const Scalar t = sorted_col[idx];
+                if (thresholds.empty() || t > thresholds.back())
+                    thresholds.push_back(t);
+            }
+            bin_edges_[static_cast<std::size_t>(j)] = thresholds;
+        }
+        return bin(X);
+    }
+
+    // Map X to bin indices using stored thresholds.
+    [[nodiscard]] BinnedMatrix bin(
+        const Eigen::Ref<const MatrixType>& X) const {
+        const Eigen::Index n = X.rows();
+        const Eigen::Index p = X.cols();
+        BinnedMatrix Xb(n, p);
+        for (Eigen::Index j = 0; j < p; ++j) {
+            const auto& thr = bin_edges_[static_cast<std::size_t>(j)];
+            for (Eigen::Index i = 0; i < n; ++i) {
+                auto it = std::upper_bound(thr.begin(), thr.end(), X(i, j));
+                Xb(i, j) = static_cast<uint8_t>(
+                    std::distance(thr.begin(), it));
+            }
+        }
+        return Xb;
+    }
+
+    internal::HistTreeParams<Scalar> make_params() const {
+        internal::HistTreeParams<Scalar> params;
+        params.max_leaf_nodes = max_leaf_nodes_.value_or(0);
+        params.max_depth = max_depth_.value_or(-1);
+        params.min_samples_leaf = min_samples_leaf_;
+        params.l2_regularization = l2_regularization_;
+        params.n_bins = max_bins_;
+        if (monotonic_cst_.has_value()) params.monotonic_cst = *monotonic_cst_;
+        return params;
+    }
+
+    void make_holdout(Eigen::Index n, std::vector<int>& train_rows,
+                      std::vector<int>& val_rows) const {
+        train_rows.clear();
+        val_rows.clear();
+        if (!early_stopping_ || validation_fraction_ <= Scalar{0}) return;
+        std::vector<int> perm(static_cast<std::size_t>(n));
+        for (Eigen::Index i = 0; i < n; ++i)
+            perm[static_cast<std::size_t>(i)] = static_cast<int>(i);
+        std::mt19937_64 rng(random_state_.value_or(0ULL));
+        std::shuffle(perm.begin(), perm.end(), rng);
+        const auto n_val = static_cast<std::size_t>(
+            static_cast<double>(n) * validation_fraction_);
+        if (n_val == 0 || n_val >= perm.size()) return;
+        val_rows.assign(perm.begin(),
+                        perm.begin() + static_cast<std::ptrdiff_t>(n_val));
+        train_rows.assign(perm.begin() + static_cast<std::ptrdiff_t>(n_val),
+                          perm.end());
+    }
+
     Loss loss_;
     Scalar learning_rate_;
     int max_iter_;
@@ -289,12 +362,14 @@ private:
     std::optional<std::vector<int>> categorical_features_;
     std::optional<std::vector<int>> monotonic_cst_;
     bool early_stopping_;
+    Scalar validation_fraction_;
+    int n_iter_no_change_;
     Scalar tol_;
     std::optional<uint64_t> random_state_;
 
     Scalar init_{0};
     std::vector<std::vector<Scalar>> bin_edges_;        // per-feature
-    std::vector<DecisionTreeRegressor<Scalar>> estimators_;
+    std::vector<internal::HistTree<Scalar>> estimators_;
     VectorType train_score_;
 };
 

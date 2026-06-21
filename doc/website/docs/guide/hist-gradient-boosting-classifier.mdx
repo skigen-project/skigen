@@ -9,12 +9,28 @@ Histogram-based gradient boosting: features are binned up-front so split finding
 
 ## Algorithm
 
-Each feature is quantile-binned into at most `max_bins` buckets. Split finding then operates on per-bin gradient/hessian histograms, which is dramatically faster on large datasets. Binary log-loss is supported.
+Each feature is quantile-binned into at most `max_bins` buckets. Split finding then operates on per-bin gradient/hessian histograms with a second-order (Newton) split-gain criterion, grown **leaf-wise** and bounded by `max_leaf_nodes`. The grower supports **L2 regularisation**, per-feature **monotonic constraints**, and **holdout-based early stopping**.
+
+**Binary** problems boost a single log-odds score $F$ with gradient $g_i = \sigma(F_i) - y_i$ and hessian $h_i = \sigma(F_i)(1 - \sigma(F_i))$. **Multiclass** problems boost one tree per class per iteration against the softmax cross-entropy gradient $g_{i,k} = p_{i,k} - \mathbb{1}[y_i = k]$, with predictions normalised by softmax.
 
 ## Constructor
 
 ```cpp
-Skigen::HistGradientBoostingClassifier<Scalar> model(Scalar learning_rate = 0.1, int max_iter = 100, ...);
+Skigen::HistGradientBoostingClassifier<Scalar> model(
+    Loss loss = Loss::LogLoss,
+    Scalar learning_rate = 0.1,
+    int max_iter = 100,
+    std::optional<int> max_leaf_nodes = 31,
+    std::optional<int> max_depth = std::nullopt,
+    int min_samples_leaf = 20,
+    Scalar l2_regularization = 0.0,
+    int max_bins = 255,
+    std::optional<std::vector<int>> monotonic_cst = std::nullopt,
+    bool early_stopping = false,
+    Scalar validation_fraction = 0.1,
+    int n_iter_no_change = 10,
+    Scalar tol = 1e-7,
+    std::optional<uint64_t> random_state = std::nullopt);
 ```
 
 ## Parameters
@@ -23,9 +39,17 @@ Skigen::HistGradientBoostingClassifier<Scalar> model(Scalar learning_rate = 0.1,
 |---|---|---|
 | `learning_rate` | `0.1` | Shrinkage per iteration. |
 | `max_iter` | `100` | Number of boosting iterations. |
-| `max_bins` | `255` | Feature quantisation resolution. |
-| `max_leaf_nodes` | `31` | Leaves per tree. |
-| `random_state` | `nullopt` | Seed. |
+| `max_leaf_nodes` | `31` | Leaf-wise growth bound (`nullopt` = unbounded). |
+| `min_samples_leaf` | `20` | Minimum samples per leaf. |
+| `l2_regularization` | `0.0` | L2 penalty on the Newton step. |
+| `max_bins` | `255` | Feature quantisation resolution (2–255). |
+| `monotonic_cst` | `nullopt` | Per-feature `+1` / `-1` / `0` constraint. |
+| `early_stopping` | `false` | Enable holdout-based stopping. |
+| `validation_fraction` | `0.1` | Holdout size for early stopping. |
+| `n_iter_no_change` | `10` | Patience before stopping. |
+| `random_state` | `nullopt` | Seed for the holdout split. |
+
+Both **binary and multiclass** log-loss are supported.
 
 ## Methods
 
@@ -33,7 +57,8 @@ Skigen::HistGradientBoostingClassifier<Scalar> model(Scalar learning_rate = 0.1,
 |---|---|
 | `fit(X, y)` | Bin features, then boost. |
 | `predict(X)` | Class labels. |
-| `predict_proba(X)` | Calibrated-by-sigmoid scores. |
+| `predict_proba(X)` | Class probabilities (sigmoid for binary, softmax for multiclass). |
+| `decision_function(X)` | Raw scores: `(n,)` log-odds for binary, `(n, K)` for multiclass. |
 | `score(X, y)` | Mean accuracy. |
 
 ## Fitted Attributes
