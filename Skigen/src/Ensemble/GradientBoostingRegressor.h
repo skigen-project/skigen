@@ -12,7 +12,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <numeric>
 #include <optional>
+#include <random>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -137,11 +139,6 @@ public:
                 "subsample must be in (0, 1]; got " +
                 std::to_string(static_cast<double>(subsample_)));
         }
-        if (subsample_ < Scalar{1}) {
-            throw std::invalid_argument(
-                "GradientBoostingRegressor: subsample < 1.0 (stochastic GB) is "
-                "not implemented.");
-        }
         if ((loss_ == Loss::Quantile || loss_ == Loss::Huber) &&
             (alpha_ <= Scalar{0} || alpha_ >= Scalar{1})) {
             throw std::invalid_argument(
@@ -215,7 +212,13 @@ public:
         feature_importances_ = RowVectorType::Zero(X.cols());
         train_score_ = VectorType::Zero(n_estimators_);
 
-        const uint64_t base_seed = random_state_.value_or(0ULL);
+        const bool stochastic = subsample_ < Scalar{1};
+        const Eigen::Index n_sub = std::max<Eigen::Index>(
+            1, static_cast<Eigen::Index>(std::round(
+                   static_cast<double>(subsample_) * static_cast<double>(n))));
+        const uint64_t base_seed = random_state_.has_value()
+            ? *random_state_
+            : static_cast<uint64_t>(std::random_device{}());
 
         for (int stage = 0; stage < n_estimators_; ++stage) {
             const VectorType residuals = negative_gradient(y, F);
@@ -229,7 +232,24 @@ public:
                     ? std::optional<uint64_t>(base_seed ^
                           static_cast<uint64_t>(stage))
                     : std::nullopt);
-            tree.fit(X, residuals);
+
+            // Stochastic gradient boosting: fit each stage tree on a
+            // per-stage subsample drawn without replacement, but update F
+            // over all rows.
+            std::vector<Eigen::Index> subsample_indices;
+            if (stochastic) {
+                std::vector<Eigen::Index> all(static_cast<std::size_t>(n));
+                std::iota(all.begin(), all.end(), Eigen::Index{0});
+                std::mt19937_64 rng(base_seed ^
+                    (static_cast<uint64_t>(stage) * 0x9E3779B97F4A7C15ULL));
+                for (Eigen::Index i = 0; i < n_sub; ++i) {
+                    std::uniform_int_distribution<std::size_t> dist(
+                        static_cast<std::size_t>(i), all.size() - 1);
+                    std::swap(all[static_cast<std::size_t>(i)], all[dist(rng)]);
+                }
+                subsample_indices.assign(all.begin(), all.begin() + n_sub);
+            }
+            tree.fit_with_indices(X, residuals, subsample_indices);
 
             VectorType update = tree.predict(X);
             // For non-squared losses, take a single loss-optimal global step so

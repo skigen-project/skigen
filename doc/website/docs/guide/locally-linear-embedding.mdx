@@ -14,7 +14,13 @@ Each point is expressed as a weighted combination of its k nearest neighbours; t
 ## Constructor
 
 ```cpp
-Skigen::LocallyLinearEmbedding<Scalar> model(int n_components = 2, int n_neighbors = 5, Scalar reg = 1e-3);
+Skigen::LocallyLinearEmbedding<Scalar> model(
+    int n_components = 2,
+    int n_neighbors = 5,
+    Scalar reg = 1e-3,
+    int max_iter = 100,
+    Scalar tol = 1e-6,
+    std::string method = "standard");
 ```
 
 ## Parameters
@@ -24,6 +30,7 @@ Skigen::LocallyLinearEmbedding<Scalar> model(int n_components = 2, int n_neighbo
 | `n_components` | `2` | Embedding dimensionality. |
 | `n_neighbors` | `5` | Neighbours per point. |
 | `reg` | `1e-3` | Regularisation of the local Gram matrix. |
+| `method` | `"standard"` | LLE variant: `standard`, `modified`, `hessian`, or `ltsa`. |
 
 ## Methods
 

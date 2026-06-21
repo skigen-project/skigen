@@ -111,11 +111,6 @@ public:
           n_iter_no_change_(n_iter_no_change),
           tol_(tol),
           ccp_alpha_(ccp_alpha) {
-        if (loss_ != Loss::LogLoss) {
-            throw std::invalid_argument(
-                "GradientBoostingClassifier: only loss=LogLoss is implemented "
-                "in Exponential is not honoured.");
-        }
         if (subsample_ <= Scalar{0} || subsample_ > Scalar{1}) {
             throw std::invalid_argument(
                 "subsample must be in (0, 1]; got " +
@@ -211,7 +206,10 @@ public:
             y01.mean(),
             std::numeric_limits<Scalar>::epsilon(),
             Scalar{1} - std::numeric_limits<Scalar>::epsilon());
-        init_ = std::log(p_pos / (Scalar{1} - p_pos));
+        // LogLoss initialises F to the full log-odds; Exponential (AdaBoost)
+        // initialises to half the log-odds.
+        const Scalar log_odds = std::log(p_pos / (Scalar{1} - p_pos));
+        init_ = loss_ == Loss::Exponential ? Scalar{0.5} * log_odds : log_odds;
 
         VectorType F = VectorType::Constant(n, init_);
         estimators_storage_.clear();
@@ -223,10 +221,16 @@ public:
         const uint64_t base_seed = random_state_.value_or(0ULL);
 
         for (int stage = 0; stage < n_estimators_; ++stage) {
-            // Pseudo-residuals for log-loss: y - sigmoid(F).
+            // Pseudo-residuals: LogLoss uses y - sigmoid(F); Exponential uses
+            // y_signed * exp(-y_signed * F) with y_signed in {-1, +1}.
             VectorType residuals(n);
             for (Eigen::Index i = 0; i < n; ++i) {
-                residuals(i) = y01(i) - sigmoid(F(i));
+                if (loss_ == Loss::Exponential) {
+                    const Scalar ys = Scalar{2} * y01(i) - Scalar{1};
+                    residuals(i) = ys * std::exp(-ys * F(i));
+                } else {
+                    residuals(i) = y01(i) - sigmoid(F(i));
+                }
             }
 
             DecisionTreeRegressor<Scalar> tree(
@@ -243,15 +247,20 @@ public:
             VectorType update = tree.predict(X);
             F.noalias() += learning_rate_ * update;
 
-            // Per-stage training log-loss (mean over samples).
+            // Per-stage training loss (mean over samples).
             Scalar loss_sum{0};
             for (Eigen::Index i = 0; i < n; ++i) {
-                const Scalar p = sigmoid(F(i));
-                const Scalar safe = std::clamp(
-                    p, std::numeric_limits<Scalar>::epsilon(),
-                    Scalar{1} - std::numeric_limits<Scalar>::epsilon());
-                loss_sum += -(y01(i) * std::log(safe) +
-                              (Scalar{1} - y01(i)) * std::log(Scalar{1} - safe));
+                if (loss_ == Loss::Exponential) {
+                    const Scalar ys = Scalar{2} * y01(i) - Scalar{1};
+                    loss_sum += std::exp(-ys * F(i));
+                } else {
+                    const Scalar p = sigmoid(F(i));
+                    const Scalar safe = std::clamp(
+                        p, std::numeric_limits<Scalar>::epsilon(),
+                        Scalar{1} - std::numeric_limits<Scalar>::epsilon());
+                    loss_sum += -(y01(i) * std::log(safe) +
+                                  (Scalar{1} - y01(i)) * std::log(Scalar{1} - safe));
+                }
             }
             train_score_(stage) = loss_sum / static_cast<Scalar>(n);
 
@@ -297,7 +306,10 @@ public:
         VectorType F = decision_function(X);
         MatrixType P(X.rows(), 2);
         for (Eigen::Index i = 0; i < X.rows(); ++i) {
-            const Scalar p_pos = sigmoid(F(i));
+            // Exponential loss maps F to p = 1 / (1 + exp(-2F)).
+            const Scalar p_pos = loss_ == Loss::Exponential
+                ? sigmoid(Scalar{2} * F(i))
+                : sigmoid(F(i));
             P(i, 0) = Scalar{1} - p_pos;
             P(i, 1) = p_pos;
         }

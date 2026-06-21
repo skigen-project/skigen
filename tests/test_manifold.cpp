@@ -186,6 +186,22 @@ void test_lle_modified_method() {
     ASSERT_TRUE(!has_nan);
 }
 
+void test_lle_hessian_and_ltsa_methods() {
+    auto X = make_blobs(30);
+    for (const char* method : {"hessian", "ltsa"}) {
+        Skigen::LocallyLinearEmbedding<double> lle(2, 8, 1e-3, 100, 1e-6, method);
+        auto Y = lle.fit_transform(X);
+        ASSERT_TRUE(Y.rows() == 30);
+        ASSERT_TRUE(Y.cols() == 2);
+        ASSERT_TRUE(lle.method() == method);
+        bool has_nan = false;
+        for (int i = 0; i < Y.rows(); ++i)
+            for (int j = 0; j < Y.cols(); ++j)
+                if (std::isnan(Y(i, j))) has_nan = true;
+        ASSERT_TRUE(!has_nan);
+    }
+}
+
 void test_lle_invalid_method_and_neighbors() {
     auto X = make_blobs(12);
     bool threw = false;
@@ -196,6 +212,12 @@ void test_lle_invalid_method_and_neighbors() {
     threw = false;
     // modified LLE requires n_neighbors > n_components.
     try { Skigen::LocallyLinearEmbedding<double>(2, 2, 1e-3, 100, 1e-6, "modified").fit(X); }
+    catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+
+    threw = false;
+    // hessian LLE requires n_neighbors >= 1 + d + d(d+1)/2 = 6 for d=2.
+    try { Skigen::LocallyLinearEmbedding<double>(2, 4, 1e-3, 100, 1e-6, "hessian").fit(X); }
     catch (const std::invalid_argument&) { threw = true; }
     ASSERT_TRUE(threw);
 }
@@ -271,6 +293,7 @@ int main() {
     std::cout << "\n=== LLE Tests ===\n";
     run_test("lle_basic", test_lle_basic);
     run_test("lle_modified_method", test_lle_modified_method);
+    run_test("lle_hessian_and_ltsa_methods", test_lle_hessian_and_ltsa_methods);
     run_test("lle_invalid_method_and_neighbors", test_lle_invalid_method_and_neighbors);
 
     std::cout << "\n=== SpectralEmbedding Tests ===\n";

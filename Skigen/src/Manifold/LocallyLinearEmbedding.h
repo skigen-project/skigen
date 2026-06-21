@@ -9,6 +9,8 @@
 
 #include <Eigen/Core>
 #include <Eigen/Eigenvalues>
+#include <Eigen/QR>
+#include <Eigen/SVD>
 #include <algorithm>
 #include <cmath>
 #include <numeric>
@@ -60,10 +62,10 @@ namespace Skigen {
 ///
 /// ### Limitations relative to scikit-learn
 ///
-/// The `standard` and `modified` LLE methods are implemented. The
-/// following scikit-learn parameters are not supported: `method`
-/// (`"hessian"` and `"ltsa"`), `eigen_solver`, `hessian_tol`,
-/// `modified_tol`, `neighbors_algorithm`, `n_jobs`.
+/// The `standard`, `modified`, `hessian`, and `ltsa` LLE methods are
+/// implemented. The following scikit-learn parameters are not supported:
+/// `eigen_solver`, `hessian_tol`, `modified_tol`, `neighbors_algorithm`,
+/// `n_jobs`.
 ///
 /// ### Examples
 ///
@@ -153,15 +155,25 @@ public:
                 ") must be less than n_samples (" +
                 std::to_string(n) + ").");
         }
-        if (method_ != "standard" && method_ != "modified") {
+        if (method_ != "standard" && method_ != "modified" &&
+            method_ != "hessian" && method_ != "ltsa") {
             throw std::invalid_argument(
-                "LocallyLinearEmbedding: method must be 'standard' or "
-                "'modified'.");
+                "LocallyLinearEmbedding: method must be 'standard', "
+                "'modified', 'hessian', or 'ltsa'.");
         }
-        if (method_ == "modified" && K <= static_cast<Eigen::Index>(n_components_)) {
+        const Eigen::Index d = static_cast<Eigen::Index>(n_components_);
+        if ((method_ == "modified" || method_ == "ltsa") && K <= d) {
             throw std::invalid_argument(
-                "LocallyLinearEmbedding: modified LLE requires n_neighbors > "
-                "n_components.");
+                "LocallyLinearEmbedding: " + method_ +
+                " LLE requires n_neighbors > n_components.");
+        }
+        if (method_ == "hessian") {
+            const Eigen::Index hessian_min = 1 + d + d * (d + 1) / 2;
+            if (K < hessian_min) {
+                throw std::invalid_argument(
+                    "LocallyLinearEmbedding: hessian LLE requires n_neighbors "
+                    ">= 1 + n_components + n_components*(n_components+1)/2.");
+            }
         }
 
         // --- Step 1: Pairwise distances and K nearest neighbors ---
@@ -172,9 +184,16 @@ public:
         find_k_nearest(D, neighbors, n, K);
 
         // --- Steps 2-3: build the alignment matrix M ---
-        MatrixType M = method_ == "modified"
-            ? build_modified_alignment(X, neighbors, n, K)
-            : build_standard_alignment(X, neighbors, n, K);
+        MatrixType M;
+        if (method_ == "modified") {
+            M = build_modified_alignment(X, neighbors, n, K);
+        } else if (method_ == "hessian") {
+            M = build_hessian_alignment(X, neighbors, n, K);
+        } else if (method_ == "ltsa") {
+            M = build_ltsa_alignment(X, neighbors, n, K);
+        } else {
+            M = build_standard_alignment(X, neighbors, n, K);
+        }
 
         // Symmetrise M to guard against floating-point asymmetry.
         M = (M + M.transpose()) / Scalar{2};
@@ -282,6 +301,104 @@ private:
                     for (Eigen::Index b = 0; b < K; ++b) {
                         M(neighbors(i, a), neighbors(i, b)) += v(a) * v(b);
                     }
+                }
+            }
+        }
+        return M;
+    }
+
+    /// @brief Build the LTSA (Local Tangent Space Alignment) matrix.
+    ///
+    /// For each neighborhood, the local tangent space is estimated by PCA on
+    /// the centred neighbor coordinates; the alignment projector onto the
+    /// complement of {constant vector ∪ tangent space} is accumulated into M.
+    [[nodiscard]] MatrixType build_ltsa_alignment(
+        const Eigen::Ref<const MatrixType>& X,
+        const Eigen::Matrix<Eigen::Index, Eigen::Dynamic, Eigen::Dynamic>&
+            neighbors,
+        Eigen::Index n,
+        Eigen::Index K) const {
+        const Eigen::Index d = static_cast<Eigen::Index>(n_components_);
+        MatrixType M = MatrixType::Zero(n, n);
+        const MatrixType id_K = MatrixType::Identity(K, K);
+        const Scalar inv_K = Scalar{1} / static_cast<Scalar>(K);
+
+        for (Eigen::Index i = 0; i < n; ++i) {
+            MatrixType Z(K, X.cols());
+            for (Eigen::Index k = 0; k < K; ++k) {
+                Z.row(k) = X.row(neighbors(i, k));
+            }
+            // Centre on the neighborhood centroid.
+            const RowVectorType mean = Z.colwise().mean();
+            Z.rowwise() -= mean;
+
+            // Local tangent directions: top-d right singular vectors of Z.
+            Eigen::JacobiSVD<MatrixType> svd(Z, Eigen::ComputeThinU);
+            MatrixType U = svd.matrixU().leftCols(d);  // (K x d) tangent coords
+
+            // Local alignment G = I - 1 1^T / K - U U^T.
+            MatrixType G = id_K;
+            G.array() -= inv_K;
+            G.noalias() -= U * U.transpose();
+
+            for (Eigen::Index a = 0; a < K; ++a) {
+                for (Eigen::Index b = 0; b < K; ++b) {
+                    M(neighbors(i, a), neighbors(i, b)) += G(a, b);
+                }
+            }
+        }
+        return M;
+    }
+
+    /// @brief Build the Hessian LLE (HLLE) alignment matrix.
+    ///
+    /// Each neighborhood contributes the null space of a local Hessian
+    /// estimator built from a constant + linear + quadratic polynomial basis
+    /// over the local tangent coordinates.
+    [[nodiscard]] MatrixType build_hessian_alignment(
+        const Eigen::Ref<const MatrixType>& X,
+        const Eigen::Matrix<Eigen::Index, Eigen::Dynamic, Eigen::Dynamic>&
+            neighbors,
+        Eigen::Index n,
+        Eigen::Index K) const {
+        const Eigen::Index d = static_cast<Eigen::Index>(n_components_);
+        const Eigen::Index dp = d * (d + 1) / 2;  // quadratic basis size
+        const Eigen::Index basis = 1 + d + dp;
+        MatrixType M = MatrixType::Zero(n, n);
+
+        for (Eigen::Index i = 0; i < n; ++i) {
+            MatrixType Z(K, X.cols());
+            for (Eigen::Index k = 0; k < K; ++k) {
+                Z.row(k) = X.row(neighbors(i, k));
+            }
+            const RowVectorType mean = Z.colwise().mean();
+            Z.rowwise() -= mean;
+
+            Eigen::JacobiSVD<MatrixType> svd(Z, Eigen::ComputeThinU);
+            MatrixType U = svd.matrixU().leftCols(d);  // (K x d) tangent coords
+
+            // Polynomial basis Phi (K x basis): [1 | U | quadratic cross-terms].
+            MatrixType Phi(K, basis);
+            Phi.col(0).setOnes();
+            Phi.middleCols(1, d) = U;
+            Eigen::Index col = 1 + d;
+            for (Eigen::Index p = 0; p < d; ++p) {
+                for (Eigen::Index q = p; q < d; ++q) {
+                    Phi.col(col++) =
+                        U.col(p).cwiseProduct(U.col(q));
+                }
+            }
+
+            // Orthonormalise Phi (Gram-Schmidt via thin QR); the last dp
+            // columns form the local Hessian estimator H.
+            Eigen::HouseholderQR<MatrixType> qr(Phi);
+            MatrixType Q = qr.householderQ() * MatrixType::Identity(K, basis);
+            MatrixType H = Q.rightCols(dp);
+
+            MatrixType local = H * H.transpose();
+            for (Eigen::Index a = 0; a < K; ++a) {
+                for (Eigen::Index b = 0; b < K; ++b) {
+                    M(neighbors(i, a), neighbors(i, b)) += local(a, b);
                 }
             }
         }

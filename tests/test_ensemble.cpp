@@ -581,12 +581,41 @@ void test_gbr_quantile_invalid_alpha_throws() {
     ASSERT_TRUE(threw);
 }
 
-void test_gbr_subsample_below_one_throws() {
+void test_gbr_stochastic_subsample_fits_and_is_deterministic() {
+    using GBR = Skigen::GradientBoostingRegressor<double>;
+    constexpr int n = 120;
+    Eigen::MatrixXd X(n, 1);
+    Eigen::VectorXd y(n);
+    std::mt19937_64 rng(3);
+    std::normal_distribution<double> noise(0.0, 0.1);
+    for (int i = 0; i < n; ++i) {
+        X(i, 0) = static_cast<double>(i) / n;
+        y(i) = 2.0 * X(i, 0) + noise(rng);
+    }
+    GBR a(GBR::Loss::SquaredError, 0.1, 80, /*subsample=*/0.6,
+          GBR::CriterionGB::FriedmanMSE, 2, 1, 0.0, 3, 0.0,
+          std::optional<uint64_t>(42));
+    GBR b(GBR::Loss::SquaredError, 0.1, 80, /*subsample=*/0.6,
+          GBR::CriterionGB::FriedmanMSE, 2, 1, 0.0, 3, 0.0,
+          std::optional<uint64_t>(42));
+    a.fit(X, y);
+    b.fit(X, y);
+    ASSERT_TRUE(a.score(X, y) > 0.9);
+    // Same seed -> identical stochastic subsampling -> identical predictions.
+    const Eigen::VectorXd pa = a.predict(X);
+    const Eigen::VectorXd pb = b.predict(X);
+    double max_diff = 0.0;
+    for (int i = 0; i < pa.size(); ++i) {
+        max_diff = std::max(max_diff, std::abs(pa(i) - pb(i)));
+    }
+    ASSERT_TRUE(max_diff < 1e-12);
+}
+
+void test_gbr_invalid_subsample_throws() {
+    using GBR = Skigen::GradientBoostingRegressor<double>;
     bool threw = false;
     try {
-        Skigen::GradientBoostingRegressor<double> gb(
-            Skigen::GradientBoostingRegressor<double>::Loss::SquaredError,
-            0.1, 100, /*subsample=*/0.5);
+        GBR gb(GBR::Loss::SquaredError, 0.1, 100, /*subsample=*/0.0);
         (void)gb;
     } catch (const std::invalid_argument&) { threw = true; }
     ASSERT_TRUE(threw);
@@ -708,14 +737,45 @@ void test_gbc_multiclass_throws() {
     ASSERT_TRUE(threw);
 }
 
-void test_gbc_unsupported_loss_throws() {
-    bool threw = false;
-    try {
-        Skigen::GradientBoostingClassifier<double> gb(
-            Skigen::GradientBoostingClassifier<double>::Loss::Exponential);
-        (void)gb;
-    } catch (const std::invalid_argument&) { threw = true; }
-    ASSERT_TRUE(threw);
+void test_gbc_exponential_loss_high_accuracy() {
+    using GBC = Skigen::GradientBoostingClassifier<double>;
+    constexpr int n = 200;
+    Eigen::MatrixXd X(n, 2);
+    Eigen::VectorXi y(n);
+    std::mt19937_64 rng(13);
+    std::normal_distribution<double> ns(0.0, 0.5);
+    for (int i = 0; i < n; ++i) {
+        const double cls = (i < n / 2) ? -1.0 : 1.0;
+        X(i, 0) = cls + ns(rng);
+        X(i, 1) = cls + ns(rng);
+        y(i)    = (cls > 0) ? 1 : 0;
+    }
+    GBC gb(GBC::Loss::Exponential, 0.1, 100);
+    gb.fit(X, y);
+    auto preds = gb.predict(X);
+    int correct = 0;
+    for (int i = 0; i < n; ++i) if (preds(i) == y(i)) ++correct;
+    ASSERT_TRUE(static_cast<double>(correct) / n > 0.95);
+
+    const Eigen::MatrixXd proba = gb.predict_proba(X);
+    for (int i = 0; i < n; ++i) {
+        ASSERT_NEAR(proba(i, 0) + proba(i, 1), 1.0, 1e-12);
+    }
+    // Exponential train loss should decrease over the boosting iterations.
+    ASSERT_TRUE(gb.train_score()(gb.train_score().size() - 1) <
+                gb.train_score()(0));
+}
+
+void test_gbc_exponential_init_half_log_odds() {
+    using GBC = Skigen::GradientBoostingClassifier<double>;
+    Eigen::MatrixXd X(10, 1);
+    Eigen::VectorXi y(10);
+    for (int i = 0; i < 10; ++i) { X(i, 0) = i; y(i) = (i < 3) ? 1 : 0; }
+    GBC gb(GBC::Loss::Exponential, 0.1, 5);
+    gb.fit(X, y);
+    const double p = 0.3;
+    const double expected = 0.5 * std::log(p / (1.0 - p));
+    ASSERT_NEAR(gb.init(), expected, 1e-9);
 }
 
 // ---------------------------------------------------------------------------
@@ -922,7 +982,9 @@ int main() {
     run_test("gbr_absolute_error_recovers_signal",  test_gbr_absolute_error_recovers_signal);
     run_test("gbr_quantile_loss_tracks_quantile",   test_gbr_quantile_loss_tracks_quantile);
     run_test("gbr_quantile_invalid_alpha_throws",   test_gbr_quantile_invalid_alpha_throws);
-    run_test("gbr_subsample_below_one_throws",      test_gbr_subsample_below_one_throws);
+    run_test("gbr_stochastic_subsample_fits_and_is_deterministic",
+             test_gbr_stochastic_subsample_fits_and_is_deterministic);
+    run_test("gbr_invalid_subsample_throws",        test_gbr_invalid_subsample_throws);
     run_test("gbr_not_fitted_throws",               test_gbr_not_fitted_throws);
 
     std::cout << "\n=== GradientBoostingClassifier Tests ===\n";
@@ -932,7 +994,8 @@ int main() {
     run_test("gbc_train_score_decreases",                     test_gbc_train_score_decreases);
     run_test("gbc_classes_recorded",                          test_gbc_classes_recorded);
     run_test("gbc_multiclass_throws",                         test_gbc_multiclass_throws);
-    run_test("gbc_unsupported_loss_throws",                   test_gbc_unsupported_loss_throws);
+    run_test("gbc_exponential_loss_high_accuracy",            test_gbc_exponential_loss_high_accuracy);
+    run_test("gbc_exponential_init_half_log_odds",            test_gbc_exponential_init_half_log_odds);
 
     std::cout << "\n=== HistGradientBoostingRegressor Tests ===\n";
     run_test("hgbr_recovers_linear_signal",       test_hgbr_recovers_linear_signal);
