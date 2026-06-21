@@ -31,6 +31,7 @@ struct TreeNode {
     Scalar threshold{0};
     int prediction_class = -1;   // for classifier
     Scalar prediction_value{0};  // for regressor
+    Eigen::Matrix<Scalar, Eigen::Dynamic, 1> prediction_vector;  // for multi-output regressor
     // For classifier: per-class sample counts at this leaf (length == n_classes_).
     std::vector<Scalar> class_counts;
     // Number of (training) samples seen at this node.
@@ -82,8 +83,7 @@ inline int compute_max_features_eff(int mode, double value, int n_features) {
 /// simple decision rules inferred from the data features.
 /// Uses Gini impurity as the splitting criterion.
 ///
-/// Mirrors
-/// [sklearn.tree.DecisionTreeClassifier](https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html).
+/// Mirrors `sklearn.tree.DecisionTreeClassifier`.
 ///
 /// ### Parameters (constructor)
 ///
@@ -451,8 +451,7 @@ private:
 /// Uses MSE (Mean Squared Error) reduction as the splitting criterion.
 /// The prediction for a leaf node is the mean of the target values.
 ///
-/// Mirrors
-/// [sklearn.tree.DecisionTreeRegressor](https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeRegressor.html).
+/// Mirrors `sklearn.tree.DecisionTreeRegressor`.
 template <typename Scalar = double>
 class DecisionTreeRegressor
     : public Predictor<DecisionTreeRegressor<Scalar>, Scalar> {
@@ -587,13 +586,9 @@ public:
 
     /// @brief Fit on a multi-target response matrix Y (n_samples × n_targets).
     ///
-    /// Implementation: fits **one independent DecisionTreeRegressor per
-    /// target column**. This deviates from sklearn's
-    /// `DecisionTreeRegressor`, which fits a *single* tree whose split
-    /// criterion is the sum-of-squared-errors aggregated across all
-    /// targets. The independent-tree approach matches sklearn's output
-    /// only when the targets are uncorrelated; for correlated targets the
-    /// per-tree splits will diverge from sklearn's joint splits.
+    /// Implementation: fits one shared tree whose split criterion is the
+    /// sum of target variances across all output columns, matching sklearn's
+    /// joint multi-output tree structure.
     ///
     /// The single-target API (`fit(X, y)` / `predict(X)`) is unchanged;
     /// after `fit_multi`, the first target column's tree backs
@@ -612,38 +607,23 @@ public:
                 "fit_multi: Y must have at least 1 target column.");
         }
         this->n_features_in_ = X.cols();
-        const Eigen::Index t = Y.cols();
-
         per_target_trees_.clear();
-        per_target_trees_.reserve(static_cast<std::size_t>(t));
-        for (Eigen::Index k = 0; k < t; ++k) {
-            DecisionTreeRegressor<Scalar> tree(
-                max_depth_, min_samples_split_,
-                max_features_mode_, max_features_value_,
-                random_state_.has_value()
-                    ? std::optional<uint64_t>(
-                          *random_state_ ^ static_cast<uint64_t>(k))
-                    : std::nullopt);
-            VectorType yk = Y.col(k);
-            tree.fit(X, yk);
-            per_target_trees_.push_back(std::move(tree));
-        }
-        n_targets_ = static_cast<int>(t);
+        n_targets_ = static_cast<int>(Y.cols());
 
-        // Mirror first target into the single-target state by re-fitting
-        // the primary tree on Y.col(0). Avoids an extra fit by reusing the
-        // already-fitted per_target_trees_[0]'s root via swap.
-        root_ = std::move(per_target_trees_[0].root_);
-        feature_importances_ = per_target_trees_[0].feature_importances_;
-        total_weight_ = per_target_trees_[0].total_weight_;
-        // Re-fit the slot in per_target_trees_[0] so it has its own tree
-        // (we just stole its root).
-        VectorType y0 = Y.col(0);
-        per_target_trees_[0] = DecisionTreeRegressor<Scalar>(
-            max_depth_, min_samples_split_,
-            max_features_mode_, max_features_value_,
-            random_state_);
-        per_target_trees_[0].fit(X, y0);
+        std::vector<Eigen::Index> indices(static_cast<std::size_t>(X.rows()));
+        std::iota(indices.begin(), indices.end(), Eigen::Index{0});
+        feature_importances_ = RowVectorType::Zero(X.cols());
+        total_weight_ = static_cast<Scalar>(indices.size());
+        if (random_state_.has_value()) rng_ = std::mt19937_64(*random_state_);
+        else {
+            std::random_device rd;
+            rng_ = std::mt19937_64(static_cast<uint64_t>(rd()));
+        }
+
+        root_ = build_multi_tree(X, Y, indices, 0);
+
+        Scalar s = feature_importances_.sum();
+        if (s > Scalar{0}) feature_importances_ /= s;
 
         this->fitted_ = true;
         return *this;
@@ -654,24 +634,23 @@ public:
         const Eigen::Ref<const MatrixType>& X) const {
         this->check_is_fitted();
         this->validate_feature_count(X);
-        if (per_target_trees_.empty()) {
+        if (n_targets_ == 1) {
             // Single-target fit was used; produce a 1-column matrix.
             VectorType y = predict_impl(X);
             MatrixType out(y.size(), 1);
             out.col(0) = y;
             return out;
         }
-        const Eigen::Index t = per_target_trees_.size();
-        MatrixType out(X.rows(), t);
-        for (Eigen::Index k = 0; k < t; ++k) {
-            out.col(k) = per_target_trees_[k].predict(X);
+        MatrixType out(X.rows(), n_targets_);
+        for (Eigen::Index i = 0; i < X.rows(); ++i) {
+            out.row(i) = predict_multi_one(root_.get(), X.row(i)).transpose();
         }
         return out;
     }
 
     [[nodiscard]] int n_targets() const {
         this->check_is_fitted();
-        return per_target_trees_.empty() ? 1 : n_targets_;
+        return n_targets_;
     }
 
     SKIGEN_PARAMS(
@@ -693,8 +672,8 @@ private:
 
     std::unique_ptr<internal::TreeNode<Scalar>> root_;
 
-    // Multi-target storage: one independent tree per target column. Empty
-    // when fit() (single-target) was used.
+    // Retained for ABI-local compatibility with older in-development code;
+    // fit_multi now uses the shared root_ tree for all target columns.
     std::vector<DecisionTreeRegressor<Scalar>> per_target_trees_;
     int n_targets_ = 1;
 
@@ -827,13 +806,145 @@ private:
                 static_cast<Scalar>(right.size()) * mse(y, right)) / n;
     }
 
+    static Scalar multi_mse(const Eigen::Ref<const MatrixType>& Y,
+                            const std::vector<Eigen::Index>& indices) {
+        VectorType mean = VectorType::Zero(Y.cols());
+        for (auto idx : indices) mean += Y.row(idx).transpose();
+        mean /= static_cast<Scalar>(indices.size());
+
+        Scalar s{0};
+        for (auto idx : indices) {
+            s += (Y.row(idx).transpose() - mean).squaredNorm();
+        }
+        return s / static_cast<Scalar>(indices.size());
+    }
+
+    static Scalar weighted_multi_mse(const Eigen::Ref<const MatrixType>& Y,
+                                     const std::vector<Eigen::Index>& left,
+                                     const std::vector<Eigen::Index>& right) {
+        Scalar n = static_cast<Scalar>(left.size() + right.size());
+        return (static_cast<Scalar>(left.size()) * multi_mse(Y, left) +
+                static_cast<Scalar>(right.size()) * multi_mse(Y, right)) / n;
+    }
+
+    std::unique_ptr<Node> build_multi_tree(
+        const Eigen::Ref<const MatrixType>& X,
+        const Eigen::Ref<const MatrixType>& Y,
+        const std::vector<Eigen::Index>& indices,
+        int depth) {
+
+        auto node = std::make_unique<Node>();
+        const auto n = static_cast<int>(indices.size());
+
+        VectorType mean = VectorType::Zero(Y.cols());
+        for (auto idx : indices) mean += Y.row(idx).transpose();
+        mean /= static_cast<Scalar>(n);
+
+        Scalar mse_node{0};
+        for (auto idx : indices) {
+            mse_node += (Y.row(idx).transpose() - mean).squaredNorm();
+        }
+        mse_node /= static_cast<Scalar>(n);
+
+        node->n_node_samples = static_cast<Scalar>(n);
+        node->impurity = mse_node;
+        node->prediction_value = mean(0);
+        node->prediction_vector = mean;
+
+        if (n < min_samples_split_ ||
+            (max_depth_ >= 0 && depth >= max_depth_) ||
+            mse_node == Scalar{0}) {
+            node->is_leaf = true;
+            return node;
+        }
+
+        const Eigen::Index n_features = X.cols();
+        const int max_feat = internal::compute_max_features_eff(
+            max_features_mode_, max_features_value_, static_cast<int>(n_features));
+
+        std::vector<Eigen::Index> feat_pool(static_cast<std::size_t>(n_features));
+        std::iota(feat_pool.begin(), feat_pool.end(), Eigen::Index{0});
+        for (int i = 0; i < max_feat && i < static_cast<int>(feat_pool.size()); ++i) {
+            std::uniform_int_distribution<int> dist(i, static_cast<int>(feat_pool.size()) - 1);
+            int j = dist(rng_);
+            std::swap(feat_pool[static_cast<std::size_t>(i)], feat_pool[static_cast<std::size_t>(j)]);
+        }
+
+        Scalar best_mse = std::numeric_limits<Scalar>::max();
+        Eigen::Index best_feature = -1;
+        Scalar best_threshold{0};
+        std::vector<Eigen::Index> best_left, best_right;
+        bool found = false;
+
+        for (int fi = 0; fi < max_feat; ++fi) {
+            Eigen::Index f = feat_pool[static_cast<std::size_t>(fi)];
+            std::vector<Scalar> values;
+            values.reserve(indices.size());
+            for (auto idx : indices) values.push_back(X(idx, f));
+            std::sort(values.begin(), values.end());
+            values.erase(std::unique(values.begin(), values.end()), values.end());
+
+            for (std::size_t t = 0; t + 1 < values.size(); ++t) {
+                Scalar thresh = (values[t] + values[t + 1]) / Scalar{2};
+                std::vector<Eigen::Index> left_idx, right_idx;
+                for (auto idx : indices) {
+                    if (X(idx, f) <= thresh) left_idx.push_back(idx);
+                    else right_idx.push_back(idx);
+                }
+                if (left_idx.empty() || right_idx.empty()) continue;
+
+                Scalar split_mse = weighted_multi_mse(Y, left_idx, right_idx);
+                if (split_mse < best_mse) {
+                    best_mse = split_mse;
+                    best_feature = f;
+                    best_threshold = thresh;
+                    best_left = std::move(left_idx);
+                    best_right = std::move(right_idx);
+                    found = true;
+                }
+            }
+        }
+
+        if (!found) {
+            node->is_leaf = true;
+            return node;
+        }
+
+        node->feature_index = best_feature;
+        node->threshold = best_threshold;
+        Scalar dec = node->impurity - best_mse;
+        if (dec < Scalar{0}) dec = Scalar{0};
+        node->impurity_decrease = dec;
+        if (total_weight_ > Scalar{0}) {
+            feature_importances_(best_feature) +=
+                (static_cast<Scalar>(n) / total_weight_) * node->impurity_decrease;
+        }
+
+        node->left = build_multi_tree(X, Y, best_left, depth + 1);
+        node->right = build_multi_tree(X, Y, best_right, depth + 1);
+        return node;
+    }
+
     template <typename RowExpr>
     static Scalar predict_one(const Node* node, const RowExpr& x) {
-        if (node->is_leaf) return node->prediction_value;
+        if (node->is_leaf) {
+            return node->prediction_vector.size() > 0
+                ? node->prediction_vector(0)
+                : node->prediction_value;
+        }
         if (x(node->feature_index) <= node->threshold) {
             return predict_one(node->left.get(), x);
         }
         return predict_one(node->right.get(), x);
+    }
+
+    template <typename RowExpr>
+    static const VectorType& predict_multi_one(const Node* node, const RowExpr& x) {
+        if (node->is_leaf) return node->prediction_vector;
+        if (x(node->feature_index) <= node->threshold) {
+            return predict_multi_one(node->left.get(), x);
+        }
+        return predict_multi_one(node->right.get(), x);
     }
 };
 

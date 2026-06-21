@@ -219,6 +219,29 @@ void test_dtr_single_target_API_after_fit_multi_consistent() {
     }
 }
 
+void test_dtr_multi_target_uses_shared_split() {
+    Eigen::MatrixXd X(6, 1);
+    X << 0, 1, 2, 3, 4, 5;
+    Eigen::MatrixXd Y(6, 2);
+    Y.col(0) << 0, 0, 0, 10, 10, 10;
+    Y.col(1) << 0, 10, 10, 10, 10, 10;
+
+    Skigen::DecisionTreeRegressor<double> dt(/*max_depth=*/1, 2,
+                                             0, 0.0,
+                                             std::optional<uint64_t>(3));
+    dt.fit_multi(X, Y);
+    Eigen::MatrixXd Yp = dt.predict_multi(X);
+
+    ASSERT_TRUE(Yp.rows() == 6);
+    ASSERT_TRUE(Yp.cols() == 2);
+    ASSERT_NEAR(Yp(0, 0), 0.0, 1e-12);
+    ASSERT_NEAR(Yp(3, 0), 10.0, 1e-12);
+    ASSERT_NEAR(Yp(0, 1), Yp(1, 1), 1e-12);
+    ASSERT_NEAR(Yp(1, 1), Yp(2, 1), 1e-12);
+    ASSERT_NEAR(Yp(0, 1), 20.0 / 3.0, 1e-12);
+    ASSERT_NEAR(Yp(3, 1), 10.0, 1e-12);
+}
+
 void test_dtr_predict_multi_after_single_target_fit() {
     Eigen::MatrixXd X(4, 1); X << 0, 1, 2, 3;
     Eigen::VectorXd y(4); y << 0.0, 2.0, 4.0, 6.0;
@@ -311,6 +334,8 @@ int main() {
              test_dtr_multi_target_recovers_two_outputs);
     run_test("dtr_single_target_API_after_fit_multi_consistent",
              test_dtr_single_target_API_after_fit_multi_consistent);
+    run_test("dtr_multi_target_uses_shared_split",
+             test_dtr_multi_target_uses_shared_split);
     run_test("dtr_predict_multi_after_single_target_fit",
              test_dtr_predict_multi_after_single_target_fit);
     run_test("dtr_multi_target_dim_mismatch_throws",
