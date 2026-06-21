@@ -1,0 +1,57 @@
+---
+sidebar_position: 32
+title: DBSCAN
+---
+
+# DBSCAN
+
+DBSCAN finds density-connected regions without requiring the number of clusters in advance. Samples that are not reachable from a core sample are labelled `-1` as noise.
+
+Mirrors [`sklearn.cluster.DBSCAN`](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.DBSCAN.html) for dense, brute-force Euclidean and Manhattan distances.
+
+## Constructor
+
+```cpp
+Skigen::DBSCAN<Scalar> model(Scalar eps = 0.5,
+                             int min_samples = 5,
+                             std::string metric = "euclidean");
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `eps` | `0.5` | Maximum radius for neighbourhood membership. |
+| `min_samples` | `5` | Minimum number of samples in an eps-neighbourhood for a core sample, including the sample itself. |
+| `metric` | `"euclidean"` | Distance metric: `"euclidean"`, `"l2"`, `"manhattan"`, or `"l1"`. |
+
+## Methods
+
+| Method | Description |
+|--------|-------------|
+| `fit(X)` | Fit density-connected clusters. |
+| `fit_predict(X)` | Fit and return labels for the training samples. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|----------|-------------|
+| `labels()` | Cluster label for each training sample; `-1` marks noise. |
+| `core_sample_indices()` | Indices of core samples. |
+| `components()` | Dense rows corresponding to core samples. |
+
+## Example
+
+```cpp
+//! [example_dbscan]
+Skigen::DBSCAN<double> dbscan(/*eps=*/0.45, /*min_samples=*/4);
+const Eigen::VectorXi labels = dbscan.fit_predict(X);
+
+std::cout << "DBSCAN labels: " << labels.transpose() << "\n";
+std::cout << "Core samples:  " << dbscan.core_sample_indices().size() << "\n";
+std::cout << "Components:    " << dbscan.components().rows() << " x "
+          << dbscan.components().cols() << "\n";
+//! [example_dbscan]
+```
+
+## Current Scope
+
+The implementation is intentionally brute-force and deterministic. It does not yet expose sklearn's `algorithm`, `leaf_size`, `p`, `sample_weight`, sparse precomputed distances, or parallel execution knobs.

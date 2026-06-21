@@ -482,6 +482,50 @@
       "sidebar_position": 2
     },
     {
+      "name": "DBSCAN",
+      "module": "Cluster",
+      "documented": true,
+      "guide": "/docs/guide/dbscan",
+      "sklearn": "sklearn.cluster.DBSCAN",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.cluster.DBSCAN.html",
+      "example": "examples/cluster/dbscan.cpp",
+      "example_snippet": "example_dbscan",
+      "sidebar_position": 3
+    },
+    {
+      "name": "AgglomerativeClustering",
+      "module": "Cluster",
+      "documented": true,
+      "guide": "/docs/guide/agglomerative-clustering",
+      "sklearn": "sklearn.cluster.AgglomerativeClustering",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.cluster.AgglomerativeClustering.html",
+      "example": "examples/cluster/agglomerative_clustering.cpp",
+      "example_snippet": "example_agglomerative_clustering",
+      "sidebar_position": 4
+    },
+    {
+      "name": "MeanShift",
+      "module": "Cluster",
+      "documented": true,
+      "guide": "/docs/guide/mean-shift",
+      "sklearn": "sklearn.cluster.MeanShift",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.cluster.MeanShift.html",
+      "example": "examples/cluster/mean_shift.cpp",
+      "example_snippet": "example_mean_shift",
+      "sidebar_position": 5
+    },
+    {
+      "name": "Birch",
+      "module": "Cluster",
+      "documented": true,
+      "guide": "/docs/guide/birch",
+      "sklearn": "sklearn.cluster.Birch",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.cluster.Birch.html",
+      "example": "examples/cluster/birch.cpp",
+      "example_snippet": "example_birch",
+      "sidebar_position": 6
+    },
+    {
       "name": "DecisionTreeClassifier",
       "module": "Tree",
       "documented": true,
@@ -942,10 +986,12 @@
     {
       "name": "ParameterGrid",
       "module": "ModelSelection",
-      "documented": false,
+      "documented": true,
+      "guide": "/docs/guide/parameter-grid",
       "sklearn": "sklearn.model_selection.ParameterGrid",
       "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.ParameterGrid.html",
       "example": "examples/model_selection/grid_search.cpp",
+      "example_snippet": "example_parameter_grid",
       "sidebar_position": 3
     },
     {

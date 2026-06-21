@@ -1,0 +1,47 @@
+---
+sidebar_position: 133
+title: ParameterGrid
+---
+
+# ParameterGrid
+
+`ParameterGrid` expands a map of parameter names to candidate values into the Cartesian product consumed by `GridSearchCV`.
+
+Mirrors [`sklearn.model_selection.ParameterGrid`](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.ParameterGrid.html).
+
+## Constructor
+
+```cpp
+Skigen::ParameterGrid grid(Skigen::ParameterGrid::Grid values);
+```
+
+`Grid` is a `std::map<std::string, std::vector<Skigen::ParameterValue>>`. `ParameterValue` supports `int`, `double`, `bool`, and `std::string`.
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `size()` | Number of parameter combinations. |
+| `operator[](idx)` | Return the `idx`-th parameter dictionary. |
+| `begin()`, `end()` | Iterate all parameter dictionaries. |
+| `grid()` | Return the original grid definition. |
+
+## Example
+
+```cpp
+//! [example_parameter_grid]
+Skigen::ParameterGrid grid(Skigen::ParameterGrid::Grid{
+    {"alpha", {Skigen::ParameterValue(0.01),
+               Skigen::ParameterValue(0.1),
+               Skigen::ParameterValue(1.0),
+               Skigen::ParameterValue(10.0)}}});
+//! [example_parameter_grid]
+```
+
+## Current Scope
+
+The grid is deterministic and follows the `std::map` key order. Empty candidate lists are rejected at construction time.
+
+:::tip API Reference
+For full signatures see the [ParameterGrid API Reference](/docs/api/model-selection/parameter-grid).
+:::

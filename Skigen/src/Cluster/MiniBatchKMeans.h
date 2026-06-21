@@ -193,6 +193,12 @@ public:
         return *this;
     }
 
+    /// @brief Fit mini-batch k-means and return labels for the training data.
+    [[nodiscard]] IndexVector fit_predict(const Eigen::Ref<const MatrixType>& X) {
+        fit(X);
+        return labels_;
+    }
+
     /// @brief Online update of the cluster centers from a single batch.
     ///
     /// Mirrors sklearn's `MiniBatchKMeans.partial_fit`. The first call

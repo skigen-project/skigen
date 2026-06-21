@@ -40,11 +40,13 @@ int main() {
     }
 
     Skigen::Ridge<double> base;
+    //! [example_parameter_grid]
     Skigen::ParameterGrid grid(Skigen::ParameterGrid::Grid{
         {"alpha", {Skigen::ParameterValue(0.01),
                    Skigen::ParameterValue(0.1),
                    Skigen::ParameterValue(1.0),
                    Skigen::ParameterValue(10.0)}}});
+    //! [example_parameter_grid]
 
     Skigen::GridSearchCV<Skigen::Ridge<double>> gs(base, grid, /*cv=*/5);
     gs.fit(X, y);

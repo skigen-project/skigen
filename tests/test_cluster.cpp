@@ -228,6 +228,253 @@ void test_kmeans_sparse_n_samples_too_small_throws() {
     ASSERT_THROW(km.fit(X), std::invalid_argument);
 }
 
+void test_kmeans_fit_predict_matches_labels() {
+    Eigen::MatrixXd X(4, 2);
+    X << 0, 0, 0, 1, 10, 10, 10, 11;
+
+    Skigen::KMeans<double> km(2, 100, 5, 11);
+    auto labels = km.fit_predict(X);
+
+    ASSERT_TRUE(labels.size() == km.labels().size());
+    for (int i = 0; i < labels.size(); ++i) {
+        ASSERT_TRUE(labels(i) == km.labels()(i));
+    }
+}
+
+void test_mini_batch_kmeans_fit_predict_matches_labels() {
+    Eigen::MatrixXd X(6, 2);
+    X << 0, 0,
+         0, 1,
+         1, 0,
+         10, 10,
+         10, 11,
+         11, 10;
+
+    Skigen::MiniBatchKMeans<double> mbk(2, /*batch_size=*/3, /*max_iter=*/20, /*random_state=*/3);
+    auto labels = mbk.fit_predict(X);
+
+    ASSERT_TRUE(labels.size() == mbk.labels().size());
+    for (int i = 0; i < labels.size(); ++i) {
+        ASSERT_TRUE(labels(i) == mbk.labels()(i));
+    }
+}
+
+// ===================================================================
+// DBSCAN Tests
+// ===================================================================
+
+void test_dbscan_two_clusters_with_noise() {
+    Eigen::MatrixXd X(7, 2);
+    X << 0, 0,
+         0.1, 0.0,
+         0.0, 0.1,
+         5.0, 5.0,
+         5.1, 5.0,
+         5.0, 5.1,
+         10.0, 10.0;
+
+    Skigen::DBSCAN<double> dbscan(/*eps=*/0.25, /*min_samples=*/2);
+    auto labels = dbscan.fit_predict(X);
+
+    ASSERT_TRUE(dbscan.is_fitted());
+    ASSERT_TRUE(labels(0) == labels(1));
+    ASSERT_TRUE(labels(0) == labels(2));
+    ASSERT_TRUE(labels(3) == labels(4));
+    ASSERT_TRUE(labels(3) == labels(5));
+    ASSERT_TRUE(labels(0) != labels(3));
+    ASSERT_TRUE(labels(6) == -1);
+    ASSERT_TRUE(dbscan.core_sample_indices().size() == 6);
+}
+
+void test_dbscan_manhattan_metric() {
+    Eigen::MatrixXd X(4, 2);
+    X << 0, 0,
+         0.4, 0.4,
+         3.0, 3.0,
+         3.3, 3.3;
+
+    Skigen::DBSCAN<double> dbscan(/*eps=*/0.9, /*min_samples=*/2, "manhattan");
+    auto labels = dbscan.fit_predict(X);
+    ASSERT_TRUE(labels(0) == labels(1));
+    ASSERT_TRUE(labels(2) == labels(3));
+    ASSERT_TRUE(labels(0) != labels(2));
+}
+
+void test_dbscan_invalid_parameters_throw() {
+    Eigen::MatrixXd X(2, 2);
+    X << 0, 0, 1, 1;
+    ASSERT_THROW(Skigen::DBSCAN<double>(0.0).fit(X), std::invalid_argument);
+    ASSERT_THROW(Skigen::DBSCAN<double>(0.5, 0).fit(X), std::invalid_argument);
+    ASSERT_THROW(Skigen::DBSCAN<double>(0.5, 2, "cosine").fit(X), std::invalid_argument);
+}
+
+// ===================================================================
+// AgglomerativeClustering Tests
+// ===================================================================
+
+void test_agglomerative_two_clusters() {
+    Eigen::MatrixXd X(6, 2);
+    X << 0, 0,
+         0.1, 0.0,
+         0.0, 0.1,
+         5.0, 5.0,
+         5.1, 5.0,
+         5.0, 5.1;
+
+    Skigen::AgglomerativeClustering<double> model(2, "ward");
+    auto labels = model.fit_predict(X);
+
+    ASSERT_TRUE(model.is_fitted());
+    ASSERT_TRUE(labels(0) == labels(1));
+    ASSERT_TRUE(labels(0) == labels(2));
+    ASSERT_TRUE(labels(3) == labels(4));
+    ASSERT_TRUE(labels(3) == labels(5));
+    ASSERT_TRUE(labels(0) != labels(3));
+    ASSERT_TRUE(model.children().rows() == 5);
+    ASSERT_TRUE(model.children().cols() == 2);
+}
+
+void test_agglomerative_linkage_variants() {
+    Eigen::MatrixXd X(5, 2);
+    X << 0, 0,
+         0, 1,
+         10, 10,
+         10, 11,
+         20, 0;
+
+    Skigen::AgglomerativeClustering<double> complete(3, "complete", "manhattan");
+    Skigen::AgglomerativeClustering<double> average(3, "average", "euclidean");
+    Skigen::AgglomerativeClustering<double> single(3, "single", "euclidean");
+    ASSERT_TRUE(complete.fit_predict(X).size() == 5);
+    ASSERT_TRUE(average.fit_predict(X).size() == 5);
+    ASSERT_TRUE(single.fit_predict(X).size() == 5);
+}
+
+void test_agglomerative_invalid_parameters_throw() {
+    Eigen::MatrixXd X(2, 2);
+    X << 0, 0, 1, 1;
+    ASSERT_THROW(Skigen::AgglomerativeClustering<double>(0).fit(X), std::invalid_argument);
+    ASSERT_THROW(Skigen::AgglomerativeClustering<double>(3).fit(X), std::invalid_argument);
+    ASSERT_THROW(Skigen::AgglomerativeClustering<double>(2, "centroid").fit(X), std::invalid_argument);
+    ASSERT_THROW(Skigen::AgglomerativeClustering<double>(2, "ward", "manhattan").fit(X), std::invalid_argument);
+}
+
+// ===================================================================
+// MeanShift Tests
+// ===================================================================
+
+void test_mean_shift_discovers_modes() {
+    Eigen::MatrixXd X(6, 2);
+    X << -2.0, 0.0,
+         -2.1, 0.1,
+         -1.9, -0.1,
+          2.0, 0.0,
+          2.1, 0.1,
+          1.9, -0.1;
+
+    Skigen::MeanShift<double> model(/*bandwidth=*/0.5, /*max_iter=*/100);
+    auto labels = model.fit_predict(X);
+
+    ASSERT_TRUE(model.is_fitted());
+    ASSERT_TRUE(model.cluster_centers().rows() == 2);
+    ASSERT_TRUE(labels(0) == labels(1));
+    ASSERT_TRUE(labels(0) == labels(2));
+    ASSERT_TRUE(labels(3) == labels(4));
+    ASSERT_TRUE(labels(3) == labels(5));
+    ASSERT_TRUE(labels(0) != labels(3));
+    ASSERT_TRUE(model.n_iter() > 0);
+}
+
+void test_mean_shift_predict_and_orphans() {
+    Eigen::MatrixXd X(4, 2);
+    X << 0, 0,
+         0.2, 0.0,
+         5.0, 5.0,
+         5.2, 5.0;
+
+    Skigen::MeanShift<double> model(/*bandwidth=*/0.4, /*max_iter=*/100, /*cluster_all=*/false);
+    model.fit(X);
+
+    Eigen::MatrixXd X_new(3, 2);
+    X_new << 0.1, 0.0,
+             5.1, 5.0,
+             20.0, 20.0;
+    auto labels = model.predict(X_new);
+
+    ASSERT_TRUE(labels(0) != labels(1));
+    ASSERT_TRUE(labels(2) == -1);
+}
+
+void test_mean_shift_invalid_parameters_throw() {
+    Eigen::MatrixXd X(2, 2);
+    X << 0, 0, 1, 1;
+    ASSERT_THROW(Skigen::MeanShift<double>(0.0).fit(X), std::invalid_argument);
+    ASSERT_THROW(Skigen::MeanShift<double>(1.0, 0).fit(X), std::invalid_argument);
+}
+
+// ===================================================================
+// Birch Tests
+// ===================================================================
+
+void test_birch_compresses_and_clusters() {
+    Eigen::MatrixXd X(9, 2);
+    X << -3.0, 0.0,
+         -3.1, 0.1,
+         -2.9, -0.1,
+          3.0, 0.0,
+          3.1, 0.1,
+          2.9, -0.1,
+          0.0, 4.0,
+          0.1, 4.1,
+         -0.1, 3.9;
+
+    Skigen::Birch<double> birch(/*threshold=*/0.35, /*n_clusters=*/3);
+    auto labels = birch.fit_predict(X);
+
+    ASSERT_TRUE(birch.is_fitted());
+    ASSERT_TRUE(birch.cluster_centers().rows() == 3);
+    ASSERT_TRUE(birch.subcluster_centers().rows() <= X.rows());
+    ASSERT_TRUE(labels(0) == labels(1));
+    ASSERT_TRUE(labels(0) == labels(2));
+    ASSERT_TRUE(labels(3) == labels(4));
+    ASSERT_TRUE(labels(3) == labels(5));
+    ASSERT_TRUE(labels(6) == labels(7));
+    ASSERT_TRUE(labels(6) == labels(8));
+    ASSERT_TRUE(labels(0) != labels(3));
+    ASSERT_TRUE(labels(0) != labels(6));
+    ASSERT_TRUE(labels(3) != labels(6));
+}
+
+void test_birch_predict() {
+    Eigen::MatrixXd X(6, 2);
+    X << 0, 0,
+         0.1, 0.0,
+         5.0, 5.0,
+         5.1, 5.0,
+         10.0, 0.0,
+         10.1, 0.0;
+
+    Skigen::Birch<double> birch(/*threshold=*/0.25, /*n_clusters=*/3);
+    birch.fit(X);
+
+    Eigen::MatrixXd X_new(3, 2);
+    X_new << 0.05, 0.0,
+             5.05, 5.0,
+             10.05, 0.0;
+    auto labels = birch.predict(X_new);
+
+    ASSERT_TRUE(labels(0) != labels(1));
+    ASSERT_TRUE(labels(0) != labels(2));
+    ASSERT_TRUE(labels(1) != labels(2));
+}
+
+void test_birch_invalid_parameters_throw() {
+    Eigen::MatrixXd X(2, 2);
+    X << 0, 0, 1, 1;
+    ASSERT_THROW(Skigen::Birch<double>(0.0, 2).fit(X), std::invalid_argument);
+    ASSERT_THROW(Skigen::Birch<double>(0.5, 0).fit(X), std::invalid_argument);
+}
+
 // ===================================================================
 
 int main() {
@@ -241,6 +488,28 @@ int main() {
     run_test("kmeans_sparse_inertia_matches_dense",    test_kmeans_sparse_inertia_matches_dense);
     run_test("kmeans_sparse_predict_matches_assignments", test_kmeans_sparse_predict_matches_assignments);
     run_test("kmeans_sparse_n_samples_too_small_throws", test_kmeans_sparse_n_samples_too_small_throws);
+    run_test("kmeans_fit_predict_matches_labels", test_kmeans_fit_predict_matches_labels);
+    run_test("mini_batch_kmeans_fit_predict_matches_labels", test_mini_batch_kmeans_fit_predict_matches_labels);
+
+    std::cout << "\n=== DBSCAN Tests ===\n";
+    run_test("dbscan_two_clusters_with_noise", test_dbscan_two_clusters_with_noise);
+    run_test("dbscan_manhattan_metric", test_dbscan_manhattan_metric);
+    run_test("dbscan_invalid_parameters_throw", test_dbscan_invalid_parameters_throw);
+
+    std::cout << "\n=== AgglomerativeClustering Tests ===\n";
+    run_test("agglomerative_two_clusters", test_agglomerative_two_clusters);
+    run_test("agglomerative_linkage_variants", test_agglomerative_linkage_variants);
+    run_test("agglomerative_invalid_parameters_throw", test_agglomerative_invalid_parameters_throw);
+
+    std::cout << "\n=== MeanShift Tests ===\n";
+    run_test("mean_shift_discovers_modes", test_mean_shift_discovers_modes);
+    run_test("mean_shift_predict_and_orphans", test_mean_shift_predict_and_orphans);
+    run_test("mean_shift_invalid_parameters_throw", test_mean_shift_invalid_parameters_throw);
+
+    std::cout << "\n=== Birch Tests ===\n";
+    run_test("birch_compresses_and_clusters", test_birch_compresses_and_clusters);
+    run_test("birch_predict", test_birch_predict);
+    run_test("birch_invalid_parameters_throw", test_birch_invalid_parameters_throw);
 
     std::cout << "\n" << g_passed << " passed, " << g_failed << " failed.\n";
     return g_failed > 0 ? 1 : 0;

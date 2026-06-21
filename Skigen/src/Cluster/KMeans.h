@@ -60,8 +60,7 @@ namespace Skigen {
 ///   `verbose`, `copy_x`, `algorithm` (only Lloyd).
 ///   The following sklearn fitted attributes are not exposed:
 ///   `n_features_in_`, `feature_names_in_`.
-///   The `fit_predict()`, `fit_transform()`, and `score()` methods
-///   are not implemented.
+///   The `fit_transform()` and `score()` methods are not implemented.
 ///
 /// ### Examples
 ///
@@ -361,6 +360,20 @@ public:
         IndexVector labels(X.rows());
         assign_labels(X, cluster_centers_, labels);
         return labels;
+    }
+
+    /// @brief Compute clusters and return labels for the training data.
+    [[nodiscard]] IndexVector fit_predict(const Eigen::Ref<const MatrixType>& X) {
+        fit(X);
+        return labels_;
+    }
+
+    /// @brief Sparse overload of fit_predict.
+    template <int Options, typename StorageIndex>
+    [[nodiscard]] IndexVector fit_predict(
+        const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X) {
+        fit(X);
+        return labels_;
     }
 
     /// @brief Transform X to a cluster-distance space.

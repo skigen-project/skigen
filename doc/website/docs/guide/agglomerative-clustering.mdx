@@ -1,0 +1,59 @@
+---
+sidebar_position: 33
+title: AgglomerativeClustering
+---
+
+# AgglomerativeClustering
+
+Agglomerative clustering builds a hierarchy bottom-up by repeatedly merging the closest active clusters. The fitted labels are produced by cutting the merge tree at `n_clusters` active clusters.
+
+Mirrors [`sklearn.cluster.AgglomerativeClustering`](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.AgglomerativeClustering.html) for dense, brute-force linkage on Euclidean or Manhattan distances.
+
+## Constructor
+
+```cpp
+Skigen::AgglomerativeClustering<Scalar> model(
+    int n_clusters = 2,
+    std::string linkage = "ward",
+    std::string metric = "euclidean");
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `n_clusters` | `2` | Number of clusters at which to cut the tree. |
+| `linkage` | `"ward"` | Merge criterion: `"ward"`, `"single"`, `"complete"`, or `"average"`. |
+| `metric` | `"euclidean"` | Distance metric for non-Ward linkage: `"euclidean"`, `"l2"`, `"manhattan"`, or `"l1"`. |
+
+## Methods
+
+| Method | Description |
+|--------|-------------|
+| `fit(X)` | Build the hierarchical merge tree. |
+| `fit_predict(X)` | Fit and return labels for the training samples. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|----------|-------------|
+| `labels()` | Cluster label for each training sample. |
+| `children()` | Merge tree children, shape `(n_samples - 1, 2)`. |
+| `distances()` | Distance or Ward cost stored for each merge. |
+
+## Example
+
+```cpp
+//! [example_agglomerative_clustering]
+Skigen::AgglomerativeClustering<double> model(
+    /*n_clusters=*/3, /*linkage=*/"ward", /*metric=*/"euclidean");
+const Eigen::VectorXi labels = model.fit_predict(X);
+
+std::cout << "Agglomerative labels: " << labels.transpose() << "\n";
+std::cout << "Merge tree shape:     " << model.children().rows() << " x "
+          << model.children().cols() << "\n";
+std::cout << "First merge:          " << model.children().row(0) << "\n";
+//! [example_agglomerative_clustering]
+```
+
+## Current Scope
+
+This first implementation targets medium-size dense datasets with deterministic brute-force pair selection. It does not yet implement connectivity constraints, distance thresholds, sparse input, precomputed distances, or full sklearn tree-building options.

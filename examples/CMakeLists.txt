@@ -89,6 +89,10 @@ skigen_add_example(ex_covariance          covariance/covariance.cpp)
 # ---------------------------------------------------------------------------
 skigen_add_example(ex_kmeans              cluster/kmeans.cpp)
 skigen_enable_plot(ex_kmeans              kmeans)
+skigen_add_example(ex_dbscan              cluster/dbscan.cpp)
+skigen_add_example(ex_agglomerative_clustering cluster/agglomerative_clustering.cpp)
+skigen_add_example(ex_mean_shift          cluster/mean_shift.cpp)
+skigen_add_example(ex_birch               cluster/birch.cpp)
 
 # ---------------------------------------------------------------------------
 # Neighbors examples

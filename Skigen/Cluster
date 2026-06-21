@@ -4,7 +4,11 @@
 #ifndef SKIGEN_CLUSTER
 #define SKIGEN_CLUSTER
 
+#include "src/Cluster/AgglomerativeClustering.h"
+#include "src/Cluster/Birch.h"
+#include "src/Cluster/DBSCAN.h"
 #include "src/Cluster/KMeans.h"
+#include "src/Cluster/MeanShift.h"
 #include "src/Cluster/MiniBatchKMeans.h"
 
 #endif // SKIGEN_CLUSTER

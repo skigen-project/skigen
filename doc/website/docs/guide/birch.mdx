@@ -1,0 +1,55 @@
+---
+sidebar_position: 35
+title: Birch
+---
+
+# Birch
+
+BIRCH compresses samples into clustering-feature subclusters before a final global clustering step. This is useful for larger dense datasets where repeatedly revisiting every sample is more expensive than clustering a smaller summary.
+
+Mirrors the dense core of [`sklearn.cluster.Birch`](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.Birch.html).
+
+## Constructor
+
+```cpp
+Skigen::Birch<Scalar> model(Scalar threshold = 0.5,
+                            int n_clusters = 3);
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `threshold` | `0.5` | Maximum radius allowed when absorbing a sample into an existing CF subcluster. |
+| `n_clusters` | `3` | Number of final global clusters. |
+
+## Methods
+
+| Method | Description |
+|--------|-------------|
+| `fit(X)` | Compress samples into CF subclusters and fit final centers. |
+| `fit_predict(X)` | Fit and return labels for the training samples. |
+| `predict(X)` | Assign new samples to fitted final centers. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|----------|-------------|
+| `cluster_centers()` | Final cluster centers. |
+| `subcluster_centers()` | CF subcluster centers from the compression pass. |
+| `labels()` | Cluster label for each training sample. |
+
+## Example
+
+```cpp
+//! [example_birch]
+Skigen::Birch<double> birch(/*threshold=*/0.45, /*n_clusters=*/3);
+const Eigen::VectorXi labels = birch.fit_predict(X);
+
+std::cout << "Birch labels:       " << labels.transpose() << "\n";
+std::cout << "Subcluster centers: " << birch.subcluster_centers().rows() << "\n";
+std::cout << "Cluster centers:\n" << birch.cluster_centers() << "\n";
+//! [example_birch]
+```
+
+## Current Scope
+
+This first version uses a flat CF-subcluster pass and a deterministic KMeans-style final clustering step. It does not yet implement sklearn's full branching CF tree, `branching_factor`, `partial_fit`, `compute_labels=false`, sparse input, or a custom final clustering estimator.

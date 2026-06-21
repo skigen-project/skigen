@@ -1,0 +1,57 @@
+---
+sidebar_position: 34
+title: MeanShift
+---
+
+# MeanShift
+
+MeanShift is a mode-seeking clustering algorithm. Each sample starts as a seed, repeatedly moves to the mean of nearby samples inside the bandwidth ball, and the converged seeds are merged into cluster centers.
+
+Mirrors [`sklearn.cluster.MeanShift`](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.MeanShift.html) for dense, brute-force flat-kernel clustering.
+
+## Constructor
+
+```cpp
+Skigen::MeanShift<Scalar> model(Scalar bandwidth = 1.0,
+                                int max_iter = 300,
+                                bool cluster_all = true);
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `bandwidth` | `1.0` | Radius of the flat kernel used during shifting and assignment. |
+| `max_iter` | `300` | Maximum mean-shift iterations per seed. |
+| `cluster_all` | `true` | Assign every sample to its nearest center; when false, samples outside every bandwidth ball are labelled `-1`. |
+
+## Methods
+
+| Method | Description |
+|--------|-------------|
+| `fit(X)` | Fit mean-shift cluster centers. |
+| `fit_predict(X)` | Fit and return labels for the training samples. |
+| `predict(X)` | Assign new samples to fitted cluster centers. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|----------|-------------|
+| `cluster_centers()` | Coordinates of discovered modes. |
+| `labels()` | Cluster label for each training sample. |
+| `n_iter()` | Maximum number of shift iterations used by any seed. |
+
+## Example
+
+```cpp
+//! [example_mean_shift]
+Skigen::MeanShift<double> model(/*bandwidth=*/0.8, /*max_iter=*/100);
+const Eigen::VectorXi labels = model.fit_predict(X);
+
+std::cout << "MeanShift labels:  " << labels.transpose() << "\n";
+std::cout << "Cluster centers:\n" << model.cluster_centers() << "\n";
+std::cout << "Iterations:        " << model.n_iter() << "\n";
+//! [example_mean_shift]
+```
+
+## Current Scope
+
+The implementation is deterministic and dependency-free. It does not yet implement sklearn's `estimate_bandwidth`, explicit `seeds`, `bin_seeding`, `min_bin_freq`, or parallel execution options.
