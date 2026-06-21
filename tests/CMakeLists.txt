@@ -85,6 +85,18 @@ target_compile_options(skigen_test_kernel_ridge PRIVATE ${SKIGEN_WARNING_FLAGS})
 add_test(NAME skigen_test_kernel_ridge COMMAND skigen_test_kernel_ridge)
 
 # ---------------------------------------------------------------------------
+# GaussianProcess tests (GaussianProcessRegressor)
+# ---------------------------------------------------------------------------
+add_executable(skigen_test_gaussian_process
+    test_gaussian_process.cpp
+)
+
+target_link_libraries(skigen_test_gaussian_process PRIVATE Skigen::Skigen)
+target_compile_options(skigen_test_gaussian_process PRIVATE ${SKIGEN_WARNING_FLAGS})
+
+add_test(NAME skigen_test_gaussian_process COMMAND skigen_test_gaussian_process)
+
+# ---------------------------------------------------------------------------
 # DiscriminantAnalysis tests (LDA, QDA)
 # ---------------------------------------------------------------------------
 add_executable(skigen_test_discriminant_analysis

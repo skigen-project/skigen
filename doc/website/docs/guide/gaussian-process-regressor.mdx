@@ -1,0 +1,99 @@
+---
+sidebar_position: 79
+title: GaussianProcessRegressor
+---
+
+# GaussianProcessRegressor
+
+`GaussianProcessRegressor` fits a Bayesian non-parametric regression model using a dense covariance matrix and a Cholesky solve. It provides both posterior means and uncertainty estimates.
+
+## Objective
+
+For training samples `X` and targets `y`, Skigen solves:
+
+$$
+(K(X, X) + \alpha I)a = y
+$$
+
+The posterior mean at test samples is:
+
+$$
+\hat{y}(X_*) = K(X_*, X)a
+$$
+
+Posterior covariance is computed with the Cholesky factor of the regularized Gram matrix, matching the standard Gaussian-process conditioning equations.
+
+## Kernels
+
+The first Skigen implementation supports fixed-hyperparameter dense kernels:
+
+| Kernel | Notes |
+|---|---|
+| `RBF` | Isotropic squared-exponential kernel with `length_scale`. |
+| `Matern` | Supports `nu = 0.5`, `1.5`, and `2.5`. |
+| `RationalQuadratic` | Uses `rational_quadratic_alpha`. |
+| `ExpSineSquared` | Periodic kernel with `periodicity`. |
+| `DotProduct` | Linear dot-product kernel with `sigma_0`. |
+| `White` | Diagonal noise kernel with `noise_level`. |
+| `Constant` | Constant covariance value. |
+
+For stationary kernels, `constant_value` acts as the kernel amplitude.
+
+## Constructor
+
+```cpp
+using GPR = Skigen::GaussianProcessRegressor<double>;
+GPR model(
+    kernel = GPR::Kernel::RBF,
+    alpha = 1e-10,
+    length_scale = 1.0,
+    constant_value = 1.0,
+    noise_level = 1.0,
+    nu = 1.5,
+    rational_quadratic_alpha = 1.0,
+    periodicity = 1.0,
+    sigma_0 = 1.0,
+    normalize_y = false);
+```
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Fit the dense Cholesky system. |
+| `predict(X)` | Return posterior mean predictions. |
+| `predict_std(X)` | Return posterior standard deviations. |
+| `predict_covariance(X)` | Return posterior covariance matrix. |
+| `score(X, y)` | Return $R^2$. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `X_train()` | Training samples retained for kernel prediction. |
+| `dual_coef()` | Cholesky-solved dual coefficients. |
+| `L()` | Lower Cholesky factor of `K + alpha I`. |
+| `y_train_mean()` | Mean subtracted when `normalize_y=true`. |
+| `log_marginal_likelihood_value()` | Log marginal likelihood for the fixed kernel hyperparameters. |
+
+## Example
+
+```cpp
+#include <Skigen/GaussianProcess>
+
+using GPR = Skigen::GaussianProcessRegressor<double>;
+GPR model(GPR::Kernel::RBF, 1e-6, 0.8, 1.0, 1.0, 1.5, 1.0, 1.0, 1.0, true);
+model.fit(X, y);
+Eigen::VectorXd mean = model.predict(X_test);
+Eigen::VectorXd std = model.predict_std(X_test);
+```
+
+## Parity Scope
+
+Mirrors the dense fixed-hyperparameter subset of [`sklearn.gaussian_process.GaussianProcessRegressor`](https://scikit-learn.org/stable/modules/generated/sklearn.gaussian_process.GaussianProcessRegressor.html).
+
+Hyperparameter optimization, callable/composite kernels, kernel sums/products, multi-output targets, sample weights, sparse input, and `GaussianProcessClassifier` are deferred.
+
+:::tip API Reference
+For full signatures see the [GaussianProcess API Reference](/docs/api/gaussian-process/).
+:::

@@ -17,6 +17,14 @@
       "benchmark": null,
       "plot_generation": false
     },
+    "GaussianProcess": {
+      "include": "Skigen/GaussianProcess",
+      "dir_slug": "gaussian-process",
+      "sidebar_label": "Skigen::GaussianProcess",
+      "test": "tests/test_gaussian_process.cpp",
+      "benchmark": null,
+      "plot_generation": false
+    },
     "DiscriminantAnalysis": {
       "include": "Skigen/DiscriminantAnalysis",
       "dir_slug": "discriminant-analysis",
@@ -287,6 +295,17 @@
       "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.kernel_ridge.KernelRidge.html",
       "example": "examples/kernel_ridge/kernel_ridge.cpp",
       "example_snippet": "example_kernel_ridge",
+      "sidebar_position": 1
+    },
+    {
+      "name": "GaussianProcessRegressor",
+      "module": "GaussianProcess",
+      "documented": true,
+      "guide": "/docs/guide/gaussian-process-regressor",
+      "sklearn": "sklearn.gaussian_process.GaussianProcessRegressor",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.gaussian_process.GaussianProcessRegressor.html",
+      "example": "examples/gaussian_process/gaussian_process_regressor.cpp",
+      "example_snippet": "example_gaussian_process_regressor",
       "sidebar_position": 1
     },
     {

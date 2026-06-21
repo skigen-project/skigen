@@ -63,6 +63,11 @@ skigen_add_example(ex_ard_regression      linear_model/ard_regression.cpp)
 skigen_add_example(ex_kernel_ridge        kernel_ridge/kernel_ridge.cpp)
 
 # ---------------------------------------------------------------------------
+# GaussianProcess examples
+# ---------------------------------------------------------------------------
+skigen_add_example(ex_gaussian_process_regressor gaussian_process/gaussian_process_regressor.cpp)
+
+# ---------------------------------------------------------------------------
 # DiscriminantAnalysis examples
 # ---------------------------------------------------------------------------
 skigen_add_example(ex_discriminant_analysis discriminant_analysis/discriminant_analysis.cpp)
