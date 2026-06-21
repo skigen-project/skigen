@@ -5,39 +5,66 @@ title: NuSVR
 
 # NuSVR
 
-`NuSVR` ships as a documented **placeholder** in v1.1.0: the nu-parametrised formulation requires libsvm's specialised SMO variant, which is scheduled for a later release.
+`NuSVR` is a nu-parametrised support vector regressor. Rather than fixing the tube width `epsilon`, the `nu` parameter controls the fraction of support vectors and the algorithm learns `epsilon` from the data.
 
 ## Algorithm
 
-The constructor and accessor surface are present so user code can target the final API, but `fit()` throws `std::runtime_error`. Use Skigen::SVR instead until the nu-solver lands.
+The estimator runs a two-phase fit. The first pass solves the dual with `epsilon = 0` to estimate the residual scale; the fitted tube width is then set to the `1 - nu` quantile of the absolute residuals. The second pass re-fits with that effective `epsilon`. The dual is optimised by a projected sub-gradient method over the dual coefficients with a box bound derived from `C`. The prediction is the kernel-weighted sum of `dual_coef_` plus the intercept.
 
 ## Constructor
 
 ```cpp
-Skigen::NuSVR<Scalar> model(Scalar nu = 0.5, ...);
+Skigen::NuSVR<Scalar> model(
+    Scalar nu = 0.5,
+    Scalar C = 1.0,
+    Kernel kernel = Kernel::RBF,
+    int degree = 3,
+    Scalar gamma = 0,
+    Scalar coef0 = 0,
+    Scalar tol = 1e-3,
+    int max_iter = 1000,
+    std::optional<uint64_t> random_state = std::nullopt);
 ```
 
 ## Parameters
 
 | Parameter | Default | Description |
 |---|---|---|
-| `nu` | `0.5` | Upper bound on the fraction of margin errors and lower bound on the fraction of support vectors. |
+| `nu` | `0.5` | Upper bound on the fraction of margin errors and lower bound on the fraction of support vectors, in `(0, 1]`. |
+| `C` | `1.0` | Regularisation strength; the box bound on the dual coefficients. |
+| `kernel` | `RBF` | Kernel function. |
+| `gamma` | `0` | Kernel coefficient; `0` means `1 / (n_features * var)`. |
 
 ## Methods
 
 | Method | Description |
 |---|---|
-| `fit(...)` | Throws — not yet implemented. |
+| `fit(X, y)` | Fit the nu-SVM regressor; learns `epsilon` from `nu`. |
+| `predict(X)` | Predicted target values. |
+| `score(X, y)` | Coefficient of determination R². |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `support()` | Indices of the support vectors. |
+| `n_support()` | Number of support vectors. |
+| `epsilon_fitted()` | The tube width learned from `nu`. |
 
 ## Example
 
 ```cpp
-// Placeholder: Skigen::NuSVR fit() throws in v1.1.0.
+#include <Skigen/SVM>
+
+using K = Skigen::NuSVR<double>::Kernel;
+Skigen::NuSVR<double> reg(/*nu=*/0.5, /*C=*/5.0, K::Linear);
+reg.fit(X, y);
+Eigen::VectorXd pred = reg.predict(X);
 ```
 
-:::caution Placeholder
-`NuSVR` is an API placeholder in v1.1.0 — `fit()` throws until the nu-SVM solver lands. It is intentionally excluded from behavioural parity.
-:::
+## Parity Scope
+
+Mirrors the dense `sklearn.svm.NuSVR` API surface and the nu-to-epsilon mapping. The sub-gradient solver targets the same optimum as libsvm but is coarser, so support-vector counts and the fitted `epsilon` may differ. Sparse input is deferred.
 
 :::tip API Reference
 For full signatures see the [NuSVR API Reference](/docs/api/svm/nu-svr).

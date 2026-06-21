@@ -280,24 +280,57 @@ void test_svr_rbf_recovers_nonlinear_signal() {
 // NuSVC / NuSVR / OneClassSVM — parity-gap stubs.
 // ---------------------------------------------------------------------------
 
-void test_nu_svc_throws_at_fit() {
-    Skigen::NuSVC<double> nu;
-    Eigen::MatrixXd X(3, 1); X << 0, 1, 2;
-    Eigen::VectorXi y(3); y << 0, 1, 0;
+void test_nu_svc_separates_two_clusters() {
+    constexpr int n = 40;
+    Eigen::MatrixXd X(n, 2);
+    Eigen::VectorXi y(n);
+    std::mt19937_64 rng(5);
+    std::normal_distribution<double> ns(0.0, 0.3);
+    for (int i = 0; i < n; ++i) {
+        const double cls = (i < n / 2) ? -2.0 : 2.0;
+        X(i, 0) = cls + ns(rng);
+        X(i, 1) = cls + ns(rng);
+        y(i)    = (cls > 0) ? 1 : 0;
+    }
+    Skigen::NuSVC<double> nu(
+        0.5, Skigen::NuSVC<double>::Kernel::RBF, 3, 0.0, 0.0, 1e-3, 80,
+        std::optional<uint64_t>(0));
+    nu.fit(X, y);
+    const Eigen::VectorXi preds = nu.predict(X);
+    int correct = 0;
+    for (int i = 0; i < n; ++i) if (preds(i) == y(i)) ++correct;
+    ASSERT_TRUE(static_cast<double>(correct) / n > 0.9);
+    ASSERT_TRUE(nu.n_support() > 0);
+    ASSERT_TRUE(nu.classes().size() == 2);
+}
+
+void test_nu_svc_invalid_nu_throws() {
+    Skigen::NuSVC<double> nu(0.0);
+    Eigen::MatrixXd X(4, 1); X << 0, 1, 2, 3;
+    Eigen::VectorXi y(4); y << 0, 0, 1, 1;
     bool threw = false;
     try { nu.fit(X, y); }
-    catch (const std::runtime_error&) { threw = true; }
+    catch (const std::invalid_argument&) { threw = true; }
     ASSERT_TRUE(threw);
 }
 
-void test_nu_svr_throws_at_fit() {
-    Skigen::NuSVR<double> nu;
-    Eigen::MatrixXd X(3, 1); X << 0, 1, 2;
-    Eigen::VectorXd y(3); y << 0.0, 1.0, 2.0;
-    bool threw = false;
-    try { nu.fit(X, y); }
-    catch (const std::runtime_error&) { threw = true; }
-    ASSERT_TRUE(threw);
+void test_nu_svr_recovers_linear_signal() {
+    constexpr int n = 60;
+    Eigen::MatrixXd X(n, 1);
+    Eigen::VectorXd y(n);
+    std::mt19937_64 rng(9);
+    std::normal_distribution<double> noise(0.0, 0.05);
+    for (int i = 0; i < n; ++i) {
+        X(i, 0) = static_cast<double>(i) / n;
+        y(i) = 2.0 * X(i, 0) + 0.5 + noise(rng);
+    }
+    Skigen::NuSVR<double> nu(
+        0.5, 5.0, Skigen::NuSVR<double>::Kernel::Linear, 3, 0.0, 0.0, 1e-4,
+        2000, std::optional<uint64_t>(0));
+    nu.fit(X, y);
+    ASSERT_TRUE(nu.score(X, y) > 0.9);
+    ASSERT_TRUE(nu.epsilon_fitted() >= 0.0);
+    ASSERT_TRUE(nu.n_support() > 0);
 }
 
 void test_one_class_svm_fits_and_flags_some_outliers() {
@@ -364,8 +397,9 @@ int main() {
     run("svc_sparse_fit_predict",            test_svc_sparse_fit_predict);
     run("linear_svc_sparse_fit_predict",     test_linear_svc_sparse_fit_predict);
     run("svr_rbf_recovers_nonlinear_signal", test_svr_rbf_recovers_nonlinear_signal);
-    run("nu_svc_throws_at_fit",              test_nu_svc_throws_at_fit);
-    run("nu_svr_throws_at_fit",              test_nu_svr_throws_at_fit);
+    run("nu_svc_separates_two_clusters",     test_nu_svc_separates_two_clusters);
+    run("nu_svc_invalid_nu_throws",          test_nu_svc_invalid_nu_throws);
+    run("nu_svr_recovers_linear_signal",     test_nu_svr_recovers_linear_signal);
     run("one_class_svm_fits_and_flags_some_outliers",
         test_one_class_svm_fits_and_flags_some_outliers);
     run("one_class_svm_invalid_nu_throws",   test_one_class_svm_invalid_nu_throws);

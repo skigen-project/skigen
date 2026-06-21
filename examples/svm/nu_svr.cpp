@@ -1,31 +1,42 @@
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2026 The Skigen Contributors
+// Copyright (c) 2026 Christoph Dinh <christoph.dinh@mne-cpp.org>
 
-// nu_svr.cpp — NuSVR is currently a placeholder; fit() throws.
+// nu_svr.cpp — nu-parameterised support vector regression.
 //
-// The constructor signature mirrors
-// https://scikit-learn.org/stable/modules/generated/sklearn.svm.NuSVR.html
-// but the nu-SVM solver is not yet implemented. Use Skigen::SVR instead
-// for kernel regression in this release.
+// Equivalent scikit-learn snippet:
+//
+//   from sklearn.svm import NuSVR
+//   import numpy as np
+//   X = np.linspace(0, 1, 30).reshape(-1, 1)
+//   y = 1.5 * X.ravel() + 0.2
+//   reg = NuSVR(nu=0.5, C=5.0, kernel="linear").fit(X, y)
+//   pred = reg.predict(X)
 
 #include <Skigen/SVM>
 
 #include <Eigen/Core>
+#include <iomanip>
 #include <iostream>
 
 int main() {
-    Eigen::MatrixXd X = Eigen::MatrixXd::Random(20, 2);
-    Eigen::VectorXd y = Eigen::VectorXd::Random(20);
+    //! [example_nu_svr]
+    Eigen::MatrixXd X(30, 1);
+    Eigen::VectorXd y(30);
+    for (int i = 0; i < 30; ++i) {
+        X(i, 0) = static_cast<double>(i) / 30.0;
+        y(i)    = 1.5 * X(i, 0) + 0.2;
+    }
 
     using K = Skigen::NuSVR<double>::Kernel;
-    Skigen::NuSVR<double> reg(/*nu=*/0.5, /*C=*/1.0, K::RBF);
+    Skigen::NuSVR<double> reg(/*nu=*/0.5, /*C=*/5.0, K::Linear);
+    reg.fit(X, y);
+    const Eigen::VectorXd pred = reg.predict(X);
+    //! [example_nu_svr]
 
-    std::cout << "=== NuSVR (placeholder) ===\n";
-    try {
-        reg.fit(X, y);
-        std::cout << "  unexpectedly succeeded\n";
-    } catch (const std::exception& e) {
-        std::cout << "  fit() threw as documented: " << e.what() << "\n";
-    }
+    std::cout << std::fixed << std::setprecision(4);
+    std::cout << "=== NuSVR ===\n";
+    std::cout << "support vectors: " << reg.n_support() << "\n";
+    std::cout << "fitted epsilon: " << reg.epsilon_fitted() << "\n";
+    std::cout << "R^2: " << reg.score(X, y) << "\n";
     return 0;
 }

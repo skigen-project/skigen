@@ -242,6 +242,140 @@ void smo_one_class(const Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& 
     }
 }
 
+/// @brief SMO solver for the nu-SVM binary classification dual.
+///
+/// Solves the nu-classification dual
+/// @f[
+///   \min_\alpha \tfrac{1}{2}\alpha^\top (y y^\top \odot K) \alpha \quad
+///   \text{s.t.}\ 0 \le \alpha_i \le 1,\
+///   \sum_i \alpha_i y_i = 0,\ \sum_i \alpha_i = \nu n.
+/// @f]
+/// Working on @f$ \beta_i = \alpha_i y_i @f$ turns the two equality
+/// constraints into @f$ \sum_{y_i=+1}\alpha_i = \sum_{y_i=-1}\alpha_i =
+/// \nu n / 2 @f$, so two-variable updates must keep the per-class mass fixed:
+/// pairs are selected within the same class. The decision threshold `b` and
+/// margin `rho` come from the free support vectors of each class.
+///
+/// Inputs:
+///   y: ±1 labels
+///   K: precomputed Gram matrix (n × n)
+///   nu, tol, max_passes: standard nu-SVM parameters
+/// Outputs:
+///   alpha: dual coefficients in [0, 1] (length n)
+///   b: bias term (so decision = sum_i alpha_i y_i K(x,x_i) + b)
+template <typename Scalar>
+bool smo_nu_classification(
+    const Eigen::Matrix<Scalar, Eigen::Dynamic, 1>& y,
+    const Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& K,
+    Scalar nu,
+    Scalar tol,
+    int max_passes,
+    std::optional<uint64_t> random_state,
+    Eigen::Matrix<Scalar, Eigen::Dynamic, 1>& alpha,
+    Scalar& b) {
+    using Vector = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
+    const Eigen::Index n = K.rows();
+
+    // Count classes and the feasible per-class mass nu*n/2.
+    Eigen::Index n_pos = 0, n_neg = 0;
+    for (Eigen::Index i = 0; i < n; ++i) (y(i) > Scalar{0} ? n_pos : n_neg)++;
+    if (n_pos == 0 || n_neg == 0) return false;
+
+    const Scalar mass = nu * static_cast<Scalar>(n) / Scalar{2};
+    // Feasibility: mass cannot exceed the count of either class (box [0,1]).
+    if (mass > static_cast<Scalar>(std::min(n_pos, n_neg))) {
+        return false;  // infeasible nu for this class balance
+    }
+
+    // Feasible init: spread the per-class mass uniformly inside each class.
+    alpha.setZero(n);
+    const Scalar a_pos = mass / static_cast<Scalar>(n_pos);
+    const Scalar a_neg = mass / static_cast<Scalar>(n_neg);
+    for (Eigen::Index i = 0; i < n; ++i) {
+        alpha(i) = (y(i) > Scalar{0}) ? a_pos : a_neg;
+    }
+
+    auto grad = [&](Eigen::Index i) -> Scalar {
+        // d/d alpha_i of 0.5 a^T (yy^T ⊙ K) a = y_i sum_j alpha_j y_j K(i,j)
+        Scalar g{0};
+        for (Eigen::Index j = 0; j < n; ++j) g += alpha(j) * y(j) * K(i, j);
+        return y(i) * g;
+    };
+
+    std::mt19937_64 rng(random_state.value_or(static_cast<uint64_t>(0)));
+    std::uniform_int_distribution<Eigen::Index> dist(0, n - 1);
+
+    int passes = 0;
+    while (passes < max_passes && n > 1) {
+        Eigen::Index num_changed = 0;
+        for (Eigen::Index i = 0; i < n; ++i) {
+            // Select j in the same class as i to preserve per-class mass.
+            Eigen::Index j;
+            int tries = 0;
+            do { j = dist(rng); ++tries; }
+            while ((j == i || y(j) != y(i)) && tries < 4 * static_cast<int>(n));
+            if (j == i || y(j) != y(i)) continue;
+
+            const Scalar gi = grad(i);
+            const Scalar gj = grad(j);
+            const Scalar sum_ij = alpha(i) + alpha(j);  // invariant
+            const Scalar eta = K(i, i) + K(j, j) - Scalar{2} * K(i, j);
+            if (eta <= Scalar{0}) continue;
+
+            Scalar new_ai = alpha(i) + (gj - gi) / eta;
+            const Scalar lo = std::max(Scalar{0}, sum_ij - Scalar{1});
+            const Scalar hi = std::min(Scalar{1}, sum_ij);
+            if (lo >= hi) continue;
+            new_ai = std::clamp(new_ai, lo, hi);
+            if (std::abs(new_ai - alpha(i)) < Scalar{1e-7}) continue;
+            alpha(i) = new_ai;
+            alpha(j) = sum_ij - new_ai;
+            ++num_changed;
+        }
+        if (num_changed == 0) ++passes;
+        else passes = 0;
+        if (tol <= Scalar{0}) break;
+    }
+
+    // Recover b and rho from the free support vectors. For nu-SVM:
+    //   decision_i = sum_j alpha_j y_j K(i,j)
+    //   on the +1 free margin: decision = rho - b
+    //   on the -1 free margin: decision = -rho - b
+    // so b = -(d_pos + d_neg)/2 where d_pos/d_neg are mean free decisions.
+    Vector decision(n);
+    for (Eigen::Index i = 0; i < n; ++i) {
+        Scalar d{0};
+        for (Eigen::Index j = 0; j < n; ++j) d += alpha(j) * y(j) * K(i, j);
+        decision(i) = d;
+    }
+    Scalar sum_pos{0}, sum_neg{0};
+    Eigen::Index cp = 0, cn = 0;
+    for (Eigen::Index i = 0; i < n; ++i) {
+        const bool free = alpha(i) > Scalar{1e-6} &&
+                          alpha(i) < Scalar{1} - Scalar{1e-6};
+        if (!free) continue;
+        if (y(i) > Scalar{0}) { sum_pos += decision(i); ++cp; }
+        else { sum_neg += decision(i); ++cn; }
+    }
+    if (cp > 0 && cn > 0) {
+        const Scalar d_pos = sum_pos / static_cast<Scalar>(cp);
+        const Scalar d_neg = sum_neg / static_cast<Scalar>(cn);
+        b = -(d_pos + d_neg) / Scalar{2};
+    } else {
+        // Fallback: threshold so the decision separates the class means.
+        Scalar mp{0}, mn{0};
+        Eigen::Index np2 = 0, nn2 = 0;
+        for (Eigen::Index i = 0; i < n; ++i) {
+            if (y(i) > Scalar{0}) { mp += decision(i); ++np2; }
+            else { mn += decision(i); ++nn2; }
+        }
+        if (np2 > 0) mp /= static_cast<Scalar>(np2);
+        if (nn2 > 0) mn /= static_cast<Scalar>(nn2);
+        b = -(mp + mn) / Scalar{2};
+    }
+    return true;
+}
+
 }  // namespace internal
 }  // namespace Skigen
 
