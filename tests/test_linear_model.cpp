@@ -4,10 +4,11 @@
 #include <Skigen/Dense>
 
 #include <cmath>
+#include <functional>
 #include <iostream>
+#include <random>
 #include <sstream>
 #include <string>
-#include <functional>
 
 // ---------------------------------------------------------------------------
 // Minimal test harness
@@ -590,6 +591,81 @@ void test_ridge_single_target_then_coef_matrix_synthesised() {
 }
 
 // ===================================================================
+// QuantileRegressor
+// ===================================================================
+
+void test_qr_median_recovers_line() {
+    // Exact line: median regression must recover slope/intercept exactly.
+    Eigen::MatrixXd X(5, 1); X << 0, 1, 2, 3, 4;
+    Eigen::VectorXd y(5);    y << 1, 3, 5, 7, 9;
+    Skigen::QuantileRegressor<double> m(0.5, 0.0, true);
+    m.fit(X, y);
+    ASSERT_NEAR(m.coef()(0), 2.0, 1e-6);
+    ASSERT_NEAR(m.intercept(), 1.0, 1e-6);
+    ASSERT_NEAR(m.score(X, y), 1.0, 1e-9);
+}
+
+void test_qr_quantiles_are_ordered() {
+    // Intercepts for increasing quantiles must be non-decreasing.
+    constexpr int n = 200;
+    Eigen::MatrixXd X(n, 1);
+    Eigen::VectorXd y(n);
+    std::mt19937_64 rng(3);
+    std::normal_distribution<double> nz(0.0, 0.3);
+    for (int i = 0; i < n; ++i) {
+        X(i, 0) = static_cast<double>(i) / n;
+        y(i)    = 1.5 * X(i, 0) + 0.5 + nz(rng);
+    }
+    Skigen::QuantileRegressor<double> q10(0.1, 0.0, true);
+    Skigen::QuantileRegressor<double> q50(0.5, 0.0, true);
+    Skigen::QuantileRegressor<double> q90(0.9, 0.0, true);
+    q10.fit(X, y); q50.fit(X, y); q90.fit(X, y);
+    ASSERT_TRUE(q10.intercept() <= q50.intercept() + 1e-6);
+    ASSERT_TRUE(q50.intercept() <= q90.intercept() + 1e-6);
+}
+
+void test_qr_alpha_shrinks_to_zero() {
+    // Strong L1 penalty drives coefficients to (near) zero.
+    constexpr int n = 150;
+    Eigen::MatrixXd X(n, 2);
+    Eigen::VectorXd y(n);
+    std::mt19937_64 rng(4);
+    std::normal_distribution<double> nz(0.0, 0.2);
+    for (int i = 0; i < n; ++i) {
+        X(i, 0) = static_cast<double>(i) / n;
+        X(i, 1) = std::sin(0.1 * i);
+        y(i)    = 1.5 * X(i, 0) - 0.8 * X(i, 1) + 0.5 + nz(rng);
+    }
+    Skigen::QuantileRegressor<double> reg(0.5, 5.0, true);
+    reg.fit(X, y);
+    ASSERT_NEAR(reg.coef()(0), 0.0, 1e-4);
+    ASSERT_NEAR(reg.coef()(1), 0.0, 1e-4);
+}
+
+void test_qr_no_intercept() {
+    Eigen::MatrixXd X(5, 1); X << 0, 1, 2, 3, 4;
+    Eigen::VectorXd y(5);    y << 0, 2, 4, 6, 8;
+    Skigen::QuantileRegressor<double> m(0.5, 0.0, false);
+    m.fit(X, y);
+    ASSERT_NEAR(m.intercept(), 0.0, 1e-12);
+    ASSERT_NEAR(m.coef()(0), 2.0, 1e-6);
+}
+
+void test_qr_invalid_quantile_throws() {
+    Eigen::MatrixXd X(4, 1); X << 0, 1, 2, 3;
+    Eigen::VectorXd y(4);    y << 0, 1, 2, 3;
+    Skigen::QuantileRegressor<double> bad(1.5);
+    ASSERT_THROW(bad.fit(X, y), std::invalid_argument);
+}
+
+void test_qr_unknown_solver_throws() {
+    Eigen::MatrixXd X(4, 1); X << 0, 1, 2, 3;
+    Eigen::VectorXd y(4);    y << 0, 1, 2, 3;
+    Skigen::QuantileRegressor<double> m(0.5, 0.0, true, "highs");
+    ASSERT_THROW(m.fit(X, y), std::invalid_argument);
+}
+
+// ===================================================================
 // Main
 // ===================================================================
 
@@ -634,6 +710,14 @@ int main() {
              test_ridge_multi_target_with_intercept);
     run_test("ridge_single_target_then_coef_matrix_synthesised",
              test_ridge_single_target_then_coef_matrix_synthesised);
+
+    std::cout << "\n=== QuantileRegressor Tests ===\n";
+    run_test("qr_median_recovers_line",     test_qr_median_recovers_line);
+    run_test("qr_quantiles_are_ordered",    test_qr_quantiles_are_ordered);
+    run_test("qr_alpha_shrinks_to_zero",    test_qr_alpha_shrinks_to_zero);
+    run_test("qr_no_intercept",             test_qr_no_intercept);
+    run_test("qr_invalid_quantile_throws",  test_qr_invalid_quantile_throws);
+    run_test("qr_unknown_solver_throws",    test_qr_unknown_solver_throws);
 
     std::cout << "\n" << g_passed << " passed, " << g_failed << " failed.\n";
     return g_failed > 0 ? 1 : 0;

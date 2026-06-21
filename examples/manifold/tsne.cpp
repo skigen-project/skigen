@@ -19,6 +19,7 @@
 #include <Eigen/Core>
 #include <iomanip>
 #include <iostream>
+#include <optional>
 #include <random>
 
 #ifdef SKIGEN_EXAMPLE_WITH_PLOT
@@ -45,11 +46,13 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
 
     Skigen::TSNE<double> tsne(/*n_components=*/2, /*perplexity=*/5.0,
                               /*learning_rate=*/200.0, /*n_iter=*/500,
-                              /*random_state=*/7);
+                              /*method=*/"barnes_hut", /*angle=*/0.5,
+                              /*early_exaggeration=*/12.0,
+                              /*random_state=*/std::optional<uint64_t>(7));
     auto Y = tsne.fit_transform(X);
 
     std::cout << std::fixed << std::setprecision(4);
-    std::cout << "=== t-SNE (exact) ===\n";
+    std::cout << "=== t-SNE (" << tsne.method() << ") ===\n";
     std::cout << "  embedding shape = " << Y.rows() << " x " << Y.cols() << "\n";
     std::cout << "  KL divergence   = " << tsne.kl_divergence() << "\n";
 

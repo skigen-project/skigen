@@ -6,6 +6,7 @@
 
 #include "../Core/Base.h"
 #include "../Core/Validation.h"
+#include "Detail/QuadTree.h"
 
 #include <Eigen/Core>
 #include <Eigen/Eigenvalues>
@@ -13,6 +14,8 @@
 #include <cmath>
 #include <optional>
 #include <random>
+#include <stdexcept>
+#include <string>
 
 namespace Skigen {
 
@@ -39,6 +42,9 @@ namespace Skigen {
 /// | `perplexity` | `Scalar` | `30.0` | Related to the number of nearest neighbors. |
 /// | `learning_rate` | `Scalar` | `200.0` | Step size for gradient descent. |
 /// | `n_iter` | `int` | `1000` | Maximum number of gradient descent iterations. |
+/// | `method` | `std::string` | `"barnes_hut"` | `"barnes_hut"` (O(n log n), 2-D) or `"exact"` (O(n²)). |
+/// | `angle` | `Scalar` | `0.5` | Barnes-Hut trade-off; smaller is more accurate / slower. |
+/// | `early_exaggeration` | `Scalar` | `12.0` | P-scaling during the first 250 iterations. |
 /// | `random_state` | `std::optional<uint64_t>` | `nullopt` | Seed for reproducibility. |
 ///
 /// ### Attributes (after fitting)
@@ -57,12 +63,20 @@ namespace Skigen {
 ///    P and the Student-t joint distribution Q in the embedding space.
 ///    Early exaggeration (factor 4) is applied for the first 250 iterations.
 ///
+/// ### Algorithm — Barnes-Hut method
+///
+/// For `method="barnes_hut"` and `n_components == 2`, the repulsive forces
+/// and the Student-t normalisation constant are approximated with a
+/// quadtree (van der Maaten, JMLR 2014), reducing the per-iteration cost
+/// from @f$O(n^2)@f$ to @f$O(n \log n)@f$. The `angle` parameter trades
+/// accuracy for speed. For `n_components != 2` the estimator falls back to
+/// the exact method.
+///
 /// ### Limitations relative to scikit-learn
 ///
-/// Only the exact method is implemented (no Barnes-Hut approximation).
-/// The following scikit-learn parameters are not supported: `method`,
-/// `metric`, `init`, `early_exaggeration`, `min_grad_norm`, `angle`,
-/// `n_jobs`, `verbose`.
+/// Barnes-Hut is supported for 2-D embeddings only (sklearn allows up to
+/// 3-D). The following scikit-learn parameters are not supported:
+/// `metric`, `init`, `min_grad_norm`, `n_jobs`, `verbose`.
 ///
 /// ### Examples
 ///
@@ -89,11 +103,17 @@ public:
                   Scalar perplexity = Scalar{30},
                   Scalar learning_rate = Scalar{200},
                   int n_iter = 1000,
+                  std::string method = "barnes_hut",
+                  Scalar angle = Scalar{0.5},
+                  Scalar early_exaggeration = Scalar{12},
                   std::optional<uint64_t> random_state = std::nullopt)
         : n_components_(n_components)
         , perplexity_(perplexity)
         , learning_rate_(learning_rate)
         , n_iter_(n_iter)
+        , method_(std::move(method))
+        , angle_(angle)
+        , early_exaggeration_(early_exaggeration)
         , random_state_(random_state) {}
 
     // -- Accessors ----------------------------------------------------------
@@ -112,11 +132,20 @@ public:
         return kl_divergence_;
     }
 
+    /// @brief The optimisation method actually used (`"barnes_hut"` or
+    ///   `"exact"`). Falls back to `"exact"` when `n_components != 2`.
+    [[nodiscard]] const std::string& method() const noexcept {
+        return method_;
+    }
+
     SKIGEN_PARAMS(
         (n_components, n_components_, int),
         (perplexity,   perplexity_,   double),
         (learning_rate, learning_rate_, double),
-        (n_iter,       n_iter_,       int))
+        (n_iter,       n_iter_,       int),
+        (method,       method_,       std::string),
+        (angle,        angle_,        double),
+        (early_exaggeration, early_exaggeration_, double))
 
     // -- Implementation (called by CRTP base) --------------------------------
 
@@ -126,6 +155,15 @@ public:
     /// @return Reference to the fitted transformer (`*this`).
     TSNE& fit_impl(const Eigen::Ref<const MatrixType>& X) {
         internal::check_non_empty(X);
+        if (method_ != "barnes_hut" && method_ != "exact") {
+            throw std::invalid_argument(
+                "TSNE: method must be 'barnes_hut' or 'exact'; got '" +
+                method_ + "'.");
+        }
+        // Barnes-Hut is implemented for 2-D embeddings; fall back otherwise.
+        const bool use_bh = (method_ == "barnes_hut") && (n_components_ == 2);
+        if (method_ == "barnes_hut" && n_components_ != 2)
+            method_ = "exact";
 
         this->n_features_in_ = X.cols();
         const Eigen::Index n = X.rows();
@@ -153,7 +191,7 @@ public:
         MatrixType gains = MatrixType::Ones(n, n_components_);
 
         constexpr int early_exag_stop = 250;
-        constexpr Scalar early_exag_factor = Scalar{4};
+        const Scalar early_exag_factor = early_exaggeration_;
         constexpr Scalar momentum_early = Scalar{0.5};
         constexpr Scalar momentum_late = Scalar{0.8};
 
@@ -166,32 +204,22 @@ public:
                 P_work = P;
             }
 
-            Scalar momentum = (iter < early_exag_stop)
-                                   ? momentum_early
-                                   : momentum_late;
+            const bool exaggerating = (iter < early_exag_stop);
+            Scalar momentum = exaggerating ? momentum_early : momentum_late;
 
-            // Compute Student-t joint distribution Q.
-            MatrixType D_Y = pairwise_squared_distances(embedding_);
-            MatrixType num = (MatrixType::Ones(n, n) + D_Y).cwiseInverse();
-            // Zero the diagonal.
-            num.diagonal().setZero();
+            // During early exaggeration the P values are scaled up by
+            // `early_exag_factor`, which inflates the gradient magnitude. To
+            // keep the step size stable for any exaggeration setting, damp the
+            // effective learning rate by 4 / early_exag_factor in that phase
+            // (the optimiser's gain schedule is tuned for a factor of 4).
+            const Scalar lr_eff =
+                (exaggerating && early_exag_factor > Scalar{0})
+                    ? learning_rate_ * Scalar{4} / early_exag_factor
+                    : learning_rate_;
 
-            Scalar sum_num = num.sum();
-            if (sum_num < Scalar{1e-12}) sum_num = Scalar{1e-12};
-            MatrixType Q = num / sum_num;
-            // Clamp Q for numerical stability.
-            Q = Q.cwiseMax(Scalar{1e-12});
-
-            // Gradient: dY_i = 4 * sum_j (P_ij - Q_ij)(y_i - y_j)(1+||y_i-y_j||^2)^{-1}
-            MatrixType PQ = P_work - Q;
-            MatrixType dY = MatrixType::Zero(n, n_components_);
-            for (Eigen::Index i = 0; i < n; ++i) {
-                for (Eigen::Index j = 0; j < n; ++j) {
-                    if (i == j) continue;
-                    Scalar factor = Scalar{4} * PQ(i, j) * num(i, j);
-                    dY.row(i) += factor * (embedding_.row(i) - embedding_.row(j));
-                }
-            }
+            MatrixType dY = use_bh
+                ? gradient_barnes_hut(P_work, n)
+                : gradient_exact(P_work, n);
 
             // Adaptive gain (sign-based) to accelerate convergence.
             MatrixType update = embedding_ - Y_prev;
@@ -207,7 +235,7 @@ public:
             }
 
             MatrixType Y_old = embedding_;
-            embedding_ = embedding_ - learning_rate_ * (gains.cwiseProduct(dY))
+            embedding_ = embedding_ - lr_eff * (gains.cwiseProduct(dY))
                          + momentum * update;
 
             // Center embedding at the origin.
@@ -243,6 +271,9 @@ private:
     Scalar perplexity_;
     Scalar learning_rate_;
     int n_iter_;
+    std::string method_ = "barnes_hut";
+    Scalar angle_ = Scalar{0.5};
+    Scalar early_exaggeration_ = Scalar{12};
     std::optional<uint64_t> random_state_;
 
     MatrixType embedding_;
@@ -261,6 +292,76 @@ private:
                        - Scalar{2} * (X * X.transpose());
         D = D.cwiseMax(Scalar{0});
         return D;
+    }
+
+    /// @brief Exact O(n²) t-SNE gradient.
+    ///
+    /// @f$ \frac{\partial C}{\partial y_i}
+    ///     = 4 \sum_j (P_{ij} - Q_{ij})\,q_{ij} Z\,(y_i - y_j) @f$
+    /// computed with the dense pairwise affinities.
+    MatrixType gradient_exact(const MatrixType& P_work, Eigen::Index n) const {
+        MatrixType D_Y = pairwise_squared_distances(embedding_);
+        MatrixType num = (MatrixType::Ones(n, n) + D_Y).cwiseInverse();
+        num.diagonal().setZero();
+        Scalar sum_num = num.sum();
+        if (sum_num < Scalar{1e-12}) sum_num = Scalar{1e-12};
+        MatrixType Q = (num / sum_num).cwiseMax(Scalar{1e-12});
+
+        MatrixType PQ = P_work - Q;
+        MatrixType dY = MatrixType::Zero(n, n_components_);
+        for (Eigen::Index i = 0; i < n; ++i) {
+            for (Eigen::Index j = 0; j < n; ++j) {
+                if (i == j) continue;
+                const Scalar factor = Scalar{4} * PQ(i, j) * num(i, j);
+                dY.row(i) += factor * (embedding_.row(i) - embedding_.row(j));
+            }
+        }
+        return dY;
+    }
+
+    /// @brief Barnes-Hut O(n log n) t-SNE gradient (2-D embeddings).
+    ///
+    /// The gradient splits into attractive and repulsive parts:
+    /// @f$ 4(F_\text{attr} - F_\text{rep}) @f$. The attractive term is the
+    /// dense P-weighted sum (P is stored dense here); the repulsive term and
+    /// the normalisation constant @f$Z@f$ are approximated with a quadtree.
+    MatrixType gradient_barnes_hut(const MatrixType& P_work,
+                                   Eigen::Index n) const {
+        // Attractive forces: sum_j P_ij q_ij Z (y_i - y_j),
+        // with q_ij Z = (1 + ||y_i - y_j||^2)^{-1}.
+        MatrixType F_attr = MatrixType::Zero(n, 2);
+        for (Eigen::Index i = 0; i < n; ++i) {
+            for (Eigen::Index j = 0; j < n; ++j) {
+                if (i == j) continue;
+                const Scalar dx = embedding_(i, 0) - embedding_(j, 0);
+                const Scalar dy = embedding_(i, 1) - embedding_(j, 1);
+                const Scalar qz = Scalar{1} / (Scalar{1} + dx * dx + dy * dy);
+                const Scalar w = P_work(i, j) * qz;
+                F_attr(i, 0) += w * dx;
+                F_attr(i, 1) += w * dy;
+            }
+        }
+
+        // Repulsive forces via the quadtree, plus the global normaliser Z.
+        internal::QuadTree<Scalar> tree(embedding_);
+        MatrixType F_rep = MatrixType::Zero(n, 2);
+        Scalar Z{0};
+        for (Eigen::Index i = 0; i < n; ++i) {
+            Scalar fx{0}, fy{0}, zi{0};
+            tree.compute_force(embedding_(i, 0), embedding_(i, 1), angle_,
+                               fx, fy, zi);
+            F_rep(i, 0) = fx;
+            F_rep(i, 1) = fy;
+            Z += zi;
+        }
+        if (Z < Scalar{1e-12}) Z = Scalar{1e-12};
+
+        MatrixType dY(n, 2);
+        for (Eigen::Index i = 0; i < n; ++i) {
+            dY(i, 0) = Scalar{4} * (F_attr(i, 0) - F_rep(i, 0) / Z);
+            dY(i, 1) = Scalar{4} * (F_attr(i, 1) - F_rep(i, 1) / Z);
+        }
+        return dY;
     }
 
     /// @brief Binary search for per-point Gaussian bandwidth and build P.

@@ -15,6 +15,7 @@
 #include "src/LinearModel/RidgeClassifier.h"
 #include "src/LinearModel/Lasso.h"
 #include "src/LinearModel/ElasticNet.h"
+#include "src/LinearModel/QuantileRegressor.h"
 #include "src/LinearModel/LogisticRegression.h"
 #include "src/LinearModel/SGD.h"
 #include "src/LinearModel/Perceptron.h"

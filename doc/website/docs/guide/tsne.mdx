@@ -18,12 +18,25 @@ The [`examples/manifold/tsne.cpp`](https://github.com/skigen-project/skigen/blob
 
 ## Algorithm
 
-Models pairwise similarities as conditional probabilities in both spaces and minimises their KL divergence by gradient descent, using a heavy-tailed Student-t kernel in the embedding to avoid crowding. v1.1.0 implements the exact (non-Barnes-Hut) gradient.
+Models pairwise similarities as conditional probabilities in both spaces and minimises their KL divergence by gradient descent, using a heavy-tailed Student-t kernel in the embedding to avoid crowding.
+
+Two optimisation methods are available:
+
+- **`"exact"`** — the dense $O(n^2)$ gradient. Most accurate, suitable for small datasets.
+- **`"barnes_hut"`** (default) — for 2-D embeddings, the repulsive forces and the Student-t normalisation constant are approximated with a **quadtree** (van der Maaten, JMLR 2014), reducing the per-iteration cost to $O(n \log n)$. The `angle` parameter trades accuracy for speed: a cell is summarised by its centre of mass when $(\text{cell width} / \text{distance}) < \text{angle}$. For `n_components != 2` the estimator automatically falls back to the exact method.
 
 ## Constructor
 
 ```cpp
-Skigen::TSNE<Scalar> model(int n_components = 2, Scalar perplexity = 30.0, Scalar learning_rate = 200.0, int max_iter = 1000, uint64_t random_state = 0);
+Skigen::TSNE<Scalar> model(
+    int n_components = 2,
+    Scalar perplexity = 30.0,
+    Scalar learning_rate = 200.0,
+    int n_iter = 1000,
+    std::string method = "barnes_hut",
+    Scalar angle = 0.5,
+    Scalar early_exaggeration = 12.0,
+    std::optional<uint64_t> random_state = std::nullopt);
 ```
 
 ## Parameters
@@ -33,7 +46,10 @@ Skigen::TSNE<Scalar> model(int n_components = 2, Scalar perplexity = 30.0, Scala
 | `n_components` | `2` | Embedding dimensionality. |
 | `perplexity` | `30.0` | Effective neighbourhood size. |
 | `learning_rate` | `200.0` | Gradient-descent step size. |
-| `max_iter` | `1000` | Optimisation iterations. |
+| `n_iter` | `1000` | Optimisation iterations. |
+| `method` | `"barnes_hut"` | `"barnes_hut"` (O(n log n), 2-D) or `"exact"` (O(n²)). |
+| `angle` | `0.5` | Barnes-Hut accuracy/speed trade-off. |
+| `early_exaggeration` | `12.0` | P-scaling during the first 250 iterations. |
 
 ## Methods
 
@@ -46,7 +62,7 @@ Skigen::TSNE<Scalar> model(int n_components = 2, Scalar perplexity = 30.0, Scala
 | Accessor | Description |
 |---|---|
 | `kl_divergence()` | Final KL divergence. |
-| `n_iter()` | Iterations run. |
+| `method()` | Method actually used (`"barnes_hut"` or `"exact"`). |
 
 ## Example
 

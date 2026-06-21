@@ -1,0 +1,93 @@
+---
+sidebar_position: 14
+title: QuantileRegressor
+---
+
+# QuantileRegressor
+
+`QuantileRegressor` fits a linear model that predicts a **conditional quantile** of the target rather than its mean. Where ordinary least squares minimises squared error (and so estimates the conditional mean), quantile regression minimises the asymmetric **pinball loss** and estimates a chosen quantile $\tau \in (0, 1)$ — the median for $\tau = 0.5$, the 90th percentile for $\tau = 0.9$, and so on.
+
+## Objective Function
+
+For quantile $\tau$ and L1 penalty strength $\alpha$:
+
+$$
+\min_{w, b}\; \frac{1}{n}\sum_{i=1}^{n} \rho_\tau\!\big(y_i - x_i^\top w - b\big)
+  + \alpha \lVert w \rVert_1,
+$$
+
+where the pinball loss is
+
+$$
+\rho_\tau(r) = \max(\tau r,\; (\tau - 1) r) =
+\begin{cases}
+\tau\, r & r \ge 0,\\
+(\tau - 1)\, r & r < 0.
+\end{cases}
+$$
+
+The asymmetry of $\rho_\tau$ penalises under- and over-prediction differently, which is what pins the fit to the requested quantile.
+
+## Linear Programming Formulation
+
+The objective is piecewise-linear, so it is solved exactly as a **linear program**. Splitting each residual into positive and negative parts $u_i, v_i \ge 0$ and each coefficient into $w^+_j, w^-_j \ge 0$ gives the standard-form LP
+
+$$
+\min_{z \ge 0} c^\top z \quad\text{s.t.}\quad
+X(w^+ - w^-) + (b^+ - b^-) + u - v = y,
+$$
+
+with pinball weights $\tau$ on $u$ and $1 - \tau$ on $v$, and the L1 weight $\alpha n$ on $w^+ + w^-$. Skigen solves this with a **native primal-dual interior-point method** (Mehrotra predictor-corrector), so no external LP backend is required and Eigen remains the only dependency.
+
+## Constructor
+
+```cpp
+Skigen::QuantileRegressor<Scalar> model(
+    Scalar quantile = 0.5,
+    Scalar alpha = 1.0,
+    bool fit_intercept = true,
+    std::string solver = "interior-point");
+```
+
+| Parameter | Default | Description |
+|---|---|---|
+| `quantile` | `0.5` | Quantile to predict, in `(0, 1)`. |
+| `alpha` | `1.0` | L1 regularisation strength (`0` disables it). |
+| `fit_intercept` | `true` | Whether to fit an unpenalised intercept. |
+| `solver` | `"interior-point"` | LP backend (only the native solver is available). |
+
+## Methods
+
+| Method | Description |
+|---|---|
+| `fit(X, y)` | Solve the quantile-regression LP. |
+| `predict(X)` | Predicted quantile values. |
+| `score(X, y)` | R² coefficient of determination. |
+
+## Fitted Attributes
+
+| Accessor | Description |
+|---|---|
+| `coef()` | Coefficient vector $w$. |
+| `intercept()` | Bias term $b$. |
+| `n_iter()` | Interior-point iterations performed. |
+
+## Example
+
+```cpp
+#include <Skigen/LinearModel>
+
+for (double q : {0.1, 0.5, 0.9}) {
+    Skigen::QuantileRegressor<double> model(q, /*alpha=*/0.0);
+    model.fit(X, y);
+    // model.coef(), model.intercept() now describe the q-th quantile line.
+}
+```
+
+## Parity Scope
+
+Mirrors `sklearn.linear_model.QuantileRegressor` for the `quantile`, `alpha`, and `fit_intercept` parameters and the `coef_` / `intercept_` / `n_iter_` attributes. Only the native interior-point solver is provided; sklearn's `"highs"`, `"highs-ds"`, `"highs-ipm"`, and `"revised simplex"` solver names are not selectable (passing them raises). `solver_options` and `sample_weight` are not honoured.
+
+:::tip API Reference
+For full signatures see the [QuantileRegressor API Reference](/docs/api/linear-model/quantile-regressor).
+:::

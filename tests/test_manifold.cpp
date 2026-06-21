@@ -7,7 +7,10 @@
 #include <functional>
 #include <iostream>
 #include <numbers>
+#include <optional>
+#include <random>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 
 // ---------------------------------------------------------------------------
@@ -152,11 +155,66 @@ void test_isomap_dist_matrix() {
 
 void test_tsne_basic() {
     auto X = make_blobs(20);
-    Skigen::TSNE<double> tsne(2, 5.0, 200.0, 300, 42);
+    Skigen::TSNE<double> tsne(2, 5.0, 200.0, 300, "exact", 0.5, 12.0,
+                              std::optional<uint64_t>(42));
     auto Y = tsne.fit_transform(X);
     ASSERT_TRUE(Y.rows() == 20);
     ASSERT_TRUE(Y.cols() == 2);
     ASSERT_TRUE(tsne.kl_divergence() >= 0.0);
+}
+
+void test_tsne_barnes_hut_shape() {
+    auto X = make_blobs(40);
+    Skigen::TSNE<double> tsne(2, 8.0, 200.0, 300, "barnes_hut", 0.5, 12.0,
+                              std::optional<uint64_t>(0));
+    auto Y = tsne.fit_transform(X);
+    ASSERT_TRUE(Y.rows() == 40);
+    ASSERT_TRUE(Y.cols() == 2);
+    ASSERT_TRUE(tsne.kl_divergence() >= 0.0);
+    ASSERT_TRUE(tsne.method() == std::string("barnes_hut"));
+}
+
+void test_tsne_barnes_hut_separates_clusters() {
+    // Two well-separated 5-D blobs should remain separated in the 2-D
+    // Barnes-Hut embedding (cross-cluster distance > within-cluster).
+    constexpr int n = 60;
+    Eigen::MatrixXd X(n, 5);
+    std::mt19937_64 rng(1);
+    std::normal_distribution<double> ns(0.0, 0.3);
+    for (int i = 0; i < n; ++i) {
+        const double c = (i < n / 2) ? -5.0 : 5.0;
+        for (int j = 0; j < 5; ++j) X(i, j) = c + ns(rng);
+    }
+    Skigen::TSNE<double> tsne(2, 10.0, 200.0, 500, "barnes_hut", 0.5, 12.0,
+                              std::optional<uint64_t>(0));
+    Eigen::MatrixXd Y = tsne.fit_transform(X);
+    Eigen::RowVector2d c0 = Y.topRows(n / 2).colwise().mean();
+    Eigen::RowVector2d c1 = Y.bottomRows(n / 2).colwise().mean();
+    const double between = (c0 - c1).norm();
+    double within = 0.0;
+    for (int i = 0; i < n / 2; ++i) within += (Y.row(i) - c0).norm();
+    within /= (n / 2);
+    ASSERT_TRUE(between > within);
+}
+
+void test_tsne_invalid_method_throws() {
+    auto X = make_blobs(10);
+    Skigen::TSNE<double> tsne(2, 5.0, 200.0, 100, "tree", 0.5, 12.0,
+                              std::optional<uint64_t>(0));
+    bool threw = false;
+    try { auto Y = tsne.fit_transform(X); (void)Y; }
+    catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
+void test_tsne_3d_falls_back_to_exact() {
+    auto X = make_blobs(20);
+    // n_components != 2 ⇒ barnes_hut downgrades to exact.
+    Skigen::TSNE<double> tsne(3, 5.0, 200.0, 150, "barnes_hut", 0.5, 12.0,
+                              std::optional<uint64_t>(0));
+    auto Y = tsne.fit_transform(X);
+    ASSERT_TRUE(Y.cols() == 3);
+    ASSERT_TRUE(tsne.method() == std::string("exact"));
 }
 
 // ===================================================================
@@ -289,6 +347,11 @@ int main() {
 
     std::cout << "\n=== TSNE Tests ===\n";
     run_test("tsne_basic", test_tsne_basic);
+    run_test("tsne_barnes_hut_shape", test_tsne_barnes_hut_shape);
+    run_test("tsne_barnes_hut_separates_clusters",
+             test_tsne_barnes_hut_separates_clusters);
+    run_test("tsne_invalid_method_throws", test_tsne_invalid_method_throws);
+    run_test("tsne_3d_falls_back_to_exact", test_tsne_3d_falls_back_to_exact);
 
     std::cout << "\n=== LLE Tests ===\n";
     run_test("lle_basic", test_lle_basic);

@@ -248,6 +248,17 @@
       "sidebar_position": 4
     },
     {
+      "name": "QuantileRegressor",
+      "module": "LinearModel",
+      "documented": true,
+      "guide": "/docs/guide/quantile-regressor",
+      "sklearn": "sklearn.linear_model.QuantileRegressor",
+      "sklearn_url": "https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.QuantileRegressor.html",
+      "example": "examples/linear_model/quantile_regressor.cpp",
+      "example_snippet": "example_quantile_regressor",
+      "sidebar_position": 5
+    },
+    {
       "name": "LinearRegression",
       "module": "LinearModel",
       "documented": true,

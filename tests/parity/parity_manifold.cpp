@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <numeric>
+#include <optional>
 #include <vector>
 
 #include "parity_common.h"
@@ -99,7 +100,10 @@ void parity_manifold() {
               0.12);
     });
     run("TSNE", [] {
-        check("tsne", Skigen::TSNE<double>(2, 15.0, 200.0, 300, 0), 0.15);
+        check("tsne",
+              Skigen::TSNE<double>(2, 15.0, 200.0, 300, "exact", 0.5, 12.0,
+                                   std::optional<uint64_t>(0)),
+              0.15);
     });
     run("UMAP", [] {
         check("umap", Skigen::UMAP<double>(2, 15, 0.1, 1.0, 200, 5, 0), 0.20);
