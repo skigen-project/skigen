@@ -596,6 +596,18 @@ public:
     DecisionTreeRegressor& fit_multi(
         const Eigen::Ref<const MatrixType>& X,
         const Eigen::Ref<const MatrixType>& Y) {
+        return fit_with_indices_multi(X, Y, std::vector<Eigen::Index>{});
+    }
+
+    /// @brief Multi-target fit on a specific row index subset.
+    ///
+    /// Mirrors `fit_with_indices` for the single-target path but builds one
+    /// shared joint tree with summed-variance split scoring. Used by ensemble
+    /// bootstraps that need per-tree multi-output sample subsets.
+    DecisionTreeRegressor& fit_with_indices_multi(
+        const Eigen::Ref<const MatrixType>& X,
+        const Eigen::Ref<const MatrixType>& Y,
+        const std::vector<Eigen::Index>& sample_indices) {
         internal::check_non_empty(X);
         if (X.rows() != Y.rows()) {
             throw std::invalid_argument(
@@ -610,8 +622,13 @@ public:
         per_target_trees_.clear();
         n_targets_ = static_cast<int>(Y.cols());
 
-        std::vector<Eigen::Index> indices(static_cast<std::size_t>(X.rows()));
-        std::iota(indices.begin(), indices.end(), Eigen::Index{0});
+        std::vector<Eigen::Index> indices;
+        if (sample_indices.empty()) {
+            indices.resize(static_cast<std::size_t>(X.rows()));
+            std::iota(indices.begin(), indices.end(), Eigen::Index{0});
+        } else {
+            indices = sample_indices;
+        }
         feature_importances_ = RowVectorType::Zero(X.cols());
         total_weight_ = static_cast<Scalar>(indices.size());
         if (random_state_.has_value()) rng_ = std::mt19937_64(*random_state_);

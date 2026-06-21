@@ -12,6 +12,8 @@
 #include <algorithm>
 #include <cmath>
 #include <numeric>
+#include <stdexcept>
+#include <string>
 #include <vector>
 
 namespace Skigen {
@@ -58,10 +60,10 @@ namespace Skigen {
 ///
 /// ### Limitations relative to scikit-learn
 ///
-/// Only the standard LLE method is implemented. The following
-/// scikit-learn parameters are not supported: `method` (only
-/// `"standard"`), `eigen_solver`, `hessian_tol`, `modified_tol`,
-/// `neighbors_algorithm`, `n_jobs`.
+/// The `standard` and `modified` LLE methods are implemented. The
+/// following scikit-learn parameters are not supported: `method`
+/// (`"hessian"` and `"ltsa"`), `eigen_solver`, `hessian_tol`,
+/// `modified_tol`, `neighbors_algorithm`, `n_jobs`.
 ///
 /// ### Examples
 ///
@@ -84,16 +86,22 @@ public:
     ///   (default `1e-3`).
     /// @param max_iter Reserved for iterative eigen solvers (default `100`).
     /// @param tol Convergence tolerance (default `1e-6`).
+    /// @param method LLE variant, `"standard"` (default) or `"modified"`.
     explicit LocallyLinearEmbedding(int n_components = 2,
                                    int n_neighbors = 5,
                                    Scalar reg = Scalar{1e-3},
                                    int max_iter = 100,
-                                   Scalar tol = Scalar{1e-6})
+                                   Scalar tol = Scalar{1e-6},
+                                   std::string method = "standard")
         : n_components_(n_components)
         , n_neighbors_(n_neighbors)
         , reg_(reg)
         , max_iter_(max_iter)
-        , tol_(tol) {}
+        , tol_(tol)
+        , method_(std::move(method)) {}
+
+    /// @brief LLE variant string (`"standard"` or `"modified"`).
+    [[nodiscard]] const std::string& method() const noexcept { return method_; }
 
     // -- Accessors ----------------------------------------------------------
 
@@ -116,7 +124,8 @@ public:
         (n_neighbors,  n_neighbors_,  int),
         (reg,          reg_,          double),
         (max_iter,     max_iter_,     int),
-        (tol,          tol_,          double))
+        (tol,          tol_,          double),
+        (method,       method_,       std::string))
 
     // -- Implementation (called by CRTP base) --------------------------------
 
@@ -144,6 +153,16 @@ public:
                 ") must be less than n_samples (" +
                 std::to_string(n) + ").");
         }
+        if (method_ != "standard" && method_ != "modified") {
+            throw std::invalid_argument(
+                "LocallyLinearEmbedding: method must be 'standard' or "
+                "'modified'.");
+        }
+        if (method_ == "modified" && K <= static_cast<Eigen::Index>(n_components_)) {
+            throw std::invalid_argument(
+                "LocallyLinearEmbedding: modified LLE requires n_neighbors > "
+                "n_components.");
+        }
 
         // --- Step 1: Pairwise distances and K nearest neighbors ---
         MatrixType D = pairwise_squared_distances(X);
@@ -152,13 +171,10 @@ public:
             neighbors(n, K);
         find_k_nearest(D, neighbors, n, K);
 
-        // --- Step 2: Compute reconstruction weights W ---
-        MatrixType W = MatrixType::Zero(n, n);
-        compute_reconstruction_weights(X, neighbors, W, n, K);
-
-        // --- Step 3-4: M = (I - W)^T (I - W), eigendecompose ---
-        MatrixType IW = MatrixType::Identity(n, n) - W;
-        MatrixType M = IW.transpose() * IW;
+        // --- Steps 2-3: build the alignment matrix M ---
+        MatrixType M = method_ == "modified"
+            ? build_modified_alignment(X, neighbors, n, K)
+            : build_standard_alignment(X, neighbors, n, K);
 
         // Symmetrise M to guard against floating-point asymmetry.
         M = (M + M.transpose()) / Scalar{2};
@@ -206,9 +222,71 @@ private:
     Scalar reg_;
     int max_iter_;
     Scalar tol_;
+    std::string method_;
 
     MatrixType embedding_;
     Scalar reconstruction_error_ = Scalar{0};
+
+    /// @brief Build the standard LLE alignment matrix M = (I - W)^T (I - W).
+    [[nodiscard]] MatrixType build_standard_alignment(
+        const Eigen::Ref<const MatrixType>& X,
+        const Eigen::Matrix<Eigen::Index, Eigen::Dynamic, Eigen::Dynamic>&
+            neighbors,
+        Eigen::Index n,
+        Eigen::Index K) const {
+        MatrixType W = MatrixType::Zero(n, n);
+        compute_reconstruction_weights(X, neighbors, W, n, K);
+        MatrixType IW = MatrixType::Identity(n, n) - W;
+        return IW.transpose() * IW;
+    }
+
+    /// @brief Build the modified LLE alignment matrix.
+    ///
+    /// Modified LLE (Zhang & Wang, 2006) uses multiple local weight vectors
+    /// taken from the near-null eigenvectors of each neighborhood Gram matrix
+    /// and accumulates their outer products into the global alignment matrix.
+    [[nodiscard]] MatrixType build_modified_alignment(
+        const Eigen::Ref<const MatrixType>& X,
+        const Eigen::Matrix<Eigen::Index, Eigen::Dynamic, Eigen::Dynamic>&
+            neighbors,
+        Eigen::Index n,
+        Eigen::Index K) const {
+        const Eigen::Index d = static_cast<Eigen::Index>(n_components_);
+        const Eigen::Index extra = K - d;  // number of near-null directions
+        MatrixType M = MatrixType::Zero(n, n);
+        const VectorType ones = VectorType::Ones(K);
+
+        for (Eigen::Index i = 0; i < n; ++i) {
+            MatrixType Z(K, X.cols());
+            for (Eigen::Index k = 0; k < K; ++k) {
+                Z.row(k) = X.row(neighbors(i, k)) - X.row(i);
+            }
+            MatrixType C = Z * Z.transpose();
+            const Scalar trace_C = C.trace();
+            C += reg_ * (trace_C / static_cast<Scalar>(K)) *
+                 MatrixType::Identity(K, K);
+
+            Eigen::SelfAdjointEigenSolver<MatrixType> eig(C);
+            // Smallest `extra` eigenvectors span the local null space.
+            MatrixType V = eig.eigenvectors().leftCols(extra);
+
+            // Orthogonalise each null vector against the constant vector and
+            // accumulate the contribution H = V (I - 1 1^T / K).
+            for (Eigen::Index c = 0; c < extra; ++c) {
+                VectorType v = V.col(c);
+                const Scalar s = v.sum();
+                v -= (s / static_cast<Scalar>(K)) * ones;
+                const Scalar norm = v.norm();
+                if (norm > Scalar{1e-12}) v /= norm;
+                for (Eigen::Index a = 0; a < K; ++a) {
+                    for (Eigen::Index b = 0; b < K; ++b) {
+                        M(neighbors(i, a), neighbors(i, b)) += v(a) * v(b);
+                    }
+                }
+            }
+        }
+        return M;
+    }
 
     // -- Helpers ------------------------------------------------------------
 

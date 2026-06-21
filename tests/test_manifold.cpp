@@ -172,6 +172,34 @@ void test_lle_basic() {
     ASSERT_TRUE(lle.reconstruction_error() >= 0.0);
 }
 
+void test_lle_modified_method() {
+    auto X = make_blobs(25);
+    Skigen::LocallyLinearEmbedding<double> lle(2, 6, 1e-3, 100, 1e-6, "modified");
+    auto Y = lle.fit_transform(X);
+    ASSERT_TRUE(Y.rows() == 25);
+    ASSERT_TRUE(Y.cols() == 2);
+    ASSERT_TRUE(lle.method() == "modified");
+    bool has_nan = false;
+    for (int i = 0; i < Y.rows(); ++i)
+        for (int j = 0; j < Y.cols(); ++j)
+            if (std::isnan(Y(i, j))) has_nan = true;
+    ASSERT_TRUE(!has_nan);
+}
+
+void test_lle_invalid_method_and_neighbors() {
+    auto X = make_blobs(12);
+    bool threw = false;
+    try { Skigen::LocallyLinearEmbedding<double>(2, 5, 1e-3, 100, 1e-6, "bogus").fit(X); }
+    catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+
+    threw = false;
+    // modified LLE requires n_neighbors > n_components.
+    try { Skigen::LocallyLinearEmbedding<double>(2, 2, 1e-3, 100, 1e-6, "modified").fit(X); }
+    catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
 // ===================================================================
 // SpectralEmbedding Tests
 // ===================================================================
@@ -242,6 +270,8 @@ int main() {
 
     std::cout << "\n=== LLE Tests ===\n";
     run_test("lle_basic", test_lle_basic);
+    run_test("lle_modified_method", test_lle_modified_method);
+    run_test("lle_invalid_method_and_neighbors", test_lle_invalid_method_and_neighbors);
 
     std::cout << "\n=== SpectralEmbedding Tests ===\n";
     run_test("spectral_embedding_basic", test_spectral_embedding_basic);

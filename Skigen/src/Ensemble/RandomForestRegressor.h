@@ -273,6 +273,118 @@ public:
         return Scalar{1} - ss_res / ss_tot;
     }
 
+    // -- Multi-output regression --------------------------------------------
+
+    /// @brief Fit on a multi-target response matrix Y (n_samples × n_targets).
+    ///
+    /// Each forest member is a shared joint multi-output tree
+    /// (`DecisionTreeRegressor::fit_with_indices_multi`). Bootstrap sampling,
+    /// feature subsampling, and seeding match the single-target path.
+    RandomForestRegressor& fit_multi(const Eigen::Ref<const MatrixType>& X,
+                                     const Eigen::Ref<const MatrixType>& Y) {
+        internal::check_non_empty(X);
+        if (X.rows() != Y.rows()) {
+            throw std::invalid_argument(
+                "RandomForestRegressor.fit_multi: X has " +
+                std::to_string(X.rows()) + " rows but Y has " +
+                std::to_string(Y.rows()) + ".");
+        }
+        if (Y.cols() < 1) {
+            throw std::invalid_argument(
+                "RandomForestRegressor.fit_multi: Y must have at least one "
+                "target column.");
+        }
+
+        this->n_features_in_ = X.cols();
+        n_targets_ = static_cast<int>(Y.cols());
+        const Eigen::Index n_samples = X.rows();
+        const int sample_count = max_samples_.has_value()
+            ? std::min<int>(*max_samples_, static_cast<int>(n_samples))
+            : static_cast<int>(n_samples);
+
+        const uint64_t base_seed = random_state_.value_or(
+            static_cast<uint64_t>(std::random_device{}()));
+
+        std::vector<std::vector<Eigen::Index>> per_tree_indices(
+            static_cast<std::size_t>(n_estimators_));
+        for (int t = 0; t < n_estimators_; ++t) {
+            std::mt19937_64 rng(base_seed ^ static_cast<uint64_t>(t));
+            std::vector<Eigen::Index> idx;
+            idx.reserve(static_cast<std::size_t>(sample_count));
+            if (bootstrap_) {
+                std::uniform_int_distribution<Eigen::Index> dist(0, n_samples - 1);
+                for (int i = 0; i < sample_count; ++i) idx.push_back(dist(rng));
+            } else {
+                idx.resize(static_cast<std::size_t>(n_samples));
+                std::iota(idx.begin(), idx.end(), Eigen::Index{0});
+            }
+            per_tree_indices[static_cast<std::size_t>(t)] = std::move(idx);
+        }
+
+        int tree_mf_mode = 0;
+        double tree_mf_value = 0.0;
+        switch (max_features_mode_) {
+            case MaxFeaturesMode::All:    tree_mf_mode = 0; break;
+            case MaxFeaturesMode::Sqrt:   tree_mf_mode = 1; break;
+            case MaxFeaturesMode::Log2:   tree_mf_mode = 2; break;
+            case MaxFeaturesMode::OneThird:
+                tree_mf_mode = 3;
+                tree_mf_value = 1.0 / 3.0;
+                break;
+            case MaxFeaturesMode::FractionOrCount:
+                tree_mf_mode = 3;
+                tree_mf_value = max_features_value_.has_value()
+                    ? static_cast<double>(*max_features_value_) : 1.0;
+                break;
+        }
+
+        const int tree_max_depth = max_depth_.value_or(-1);
+
+        estimators_storage_.clear();
+        estimators_storage_.reserve(static_cast<std::size_t>(n_estimators_));
+        for (int t = 0; t < n_estimators_; ++t) {
+            uint64_t tree_seed = base_seed ^
+                (static_cast<uint64_t>(t) * 0x9E3779B97F4A7C15ULL);
+            estimators_storage_.emplace_back(
+                tree_max_depth, min_samples_split_, tree_mf_mode, tree_mf_value,
+                std::optional<uint64_t>(tree_seed));
+        }
+
+        for (int t = 0; t < n_estimators_; ++t) {
+            estimators_storage_[static_cast<std::size_t>(t)]
+                .fit_with_indices_multi(
+                    X, Y, per_tree_indices[static_cast<std::size_t>(t)]);
+        }
+
+        feature_importances_ = RowVectorType::Zero(X.cols());
+        for (const auto& tree : estimators_storage_)
+            feature_importances_ += tree.feature_importances();
+        feature_importances_ /= static_cast<Scalar>(n_estimators_);
+        Scalar fi_sum = feature_importances_.sum();
+        if (fi_sum > Scalar{0}) feature_importances_ /= fi_sum;
+
+        this->fitted_ = true;
+        return *this;
+    }
+
+    /// @brief Multi-target predict (n_samples × n_targets).
+    [[nodiscard]] MatrixType predict_multi(
+        const Eigen::Ref<const MatrixType>& X) const {
+        this->check_is_fitted();
+        this->validate_feature_count(X);
+        MatrixType acc = MatrixType::Zero(X.rows(), n_targets_);
+        for (const auto& tree : estimators_storage_) {
+            acc += tree.predict_multi(X);
+        }
+        acc /= static_cast<Scalar>(n_estimators_);
+        return acc;
+    }
+
+    [[nodiscard]] int n_targets() const {
+        this->check_is_fitted();
+        return n_targets_;
+    }
+
 private:
     int n_estimators_;
     CriterionReg criterion_;
@@ -297,6 +409,7 @@ private:
     RowVectorType feature_importances_;
     VectorType oob_prediction_;
     Scalar oob_score_value_{0};
+    int n_targets_ = 1;
 
     void compute_oob(const Eigen::Ref<const MatrixType>& X,
                      const Eigen::Ref<const VectorType>& y,

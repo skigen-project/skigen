@@ -402,6 +402,33 @@ void test_rfr_unsupported_criterion_throws() {
     ASSERT_TRUE(threw);
 }
 
+void test_rfr_multi_output_predicts_two_targets() {
+    constexpr int n = 60;
+    Eigen::MatrixXd X(n, 1);
+    Eigen::MatrixXd Y(n, 2);
+    for (int i = 0; i < n; ++i) {
+        X(i, 0) = static_cast<double>(i);
+        Y(i, 0) = (i < n / 2) ? 1.0 : 5.0;
+        Y(i, 1) = (i < n / 3) ? -2.0 : 4.0;
+    }
+    Skigen::RandomForestRegressor<double> rf(
+        20, Skigen::RandomForestRegressor<double>::CriterionReg::SquaredError,
+        std::nullopt, 2, 1, 0.0,
+        Skigen::RandomForestRegressor<double>::MaxFeaturesMode::All,
+        std::nullopt, std::nullopt, 0.0, true, false, 1,
+        std::optional<uint64_t>(5));
+    rf.fit_multi(X, Y);
+
+    ASSERT_TRUE(rf.n_targets() == 2);
+    Eigen::MatrixXd Yp = rf.predict_multi(X);
+    ASSERT_TRUE(Yp.rows() == n);
+    ASSERT_TRUE(Yp.cols() == 2);
+    ASSERT_TRUE(Yp.allFinite());
+    // First and last rows should clearly track the two target levels.
+    ASSERT_TRUE(Yp(0, 0) < Yp(n - 1, 0));
+    ASSERT_TRUE(Yp(0, 1) < Yp(n - 1, 1));
+}
+
 // ---------------------------------------------------------------------------
 // GradientBoostingRegressor
 // ---------------------------------------------------------------------------
@@ -490,11 +517,65 @@ void test_gbr_feature_importances_shape_and_normalised() {
     ASSERT_TRUE(gb.feature_importances()(0) > 0.5);
 }
 
-void test_gbr_unsupported_loss_throws() {
+void test_gbr_absolute_error_recovers_signal() {
+    using GBR = Skigen::GradientBoostingRegressor<double>;
+    constexpr int n = 80;
+    Eigen::MatrixXd X(n, 1);
+    Eigen::VectorXd y(n);
+    for (int i = 0; i < n; ++i) {
+        X(i, 0) = static_cast<double>(i) / n;
+        y(i) = 3.0 * X(i, 0) + 1.0;
+    }
+    GBR gb(GBR::Loss::AbsoluteError, 0.1, 100, 1.0,
+           GBR::CriterionGB::FriedmanMSE, 2, 1, 0.0, 3, 0.0,
+           std::optional<uint64_t>(0));
+    gb.fit(X, y);
+    ASSERT_TRUE(gb.score(X, y) > 0.95);
+    ASSERT_TRUE(gb.train_score().allFinite());
+    // Absolute-error train loss should decrease from first to last stage.
+    ASSERT_TRUE(gb.train_score()(gb.n_estimators_fitted() - 1) <
+                gb.train_score()(0));
+}
+
+void test_gbr_quantile_loss_tracks_quantile() {
+    using GBR = Skigen::GradientBoostingRegressor<double>;
+    constexpr int n = 200;
+    Eigen::MatrixXd X(n, 1);
+    Eigen::VectorXd y(n);
+    std::mt19937_64 rng(7);
+    std::normal_distribution<double> noise(0.0, 1.0);
+    for (int i = 0; i < n; ++i) {
+        X(i, 0) = static_cast<double>(i) / n;
+        y(i) = 2.0 * X(i, 0) + noise(rng);
+    }
+    GBR high(GBR::Loss::Quantile, 0.1, 100, 1.0,
+             GBR::CriterionGB::FriedmanMSE, 2, 1, 0.0, 3, 0.0,
+             std::optional<uint64_t>(1), /*alpha=*/0.9);
+    GBR low(GBR::Loss::Quantile, 0.1, 100, 1.0,
+            GBR::CriterionGB::FriedmanMSE, 2, 1, 0.0, 3, 0.0,
+            std::optional<uint64_t>(1), /*alpha=*/0.1);
+    high.fit(X, y);
+    low.fit(X, y);
+    const Eigen::VectorXd hp = high.predict(X);
+    const Eigen::VectorXd lp = low.predict(X);
+    int above_high = 0, above_low = 0;
+    for (int i = 0; i < n; ++i) {
+        if (y(i) > hp(i)) ++above_high;
+        if (y(i) > lp(i)) ++above_low;
+    }
+    // The 0.9 quantile should sit above most points; the 0.1 below most.
+    ASSERT_TRUE(above_high < above_low);
+    ASSERT_TRUE(above_high < n / 4);
+    ASSERT_TRUE(above_low > 3 * n / 4);
+}
+
+void test_gbr_quantile_invalid_alpha_throws() {
+    using GBR = Skigen::GradientBoostingRegressor<double>;
     bool threw = false;
     try {
-        Skigen::GradientBoostingRegressor<double> gb(
-            Skigen::GradientBoostingRegressor<double>::Loss::Huber);
+        GBR gb(GBR::Loss::Quantile, 0.1, 100, 1.0,
+               GBR::CriterionGB::FriedmanMSE, 2, 1, 0.0, 3, 0.0,
+               std::nullopt, /*alpha=*/1.5);
         (void)gb;
     } catch (const std::invalid_argument&) { threw = true; }
     ASSERT_TRUE(threw);
@@ -829,6 +910,7 @@ int main() {
     run_test("rfr_noisy_linear",                test_rfr_noisy_linear);
     run_test("rfr_predict_matches_mean_of_two_trees", test_rfr_predict_matches_mean_of_two_trees);
     run_test("rfr_unsupported_criterion_throws", test_rfr_unsupported_criterion_throws);
+    run_test("rfr_multi_output_predicts_two_targets", test_rfr_multi_output_predicts_two_targets);
 
     std::cout << "\n=== GradientBoostingRegressor Tests ===\n";
     run_test("gbr_recovers_linear_signal",          test_gbr_recovers_linear_signal);
@@ -837,7 +919,9 @@ int main() {
     run_test("gbr_train_score_decreases",           test_gbr_train_score_decreases);
     run_test("gbr_feature_importances_shape_and_normalised",
              test_gbr_feature_importances_shape_and_normalised);
-    run_test("gbr_unsupported_loss_throws",         test_gbr_unsupported_loss_throws);
+    run_test("gbr_absolute_error_recovers_signal",  test_gbr_absolute_error_recovers_signal);
+    run_test("gbr_quantile_loss_tracks_quantile",   test_gbr_quantile_loss_tracks_quantile);
+    run_test("gbr_quantile_invalid_alpha_throws",   test_gbr_quantile_invalid_alpha_throws);
     run_test("gbr_subsample_below_one_throws",      test_gbr_subsample_below_one_throws);
     run_test("gbr_not_fitted_throws",               test_gbr_not_fitted_throws);
 

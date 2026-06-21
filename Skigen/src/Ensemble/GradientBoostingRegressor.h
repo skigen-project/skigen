@@ -9,6 +9,8 @@
 #include "../Tree/DecisionTree.h"
 
 #include <Eigen/Core>
+#include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <optional>
 #include <stdexcept>
@@ -130,12 +132,6 @@ public:
           n_iter_no_change_(n_iter_no_change),
           tol_(tol),
           ccp_alpha_(ccp_alpha) {
-        if (loss_ != Loss::SquaredError) {
-            throw std::invalid_argument(
-                "GradientBoostingRegressor: only loss=SquaredError is "
-                "implemented. AbsoluteError, Huber, Quantile "
-                "are not implemented.");
-        }
         if (subsample_ <= Scalar{0} || subsample_ > Scalar{1}) {
             throw std::invalid_argument(
                 "subsample must be in (0, 1]; got " +
@@ -145,6 +141,12 @@ public:
             throw std::invalid_argument(
                 "GradientBoostingRegressor: subsample < 1.0 (stochastic GB) is "
                 "not implemented.");
+        }
+        if ((loss_ == Loss::Quantile || loss_ == Loss::Huber) &&
+            (alpha_ <= Scalar{0} || alpha_ >= Scalar{1})) {
+            throw std::invalid_argument(
+                "GradientBoostingRegressor: alpha must be in (0, 1) for "
+                "Quantile and Huber losses.");
         }
     }
 
@@ -201,12 +203,14 @@ public:
         this->n_features_in_ = X.cols();
         const Eigen::Index n = X.rows();
 
-        // sklearn's default init is a DummyRegressor that returns the mean.
-        init_ = y.mean();
+        // The init estimate is the loss-optimal constant prediction.
+        init_ = initial_estimate(y);
 
         VectorType F = VectorType::Constant(n, init_);
         estimators_storage_.clear();
         estimators_storage_.reserve(static_cast<std::size_t>(n_estimators_));
+        scale_steps_.clear();
+        scale_steps_.reserve(static_cast<std::size_t>(n_estimators_));
 
         feature_importances_ = RowVectorType::Zero(X.cols());
         train_score_ = VectorType::Zero(n_estimators_);
@@ -214,8 +218,7 @@ public:
         const uint64_t base_seed = random_state_.value_or(0ULL);
 
         for (int stage = 0; stage < n_estimators_; ++stage) {
-            // Pseudo-residuals for squared-error loss are the plain residuals.
-            VectorType residuals = y - F;
+            const VectorType residuals = negative_gradient(y, F);
 
             DecisionTreeRegressor<Scalar> tree(
                 max_depth_,
@@ -228,13 +231,18 @@ public:
                     : std::nullopt);
             tree.fit(X, residuals);
 
-            // Update F with the shrunken tree prediction.
             VectorType update = tree.predict(X);
-            F.noalias() += learning_rate_ * update;
+            // For non-squared losses, take a single loss-optimal global step so
+            // the leaf gradients are scaled to minimise the actual loss along
+            // the tree direction (a stable line search, no per-leaf grouping).
+            const Scalar step = loss_ == Loss::SquaredError
+                ? Scalar{1}
+                : line_search_step(y, F, update);
+            scale_steps_.push_back(step);
+            F.noalias() += learning_rate_ * step * update;
 
-            // Track per-stage MSE.
             train_score_(stage) =
-                ((y - F).array().square().sum()) / static_cast<Scalar>(n);
+                loss_value(y, F) / static_cast<Scalar>(n);
 
             // Aggregate feature importances when the tree exposes them.
             feature_importances_ += tree.feature_importances();
@@ -254,8 +262,9 @@ public:
     [[nodiscard]] VectorType predict_impl(
         const Eigen::Ref<const MatrixType>& X) const {
         VectorType F = VectorType::Constant(X.rows(), init_);
-        for (const auto& tree : estimators_storage_) {
-            F.noalias() += learning_rate_ * tree.predict(X);
+        for (std::size_t m = 0; m < estimators_storage_.size(); ++m) {
+            F.noalias() += learning_rate_ * scale_steps_[m] *
+                           estimators_storage_[m].predict(X);
         }
         return F;
     }
@@ -301,8 +310,129 @@ private:
     // Fitted state
     Scalar init_{0};
     std::vector<DecisionTreeRegressor<Scalar>> estimators_storage_;
+    std::vector<Scalar> scale_steps_;
     RowVectorType feature_importances_;
     VectorType train_score_;
+
+    // -- Loss helpers -------------------------------------------------------
+
+    [[nodiscard]] static Scalar percentile(VectorType values, Scalar q) {
+        std::sort(values.data(), values.data() + values.size());
+        if (values.size() == 1) return values(0);
+        const Scalar rank = q * static_cast<Scalar>(values.size() - 1);
+        const Eigen::Index lo = static_cast<Eigen::Index>(std::floor(rank));
+        const Eigen::Index hi = std::min(lo + 1, values.size() - 1);
+        const Scalar frac = rank - static_cast<Scalar>(lo);
+        return values(lo) * (Scalar{1} - frac) + values(hi) * frac;
+    }
+
+    [[nodiscard]] static Scalar median(VectorType values) {
+        return percentile(std::move(values), Scalar{0.5});
+    }
+
+    [[nodiscard]] Scalar initial_estimate(const VectorType& y) const {
+        switch (loss_) {
+            case Loss::SquaredError:
+                return y.mean();
+            case Loss::AbsoluteError:
+            case Loss::Huber:
+                return median(y);
+            case Loss::Quantile:
+                return percentile(y, alpha_);
+        }
+        return y.mean();
+    }
+
+    [[nodiscard]] VectorType negative_gradient(const VectorType& y,
+                                               const VectorType& F) const {
+        const VectorType residual = y - F;
+        switch (loss_) {
+            case Loss::SquaredError:
+                return residual;
+            case Loss::AbsoluteError:
+                return residual.array().sign().matrix();
+            case Loss::Huber: {
+                const Scalar delta = percentile(residual.cwiseAbs(), alpha_);
+                VectorType g(residual.size());
+                for (Eigen::Index i = 0; i < residual.size(); ++i) {
+                    const Scalar r = residual(i);
+                    g(i) = std::abs(r) <= delta
+                        ? r
+                        : delta * (r > Scalar{0} ? Scalar{1} : Scalar{-1});
+                }
+                return g;
+            }
+            case Loss::Quantile: {
+                VectorType g(residual.size());
+                for (Eigen::Index i = 0; i < residual.size(); ++i) {
+                    g(i) = residual(i) > Scalar{0} ? alpha_ : alpha_ - Scalar{1};
+                }
+                return g;
+            }
+        }
+        return residual;
+    }
+
+    // Find the scalar step that minimises the loss along the tree direction:
+    //   argmin_s  loss(y, F + s * update).
+    // Uses a coarse golden-section-style scan over a bounded range; robust for
+    // the convex per-stage 1-D objective without per-leaf bookkeeping.
+    [[nodiscard]] Scalar line_search_step(const VectorType& y,
+                                          const VectorType& F,
+                                          const VectorType& update) const {
+        const Scalar denom = update.squaredNorm();
+        if (!(denom > Scalar{0})) return Scalar{0};
+        // Squared-error optimal step is the closed form; use it as the scan
+        // centre so the search stays well-scaled for all losses.
+        const Scalar centre = (y - F).dot(update) / denom;
+        const Scalar hi = std::abs(centre) > Scalar{0}
+            ? Scalar{4} * std::abs(centre)
+            : Scalar{1};
+        Scalar best_s = Scalar{0};
+        Scalar best_loss = loss_value(y, F);
+        constexpr int steps = 80;
+        for (int i = 0; i <= steps; ++i) {
+            const Scalar s = -hi + (Scalar{2} * hi) *
+                static_cast<Scalar>(i) / static_cast<Scalar>(steps);
+            const Scalar l = loss_value(y, (F + s * update).eval());
+            if (l < best_loss) {
+                best_loss = l;
+                best_s = s;
+            }
+        }
+        return best_s;
+    }
+
+    [[nodiscard]] Scalar loss_value(const VectorType& y,
+                                    const VectorType& F) const {
+        const VectorType residual = y - F;
+        switch (loss_) {
+            case Loss::SquaredError:
+                return residual.array().square().sum();
+            case Loss::AbsoluteError:
+                return residual.array().abs().sum();
+            case Loss::Huber: {
+                const Scalar delta = percentile(residual.cwiseAbs(), alpha_);
+                Scalar total{0};
+                for (Eigen::Index i = 0; i < residual.size(); ++i) {
+                    const Scalar a = std::abs(residual(i));
+                    total += a <= delta
+                        ? Scalar{0.5} * residual(i) * residual(i)
+                        : delta * (a - Scalar{0.5} * delta);
+                }
+                return total;
+            }
+            case Loss::Quantile: {
+                Scalar total{0};
+                for (Eigen::Index i = 0; i < residual.size(); ++i) {
+                    const Scalar r = residual(i);
+                    total += r >= Scalar{0} ? alpha_ * r : (alpha_ - Scalar{1}) * r;
+                }
+                return total;
+            }
+        }
+        return residual.array().square().sum();
+    }
 };
 
 /// @}
