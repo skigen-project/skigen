@@ -6,6 +6,7 @@
 
 #include "../Core/Base.h"
 #include "../Core/Validation.h"
+#include "Detail/TruncatedEigensolver.h"
 
 #include <Eigen/Core>
 #include <Eigen/Eigenvalues>
@@ -15,6 +16,7 @@
 #include <numeric>
 #include <optional>
 #include <random>
+#include <string>
 #include <vector>
 
 namespace Skigen {
@@ -37,8 +39,9 @@ namespace Skigen {
 /// | Parameter | Type | Default | Description |
 /// |-----------|------|---------|-------------|
 /// | `n_components` | `int` | `2` | Dimension of the projected subspace. |
-/// | `n_neighbors`  | `int` | `5` | Number of nearest neighbors for the affinity graph. |
-/// | `random_state` | `std::optional<uint64_t>` | `nullopt` | Seed for reproducibility (unused in current implementation). |
+/// | `n_neighbors`  | `int` | `5` | Nearest neighbors for the affinity graph. |
+/// | `eigen_solver` | `std::string` | `"auto"` | `"auto"` / `"arpack"` / `"dense"`. |
+/// | `random_state` | `std::optional<uint64_t>` | `nullopt` | Seed (currently unused). |
 ///
 /// ### Attributes (after fitting)
 ///
@@ -71,12 +74,18 @@ public:
     /// @param n_components Dimension of the projected subspace (default 2).
     /// @param n_neighbors  Number of nearest neighbors for the affinity
     ///   graph (default 5).
+    /// @param eigen_solver Eigensolver backend: `"auto"`, `"arpack"`, or
+    ///   `"dense"` (default `"auto"`). The `"arpack"` truncated path is only
+    ///   active when Skigen is built with `SKIGEN_ENABLE_SPECTRA` and the
+    ///   Spectra headers are available; otherwise the dense solver is used.
     /// @param random_state Optional RNG seed (default nullopt).
     explicit SpectralEmbedding(int n_components = 2,
                                int n_neighbors = 5,
+                               std::string eigen_solver = "auto",
                                std::optional<uint64_t> random_state = std::nullopt)
         : n_components_(n_components),
           n_neighbors_(n_neighbors),
+          eigen_solver_(std::move(eigen_solver)),
           random_state_(random_state) {}
 
     // -- Accessors ----------------------------------------------------------
@@ -95,8 +104,14 @@ public:
         return affinity_matrix_;
     }
 
+    /// @brief The configured eigensolver name (`"auto"` / `"arpack"` / `"dense"`).
+    [[nodiscard]] const std::string& eigen_solver() const noexcept {
+        return eigen_solver_;
+    }
+
     SKIGEN_PARAMS((n_components, n_components_, int),
-                  (n_neighbors, n_neighbors_, int))
+                  (n_neighbors, n_neighbors_, int),
+                  (eigen_solver, eigen_solver_, std::string))
 
     // -- Implementation (called by CRTP base) --------------------------------
 
@@ -202,16 +217,21 @@ public:
         }
 
         // -- Eigendecomposition: bottom eigenvectors of L_norm -------------
-        Eigen::SelfAdjointEigenSolver<MatrixType> eig(L_norm);
-        if (eig.info() != Eigen::Success) {
-            throw std::runtime_error(
-                "SpectralEmbedding: eigendecomposition did not converge.");
-        }
+        // Validate the solver name (throws on unknown). Route through the
+        // shared truncated-eigensolver helper, which uses the dense Eigen
+        // solver by default and the Spectra ARPACK-style backend only when
+        // SKIGEN_ENABLE_SPECTRA is built in.
+        const internal::EigenSolver solver =
+            internal::parse_eigen_solver(eigen_solver_);
 
-        // Eigenvalues are sorted ascending; skip eigenvector 0 (constant).
-        const int nc = std::min(n_components_,
-                                static_cast<int>(n - 1));
-        MatrixType vecs = eig.eigenvectors().middleCols(1, nc);
+        // Skip eigenvector 0 (the trivial constant vector), so ask for one
+        // extra smallest eigenpair and drop the first.
+        const int nc = std::min(n_components_, static_cast<int>(n - 1));
+        VectorType evals;
+        MatrixType evecs;
+        internal::smallest_eigenpairs<Scalar>(L_norm, nc + 1, solver, evals,
+                                              evecs);
+        MatrixType vecs = evecs.middleCols(1, nc);
 
         // Scale rows by D^{-1/2}
         for (Eigen::Index i = 0; i < n; ++i) {
@@ -240,6 +260,7 @@ public:
 private:
     int n_components_;
     int n_neighbors_;
+    std::string eigen_solver_ = "auto";
     std::optional<uint64_t> random_state_;
 
     MatrixType embedding_;

@@ -14,7 +14,11 @@ Constructs an affinity graph (nearest-neighbours by default), forms the normalis
 ## Constructor
 
 ```cpp
-Skigen::SpectralEmbedding<Scalar> model(int n_components = 2, int n_neighbors = 5);
+Skigen::SpectralEmbedding<Scalar> model(
+    int n_components = 2,
+    int n_neighbors = 5,
+    std::string eigen_solver = "auto",
+    std::optional<uint64_t> random_state = std::nullopt);
 ```
 
 ## Parameters
@@ -23,6 +27,11 @@ Skigen::SpectralEmbedding<Scalar> model(int n_components = 2, int n_neighbors = 
 |---|---|---|
 | `n_components` | `2` | Embedding dimensionality. |
 | `n_neighbors` | `5` | Neighbours in the affinity graph. |
+| `eigen_solver` | `"auto"` | `"auto"`, `"arpack"`, or `"dense"` (sklearn spelling). |
+
+### Eigensolver backend
+
+The Laplacian eigendecomposition runs through a shared helper that defaults to Eigen's **dense** `SelfAdjointEigenSolver`. When Skigen is built with `-DSKIGEN_ENABLE_SPECTRA` **and** the header-only [Spectra](https://spectralib.org/) library is reachable, `eigen_solver="arpack"` (and `"auto"` on large problems) uses a **truncated** ARPACK-style iterative solve that computes only the bottom eigenpairs — much cheaper when `n_components << n_samples`. Eigen remains the sole required dependency: with the flag off, only the dense path is compiled and `"arpack"` transparently falls back to dense. An unknown solver name raises `std::invalid_argument`.
 
 ## Methods
 
