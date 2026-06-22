@@ -149,6 +149,49 @@ void test_isomap_dist_matrix() {
     }
 }
 
+void test_isomap_dense_matches_auto() {
+    auto X = make_blobs(25);
+    Skigen::Isomap<double> iso_auto(2, 5, "auto");
+    Skigen::Isomap<double> iso_dense(2, 5, "dense");
+    auto Ya = iso_auto.fit_transform(X);
+    auto Yd = iso_dense.fit_transform(X);
+    for (int i = 0; i < Ya.rows(); ++i)
+        for (int j = 0; j < Ya.cols(); ++j)
+            ASSERT_NEAR(std::abs(Ya(i, j)), std::abs(Yd(i, j)), 1e-9);
+}
+
+void test_isomap_invalid_solver_throws() {
+    auto X = make_blobs(12);
+    Skigen::Isomap<double> iso(2, 4, "lanczos");
+    bool threw = false;
+    try { auto Y = iso.fit_transform(X); (void)Y; }
+    catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
+void test_lle_dense_matches_auto() {
+    auto X = make_blobs(25);
+    Skigen::LocallyLinearEmbedding<double> lle_auto(2, 6, 1e-3, 100, 1e-6,
+                                                    "standard", "auto");
+    Skigen::LocallyLinearEmbedding<double> lle_dense(2, 6, 1e-3, 100, 1e-6,
+                                                     "standard", "dense");
+    auto Ya = lle_auto.fit_transform(X);
+    auto Yd = lle_dense.fit_transform(X);
+    for (int i = 0; i < Ya.rows(); ++i)
+        for (int j = 0; j < Ya.cols(); ++j)
+            ASSERT_NEAR(std::abs(Ya(i, j)), std::abs(Yd(i, j)), 1e-9);
+}
+
+void test_lle_invalid_solver_throws() {
+    auto X = make_blobs(15);
+    Skigen::LocallyLinearEmbedding<double> lle(2, 5, 1e-3, 100, 1e-6,
+                                               "standard", "lanczos");
+    bool threw = false;
+    try { auto Y = lle.fit_transform(X); (void)Y; }
+    catch (const std::invalid_argument&) { threw = true; }
+    ASSERT_TRUE(threw);
+}
+
 // ===================================================================
 // TSNE Tests
 // ===================================================================
@@ -370,6 +413,9 @@ int main() {
     std::cout << "\n=== Isomap Tests ===\n";
     run_test("isomap_basic", test_isomap_basic);
     run_test("isomap_dist_matrix", test_isomap_dist_matrix);
+    run_test("isomap_dense_matches_auto", test_isomap_dense_matches_auto);
+    run_test("isomap_invalid_solver_throws",
+             test_isomap_invalid_solver_throws);
 
     std::cout << "\n=== TSNE Tests ===\n";
     run_test("tsne_basic", test_tsne_basic);
@@ -384,6 +430,8 @@ int main() {
     run_test("lle_modified_method", test_lle_modified_method);
     run_test("lle_hessian_and_ltsa_methods", test_lle_hessian_and_ltsa_methods);
     run_test("lle_invalid_method_and_neighbors", test_lle_invalid_method_and_neighbors);
+    run_test("lle_dense_matches_auto", test_lle_dense_matches_auto);
+    run_test("lle_invalid_solver_throws", test_lle_invalid_solver_throws);
 
     std::cout << "\n=== SpectralEmbedding Tests ===\n";
     run_test("spectral_embedding_basic", test_spectral_embedding_basic);

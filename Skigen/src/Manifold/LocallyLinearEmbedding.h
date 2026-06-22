@@ -6,6 +6,7 @@
 
 #include "../Core/Base.h"
 #include "../Core/Validation.h"
+#include "Detail/TruncatedEigensolver.h"
 
 #include <Eigen/Core>
 #include <Eigen/Eigenvalues>
@@ -89,18 +90,28 @@ public:
     /// @param max_iter Reserved for iterative eigen solvers (default `100`).
     /// @param tol Convergence tolerance (default `1e-6`).
     /// @param method LLE variant, `"standard"` (default) or `"modified"`.
+    /// @param eigen_solver Eigensolver backend: `"auto"`, `"arpack"`, or
+    ///   `"dense"` (default `"auto"`). `"arpack"` is only active under
+    ///   `SKIGEN_ENABLE_SPECTRA`; otherwise the dense solver is used.
     explicit LocallyLinearEmbedding(int n_components = 2,
                                    int n_neighbors = 5,
                                    Scalar reg = Scalar{1e-3},
                                    int max_iter = 100,
                                    Scalar tol = Scalar{1e-6},
-                                   std::string method = "standard")
+                                   std::string method = "standard",
+                                   std::string eigen_solver = "auto")
         : n_components_(n_components)
         , n_neighbors_(n_neighbors)
         , reg_(reg)
         , max_iter_(max_iter)
         , tol_(tol)
-        , method_(std::move(method)) {}
+        , method_(std::move(method))
+        , eigen_solver_(std::move(eigen_solver)) {}
+
+    /// @brief The configured eigensolver name (`"auto"` / `"arpack"` / `"dense"`).
+    [[nodiscard]] const std::string& eigen_solver() const noexcept {
+        return eigen_solver_;
+    }
 
     /// @brief LLE variant string (`"standard"` or `"modified"`).
     [[nodiscard]] const std::string& method() const noexcept { return method_; }
@@ -127,7 +138,8 @@ public:
         (reg,          reg_,          double),
         (max_iter,     max_iter_,     int),
         (tol,          tol_,          double),
-        (method,       method_,       std::string))
+        (method,       method_,       std::string),
+        (eigen_solver, eigen_solver_, std::string))
 
     // -- Implementation (called by CRTP base) --------------------------------
 
@@ -198,23 +210,24 @@ public:
         // Symmetrise M to guard against floating-point asymmetry.
         M = (M + M.transpose()) / Scalar{2};
 
-        Eigen::SelfAdjointEigenSolver<MatrixType> eig(M);
-        if (eig.info() != Eigen::Success) {
-            throw std::runtime_error(
-                "LocallyLinearEmbedding: eigendecomposition failed.");
-        }
+        // Bottom eigenpairs of M: route through the shared helper (dense by
+        // default; Spectra ARPACK-style only under SKIGEN_ENABLE_SPECTRA).
+        // Ask for n_components + 1 and drop the trivial null eigenvector.
+        const internal::EigenSolver solver =
+            internal::parse_eigen_solver(eigen_solver_);
+        VectorType evals;
+        MatrixType evecs;
+        internal::smallest_eigenpairs<Scalar>(
+            M, n_components_ + 1, solver, evals, evecs);
 
-        // Eigenvalues are sorted in ascending order by Eigen.
-        // Skip the first eigenvector (trivial, eigenvalue ~ 0) and
-        // take the next n_components eigenvectors.
-        embedding_ = eig.eigenvectors().block(
+        embedding_ = evecs.block(
             0, 1, n, static_cast<Eigen::Index>(n_components_));
 
         // Reconstruction error: sum of the n_components smallest
         // non-trivial eigenvalues.
         reconstruction_error_ = Scalar{0};
         for (int k = 1; k <= n_components_; ++k) {
-            reconstruction_error_ += eig.eigenvalues()(k);
+            reconstruction_error_ += evals(k);
         }
 
         this->fitted_ = true;
@@ -242,6 +255,7 @@ private:
     int max_iter_;
     Scalar tol_;
     std::string method_;
+    std::string eigen_solver_ = "auto";
 
     MatrixType embedding_;
     Scalar reconstruction_error_ = Scalar{0};

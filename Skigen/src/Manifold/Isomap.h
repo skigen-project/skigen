@@ -6,6 +6,7 @@
 
 #include "../Core/Base.h"
 #include "../Core/Validation.h"
+#include "Detail/TruncatedEigensolver.h"
 
 #include <Eigen/Core>
 #include <Eigen/Eigenvalues>
@@ -14,6 +15,7 @@
 #include <functional>
 #include <limits>
 #include <queue>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -52,9 +54,10 @@ namespace Skigen {
 ///
 /// ### Limitations relative to scikit-learn
 ///
-/// The parameters `radius`, `eigen_solver`, `tol`, `max_iter`,
-/// `path_method`, `neighbors_algorithm`, `n_jobs`, `p`, and `metric`
-/// are not supported.
+/// The parameters `radius`, `tol`, `max_iter`, `path_method`,
+/// `neighbors_algorithm`, `n_jobs`, `p`, and `metric` are not supported.
+/// `eigen_solver` accepts `"auto"`, `"arpack"`, and `"dense"` (the
+/// `"arpack"` truncated path requires `SKIGEN_ENABLE_SPECTRA`).
 ///
 /// ### Examples
 ///
@@ -73,9 +76,14 @@ public:
     ///
     /// @param n_components Embedding dimensionality (default 2).
     /// @param n_neighbors  Number of nearest neighbours for the graph (default 5).
-    explicit Isomap(int n_components = 2, int n_neighbors = 5)
+    /// @param eigen_solver Eigensolver backend: `"auto"`, `"arpack"`, or
+    ///   `"dense"` (default `"auto"`). `"arpack"` is only active under
+    ///   `SKIGEN_ENABLE_SPECTRA`; otherwise the dense solver is used.
+    explicit Isomap(int n_components = 2, int n_neighbors = 5,
+                    std::string eigen_solver = "auto")
         : n_components_(n_components),
-          n_neighbors_(n_neighbors) {}
+          n_neighbors_(n_neighbors),
+          eigen_solver_(std::move(eigen_solver)) {}
 
     // -- Accessors ----------------------------------------------------------
 
@@ -89,10 +97,15 @@ public:
     [[nodiscard]] const MatrixType& dist_matrix() const {
         this->check_is_fitted(); return dist_matrix_;
     }
+    /// @brief The configured eigensolver name (`"auto"` / `"arpack"` / `"dense"`).
+    [[nodiscard]] const std::string& eigen_solver() const noexcept {
+        return eigen_solver_;
+    }
 
     SKIGEN_PARAMS(
         (n_components, n_components_, int),
-        (n_neighbors, n_neighbors_, int))
+        (n_neighbors, n_neighbors_, int),
+        (eigen_solver, eigen_solver_, std::string))
 
     // -- Implementation (called by CRTP base) --------------------------------
 
@@ -167,14 +180,16 @@ public:
                        - MatrixType::Ones(n, n) / static_cast<Scalar>(n);
         MatrixType B = Scalar{-0.5} * H * D2 * H;
 
-        // Eigendecomposition of the symmetric matrix B.
-        Eigen::SelfAdjointEigenSolver<MatrixType> eig(B);
-
-        // SelfAdjointEigenSolver returns eigenvalues in ascending order.
-        // Take the largest n_components eigenvalues (last columns).
+        // Classical MDS keeps the largest eigenpairs of B. Route through the
+        // shared truncated-eigensolver helper (dense by default; Spectra
+        // ARPACK-style only under SKIGEN_ENABLE_SPECTRA).
+        const internal::EigenSolver solver =
+            internal::parse_eigen_solver(eigen_solver_);
         const Eigen::Index nc = std::min(static_cast<Eigen::Index>(n_components_), n);
-        VectorType vals = eig.eigenvalues().tail(nc).reverse();
-        MatrixType vecs = eig.eigenvectors().rightCols(nc).rowwise().reverse();
+        VectorType vals;
+        MatrixType vecs;
+        internal::largest_eigenpairs<Scalar>(B, static_cast<int>(nc), solver,
+                                             vals, vecs);
 
         // Clamp tiny negative eigenvalues arising from numerical error.
         vals = vals.array().max(Scalar{0});
@@ -201,6 +216,7 @@ public:
 private:
     int n_components_;
     int n_neighbors_;
+    std::string eigen_solver_ = "auto";
 
     MatrixType embedding_;
     MatrixType dist_matrix_;

@@ -117,6 +117,61 @@ void smallest_eigenpairs(
     eigenvectors = eig.eigenvectors().leftCols(k);
 }
 
+/// @brief Compute the `k` algebraically-largest eigenpairs of a symmetric
+///   matrix `A`, descending by eigenvalue (top eigenvectors first).
+///
+/// Used by MDS-style embeddings (e.g. Isomap) that keep the dominant
+/// eigenvectors. Backend selection mirrors `smallest_eigenpairs`: dense by
+/// default, Spectra ARPACK-style truncated solve under `SKIGEN_ENABLE_SPECTRA`.
+///
+/// @param A       Symmetric matrix (n × n).
+/// @param k       Number of largest eigenpairs to return.
+/// @param solver  Backend selection (Auto / Arpack / Dense).
+/// @param eigenvalues  [out] Descending eigenvalues (length k).
+/// @param eigenvectors [out] Corresponding eigenvectors (n × k).
+template <typename Scalar>
+void largest_eigenpairs(
+    const Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& A, int k,
+    EigenSolver solver,
+    Eigen::Matrix<Scalar, Eigen::Dynamic, 1>& eigenvalues,
+    Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& eigenvectors) {
+    using Matrix = Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>;
+    const Eigen::Index n = A.rows();
+    k = std::min(k, static_cast<int>(n));
+
+#if defined(SKIGEN_HAVE_SPECTRA)
+    const bool use_arpack =
+        (solver == EigenSolver::Arpack) ||
+        (solver == EigenSolver::Auto && n > 200 && k < static_cast<int>(n) / 2);
+    if (use_arpack) {
+        Spectra::DenseSymMatProd<Scalar> op(A);
+        const int ncv = std::min(static_cast<int>(n),
+                                 std::max(2 * k + 1, 20));
+        Spectra::SymEigsSolver<Spectra::DenseSymMatProd<Scalar>> eigs(
+            op, k, ncv);
+        eigs.init();
+        eigs.compute(Spectra::SortRule::LargestAlge);
+        if (eigs.info() == Spectra::CompInfo::Successful) {
+            eigenvalues = eigs.eigenvalues();      // descending
+            eigenvectors = eigs.eigenvectors();
+            return;
+        }
+    }
+#else
+    (void)solver;
+#endif
+
+    // Dense fallback: SelfAdjointEigenSolver gives ascending order, so the
+    // top k are the last columns reversed to descending.
+    Eigen::SelfAdjointEigenSolver<Matrix> eig(A);
+    if (eig.info() != Eigen::Success)
+        throw std::runtime_error(
+            "TruncatedEigensolver: dense eigendecomposition did not "
+            "converge.");
+    eigenvalues = eig.eigenvalues().tail(k).reverse();
+    eigenvectors = eig.eigenvectors().rightCols(k).rowwise().reverse();
+}
+
 }  // namespace internal
 }  // namespace Skigen
 
