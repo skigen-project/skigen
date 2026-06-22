@@ -976,6 +976,85 @@ void test_hgbr_native_categorical_split() {
     ASSERT_TRUE(cat.score(X, y) >= ord.score(X, y));
 }
 
+void test_hgbr_sparse_matches_dense() {
+    // A mostly-zero design matrix; the native sparse HistGB path must match
+    // the dense fit (same binning, same trees).
+    constexpr int n = 120, p = 6;
+    Eigen::MatrixXd Xd = Eigen::MatrixXd::Zero(n, p);
+    Eigen::VectorXd y(n);
+    std::mt19937_64 rng(8);
+    std::uniform_int_distribution<int> col(0, p - 1);
+    std::uniform_real_distribution<double> val(0.5, 3.0);
+    for (int i = 0; i < n; ++i) {
+        for (int k = 0; k < 2; ++k) Xd(i, col(rng)) = val(rng);
+        y(i) = 2.0 * Xd(i, 0) - Xd(i, 1);
+    }
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+
+    using HGBR = Skigen::HistGradientBoostingRegressor<double>;
+    HGBR d(HGBR::Loss::SquaredError, 0.1, 40, 15, std::nullopt, 5, 0.0, 16,
+           std::nullopt, std::nullopt, false, 0.1, 10, 1e-7,
+           std::optional<uint64_t>(0));
+    HGBR s(HGBR::Loss::SquaredError, 0.1, 40, 15, std::nullopt, 5, 0.0, 16,
+           std::nullopt, std::nullopt, false, 0.1, 10, 1e-7,
+           std::optional<uint64_t>(0));
+    d.fit(Xd, y);
+    s.fit(Xs, y);
+    Eigen::VectorXd pd = d.predict(Xd);
+    Eigen::VectorXd ps = s.predict(Xs);
+    for (int i = 0; i < n; ++i) ASSERT_NEAR(pd(i), ps(i), 1e-10);
+}
+
+void test_hgbc_sparse_matches_dense() {
+    constexpr int n = 120, p = 5;
+    Eigen::MatrixXd Xd = Eigen::MatrixXd::Zero(n, p);
+    Eigen::VectorXi y(n);
+    std::mt19937_64 rng(9);
+    std::uniform_int_distribution<int> col(0, p - 1);
+    std::uniform_real_distribution<double> val(0.5, 3.0);
+    for (int i = 0; i < n; ++i) {
+        for (int k = 0; k < 2; ++k) Xd(i, col(rng)) = val(rng);
+        y(i) = (Xd(i, 0) + Xd(i, 1) > 1.0) ? 1 : 0;
+    }
+    Eigen::SparseMatrix<double> Xs = Xd.sparseView();
+
+    using HGBC = Skigen::HistGradientBoostingClassifier<double>;
+    HGBC d(HGBC::Loss::LogLoss, 0.2, 40, 15, std::nullopt, 5, 0.0, 16,
+           std::nullopt, std::nullopt, false, 0.1, 10, 1e-7,
+           std::optional<uint64_t>(0));
+    HGBC s(HGBC::Loss::LogLoss, 0.2, 40, 15, std::nullopt, 5, 0.0, 16,
+           std::nullopt, std::nullopt, false, 0.1, 10, 1e-7,
+           std::optional<uint64_t>(0));
+    d.fit(Xd, y);
+    s.fit(Xs, y);
+    auto pd = d.predict(Xd);
+    auto ps = s.predict(Xs);
+    for (int i = 0; i < n; ++i) ASSERT_TRUE(pd(i) == ps(i));
+}
+
+void test_hgbc_native_categorical_split() {
+    // Non-monotonic category->class mapping: cats {0,2} -> class 1,
+    // {1,3} -> class 0. Requires a categorical (subset) split.
+    constexpr int n = 200;
+    Eigen::MatrixXd X(n, 1);
+    Eigen::VectorXi y(n);
+    for (int i = 0; i < n; ++i) {
+        const int cat = i % 4;
+        X(i, 0) = static_cast<double>(cat);
+        y(i) = (cat == 0 || cat == 2) ? 1 : 0;
+    }
+    using HGBC = Skigen::HistGradientBoostingClassifier<double>;
+    HGBC cat(HGBC::Loss::LogLoss, 0.3, 60, 15, std::nullopt, 5, 0.0, 8,
+             /*monotonic_cst=*/std::nullopt,
+             /*categorical_features=*/std::vector<int>{0}, false, 0.1, 10,
+             1e-7, std::optional<uint64_t>(0));
+    cat.fit(X, y);
+    auto preds = cat.predict(X);
+    int correct = 0;
+    for (int i = 0; i < n; ++i) if (preds(i) == y(i)) ++correct;
+    ASSERT_TRUE(static_cast<double>(correct) / n > 0.95);
+}
+
 void test_hgbr_early_stopping_truncates() {
     // With early stopping on a learnable signal, fitting should stop before
     // exhausting max_iter once the holdout stops improving.
@@ -1016,7 +1095,8 @@ void test_hgbc_binary_separable_high_accuracy() {
     }
     using HGBC = Skigen::HistGradientBoostingClassifier<double>;
     HGBC hgb(HGBC::Loss::LogLoss, 0.1, 100, 31, std::nullopt, 2,
-             0.0, 64, std::nullopt, false, 0.1, 10, 1e-7,
+             0.0, 64, /*monotonic_cst=*/std::nullopt,
+             /*categorical_features=*/std::nullopt, false, 0.1, 10, 1e-7,
              std::optional<uint64_t>(11));
     hgb.fit(X, y);
     auto preds = hgb.predict(X);
@@ -1077,8 +1157,9 @@ void test_hgbc_multiclass_separates_clusters() {
     }
     Skigen::HistGradientBoostingClassifier<double> hgb(
         Skigen::HistGradientBoostingClassifier<double>::Loss::LogLoss,
-        0.2, 80, 31, std::nullopt, 5, 0.0, 64, std::nullopt, false, 0.1,
-        10, 1e-7, std::optional<uint64_t>(0));
+        0.2, 80, 31, std::nullopt, 5, 0.0, 64, /*monotonic_cst=*/std::nullopt,
+        /*categorical_features=*/std::nullopt, false, 0.1, 10, 1e-7,
+        std::optional<uint64_t>(0));
     hgb.fit(X, y);
     ASSERT_TRUE(hgb.n_classes() == 3);
     Eigen::MatrixXd P = hgb.predict_proba(X);
@@ -1152,6 +1233,7 @@ int main() {
     run_test("hgbr_l2_regularization_runs",       test_hgbr_l2_regularization_runs);
     run_test("hgbr_monotonic_increasing",         test_hgbr_monotonic_increasing);
     run_test("hgbr_native_categorical_split",     test_hgbr_native_categorical_split);
+    run_test("hgbr_sparse_matches_dense",          test_hgbr_sparse_matches_dense);
     run_test("hgbr_early_stopping_truncates",      test_hgbr_early_stopping_truncates);
 
     std::cout << "\n=== HistGradientBoostingClassifier Tests ===\n";
@@ -1162,6 +1244,8 @@ int main() {
     run_test("hgbc_init_log_odds",                test_hgbc_init_log_odds);
     run_test("hgbc_multiclass_separates_clusters",
              test_hgbc_multiclass_separates_clusters);
+    run_test("hgbc_native_categorical_split",     test_hgbc_native_categorical_split);
+    run_test("hgbc_sparse_matches_dense",         test_hgbc_sparse_matches_dense);
 
     std::cout << "\n" << g_passed << " passed, " << g_failed << " failed.\n";
     return g_failed > 0 ? 1 : 0;

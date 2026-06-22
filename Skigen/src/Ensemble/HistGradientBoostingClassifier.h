@@ -9,6 +9,7 @@
 #include "Detail/HistTree.h"
 
 #include <Eigen/Core>
+#include <Eigen/SparseCore>
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -42,8 +43,10 @@ namespace Skigen {
 /// with a second-order (Newton) split-gain criterion, best-first
 /// **leaf-wise** growth bounded by `max_leaf_nodes`, L2 regularisation,
 /// monotonic constraints, and holdout-based early stopping. Both binary
-/// and multiclass log-loss are supported. Native categorical features
-/// and a native sparse input path remain deferred.
+/// and multiclass log-loss are supported. **Native categorical features**
+/// are supported via `categorical_features` (integer-coded, identity-binned,
+/// split by the unordered gradient-sorted strategy). A native sparse input
+/// path remains deferred.
 template <typename Scalar = double>
 class HistGradientBoostingClassifier
     : public Classifier<HistGradientBoostingClassifier<Scalar>, Scalar> {
@@ -55,6 +58,11 @@ public:
     using typename Base::ScalarType;
     using typename Base::LabelType;
     using VectorType = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
+    using BinnedMatrix = typename internal::HistTree<Scalar>::BinnedMatrix;
+
+    // Make dense base-class fit/predict visible alongside the sparse overloads.
+    using Base::fit;
+    using Base::predict;
 
     enum class Loss { LogLoss };
 
@@ -68,6 +76,7 @@ public:
         Scalar l2_regularization = Scalar{0},
         int max_bins = 255,
         std::optional<std::vector<int>> monotonic_cst = std::nullopt,
+        std::optional<std::vector<int>> categorical_features = std::nullopt,
         bool early_stopping = false,
         Scalar validation_fraction = Scalar{0.1},
         int n_iter_no_change = 10,
@@ -82,6 +91,7 @@ public:
           l2_regularization_(l2_regularization),
           max_bins_(max_bins),
           monotonic_cst_(std::move(monotonic_cst)),
+          categorical_features_(std::move(categorical_features)),
           early_stopping_(early_stopping),
           validation_fraction_(validation_fraction),
           n_iter_no_change_(n_iter_no_change),
@@ -145,34 +155,48 @@ public:
         internal::check_non_empty(X);
         internal::check_consistent_length(X, y);
         this->n_features_in_ = X.cols();
-        const Eigen::Index n = X.rows();
-
-        // Discover the class set.
-        std::vector<int> uniq;
-        uniq.reserve(static_cast<std::size_t>(y.size()));
-        for (Eigen::Index i = 0; i < y.size(); ++i) uniq.push_back(y(i));
-        std::sort(uniq.begin(), uniq.end());
-        uniq.erase(std::unique(uniq.begin(), uniq.end()), uniq.end());
-        if (uniq.size() < 2) {
-            throw std::invalid_argument(
-                "HistGradientBoostingClassifier: need at least 2 classes; "
-                "got " + std::to_string(uniq.size()) + ".");
-        }
-        const int K = static_cast<int>(uniq.size());
-        classes_ = Eigen::VectorXi(K);
-        for (int k = 0; k < K; ++k) classes_(k) = uniq[k];
-
-        // Quantile-bin the design matrix.
-        using BinnedMatrix = typename internal::HistTree<Scalar>::BinnedMatrix;
+        discover_classes(y);
         BinnedMatrix X_binned = build_bins(X);
+        fit_from_binned(X_binned, y);
+        return *this;
+    }
 
-        // Map labels to class indices 0..K-1.
+    /// @brief Fit natively from a sparse design matrix without densifying.
+    ///
+    /// The sparse input is binned directly into the compact uint8 histogram
+    /// representation; no dense `double` @f$n\times p@f$ matrix is built.
+    template <int Options, typename StorageIndex>
+    HistGradientBoostingClassifier& fit(
+        const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X,
+        const Eigen::Ref<const Eigen::VectorXi>& y) {
+        if (X.rows() == 0 || X.cols() == 0)
+            throw std::invalid_argument(
+                "HistGradientBoostingClassifier.fit: empty sparse matrix.");
+        if (X.rows() != y.size())
+            throw std::invalid_argument(
+                "HistGradientBoostingClassifier.fit: X has " +
+                std::to_string(X.rows()) + " rows but y has " +
+                std::to_string(y.size()) + ".");
+        this->n_features_in_ = X.cols();
+        discover_classes(y);
+        BinnedMatrix X_binned = build_bins_sparse(X);
+        fit_from_binned(X_binned, y);
+        return *this;
+    }
+
+    // Shared boosting core operating on the pre-binned uint8 matrix.
+    void fit_from_binned(const BinnedMatrix& X_binned,
+                         const Eigen::Ref<const Eigen::VectorXi>& y) {
+        const Eigen::Index n = X_binned.rows();
+        const int K = static_cast<int>(classes_.size());
+
+        // Map labels to class indices 0..K-1 using the sorted classes_.
         std::vector<int> y_idx(static_cast<std::size_t>(n));
         for (Eigen::Index i = 0; i < n; ++i) {
-            const int* it = std::lower_bound(uniq.data(),
-                                             uniq.data() + K, y(i));
+            const int* begin = classes_.data();
+            const int* it = std::lower_bound(begin, begin + K, y(i));
             y_idx[static_cast<std::size_t>(i)] =
-                static_cast<int>(it - uniq.data());
+                static_cast<int>(it - begin);
         }
 
         // Holdout for early stopping.
@@ -281,7 +305,6 @@ public:
             train_score_(static_cast<Eigen::Index>(i)) = train_scores[i];
 
         this->fitted_ = true;
-        return *this;
     }
 
     [[nodiscard]] LabelType predict_impl(
@@ -303,8 +326,45 @@ public:
     [[nodiscard]] MatrixType decision_function(
         const Eigen::Ref<const MatrixType>& X) const {
         this->check_is_fitted();
-        const auto X_binned = bin(X);
-        const Eigen::Index n = X.rows();
+        return decision_from_binned(bin(X));
+    }
+
+    /// @brief Predicted class labels from a sparse design matrix.
+    template <int Options, typename StorageIndex>
+    [[nodiscard]] LabelType predict(
+        const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X) const {
+        this->check_is_fitted();
+        const MatrixType P = predict_proba(X);
+        LabelType out(X.rows());
+        for (Eigen::Index i = 0; i < X.rows(); ++i) {
+            Eigen::Index best = 0;
+            for (Eigen::Index k = 1; k < P.cols(); ++k)
+                if (P(i, k) > P(i, best)) best = k;
+            out(i) = classes_(best);
+        }
+        return out;
+    }
+
+    /// @brief Probability estimates from a sparse design matrix.
+    template <int Options, typename StorageIndex>
+    [[nodiscard]] MatrixType predict_proba(
+        const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X) const {
+        this->check_is_fitted();
+        return softmax_or_sigmoid(decision_from_binned(bin_sparse(X)),
+                                  X.rows());
+    }
+
+    /// @brief Probability estimates, shape (n_samples, n_classes).
+    [[nodiscard]] MatrixType predict_proba(
+        const Eigen::Ref<const MatrixType>& X) const {
+        return softmax_or_sigmoid(decision_function(X), X.rows());
+    }
+
+private:
+    // Raw additive scores from a pre-binned matrix.
+    [[nodiscard]] MatrixType decision_from_binned(
+        const BinnedMatrix& X_binned) const {
+        const Eigen::Index n = X_binned.rows();
         if (n_trees_per_iter_ == 1) {
             VectorType F = VectorType::Constant(n, init_(0));
             for (const auto& tree : estimators_[0])
@@ -322,11 +382,10 @@ public:
         return F;
     }
 
-    /// @brief Probability estimates, shape (n_samples, n_classes).
-    [[nodiscard]] MatrixType predict_proba(
-        const Eigen::Ref<const MatrixType>& X) const {
-        const MatrixType D = decision_function(X);
-        const Eigen::Index n = X.rows();
+    // Convert raw scores to probabilities (sigmoid for binary, softmax for
+    // multiclass).
+    [[nodiscard]] MatrixType softmax_or_sigmoid(const MatrixType& D,
+                                                Eigen::Index n) const {
         if (n_trees_per_iter_ == 1) {
             MatrixType P(n, 2);
             for (Eigen::Index i = 0; i < n; ++i) {
@@ -350,9 +409,6 @@ public:
         }
         return P;
     }
-
-private:
-    using BinnedMatrix = typename internal::HistTree<Scalar>::BinnedMatrix;
 
     static Scalar sigmoid(Scalar x) {
         if (x >= Scalar{0}) {
@@ -445,15 +501,50 @@ private:
         return ++no_change >= n_iter_no_change_;
     }
 
+    // Discover and store the sorted unique class labels.
+    void discover_classes(const Eigen::Ref<const Eigen::VectorXi>& y) {
+        std::vector<int> uniq;
+        uniq.reserve(static_cast<std::size_t>(y.size()));
+        for (Eigen::Index i = 0; i < y.size(); ++i) uniq.push_back(y(i));
+        std::sort(uniq.begin(), uniq.end());
+        uniq.erase(std::unique(uniq.begin(), uniq.end()), uniq.end());
+        if (uniq.size() < 2) {
+            throw std::invalid_argument(
+                "HistGradientBoostingClassifier: need at least 2 classes; "
+                "got " + std::to_string(uniq.size()) + ".");
+        }
+        const int K = static_cast<int>(uniq.size());
+        classes_ = Eigen::VectorXi(K);
+        for (int k = 0; k < K; ++k) classes_(k) = uniq[k];
+    }
+
     BinnedMatrix build_bins(const Eigen::Ref<const MatrixType>& X) {
         const Eigen::Index n = X.rows();
         const Eigen::Index p = X.cols();
         bin_edges_.assign(static_cast<std::size_t>(p), {});
+        is_categorical_.assign(static_cast<std::size_t>(p), 0);
+        if (categorical_features_.has_value())
+            for (int f : *categorical_features_)
+                if (f >= 0 && f < static_cast<int>(p))
+                    is_categorical_[static_cast<std::size_t>(f)] = 1;
+
         for (Eigen::Index j = 0; j < p; ++j) {
+            std::vector<Scalar> thresholds;
+            if (is_categorical_[static_cast<std::size_t>(j)]) {
+                // Identity binning for integer-coded categories.
+                Scalar max_cat{0};
+                for (Eigen::Index i = 0; i < n; ++i)
+                    max_cat = std::max(max_cat, X(i, j));
+                const int k = std::min(static_cast<int>(max_cat) + 1,
+                                       max_bins_);
+                for (int b = 1; b < k; ++b)
+                    thresholds.push_back(static_cast<Scalar>(b) - Scalar{0.5});
+                bin_edges_[static_cast<std::size_t>(j)] = thresholds;
+                continue;
+            }
             std::vector<Scalar> sorted_col(static_cast<std::size_t>(n));
             for (Eigen::Index i = 0; i < n; ++i) sorted_col[i] = X(i, j);
             std::sort(sorted_col.begin(), sorted_col.end());
-            std::vector<Scalar> thresholds;
             const int n_thresh = max_bins_ - 1;
             for (int b = 1; b <= n_thresh; ++b) {
                 const std::size_t idx = std::min(
@@ -486,6 +577,88 @@ private:
         return Xb;
     }
 
+    // Build per-feature thresholds from a sparse matrix and return the binned
+    // uint8 matrix without densifying to double. Implicit zeros are included
+    // in the quantile estimate and binned as the value-0 bin.
+    template <int Options, typename StorageIndex>
+    BinnedMatrix build_bins_sparse(
+        const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X) {
+        const Eigen::Index n = X.rows();
+        const Eigen::Index p = X.cols();
+        using ColSparse =
+            Eigen::SparseMatrix<Scalar, Eigen::ColMajor, StorageIndex>;
+        const ColSparse Xc = X;
+
+        bin_edges_.assign(static_cast<std::size_t>(p), {});
+        is_categorical_.assign(static_cast<std::size_t>(p), 0);
+        if (categorical_features_.has_value())
+            for (int f : *categorical_features_)
+                if (f >= 0 && f < static_cast<int>(p))
+                    is_categorical_[static_cast<std::size_t>(f)] = 1;
+
+        for (Eigen::Index j = 0; j < p; ++j) {
+            std::vector<Scalar> thresholds;
+            if (is_categorical_[static_cast<std::size_t>(j)]) {
+                Scalar max_cat{0};
+                for (typename ColSparse::InnerIterator it(Xc, j); it; ++it)
+                    max_cat = std::max(max_cat, it.value());
+                const int k = std::min(static_cast<int>(max_cat) + 1,
+                                       max_bins_);
+                for (int b = 1; b < k; ++b)
+                    thresholds.push_back(static_cast<Scalar>(b) - Scalar{0.5});
+                bin_edges_[static_cast<std::size_t>(j)] = thresholds;
+                continue;
+            }
+            std::vector<Scalar> col;
+            col.reserve(static_cast<std::size_t>(n));
+            Eigen::Index nnz = 0;
+            for (typename ColSparse::InnerIterator it(Xc, j); it; ++it) {
+                col.push_back(it.value());
+                ++nnz;
+            }
+            for (Eigen::Index z = 0; z < n - nnz; ++z)
+                col.push_back(Scalar{0});
+            std::sort(col.begin(), col.end());
+            const int n_thresh = max_bins_ - 1;
+            for (int b = 1; b <= n_thresh; ++b) {
+                const std::size_t idx = std::min(
+                    static_cast<std::size_t>(
+                        static_cast<double>(b) * static_cast<double>(n) /
+                        static_cast<double>(max_bins_)),
+                    col.size() - 1);
+                const Scalar t = col[idx];
+                if (thresholds.empty() || t > thresholds.back())
+                    thresholds.push_back(t);
+            }
+            bin_edges_[static_cast<std::size_t>(j)] = thresholds;
+        }
+        return bin_sparse(Xc);
+    }
+
+    template <int Options, typename StorageIndex>
+    [[nodiscard]] BinnedMatrix bin_sparse(
+        const Eigen::SparseMatrix<Scalar, Options, StorageIndex>& X) const {
+        const Eigen::Index n = X.rows();
+        const Eigen::Index p = X.cols();
+        using ColSparse =
+            Eigen::SparseMatrix<Scalar, Eigen::ColMajor, StorageIndex>;
+        const ColSparse Xc = X;
+        BinnedMatrix Xb(n, p);
+        for (Eigen::Index j = 0; j < p; ++j) {
+            const auto& thr = bin_edges_[static_cast<std::size_t>(j)];
+            auto z = std::upper_bound(thr.begin(), thr.end(), Scalar{0});
+            const uint8_t zero_bin =
+                static_cast<uint8_t>(std::distance(thr.begin(), z));
+            for (Eigen::Index i = 0; i < n; ++i) Xb(i, j) = zero_bin;
+            for (typename ColSparse::InnerIterator it(Xc, j); it; ++it) {
+                auto bit = std::upper_bound(thr.begin(), thr.end(), it.value());
+                Xb(it.row(), j) =
+                    static_cast<uint8_t>(std::distance(thr.begin(), bit));
+            }
+        }
+        return Xb;
+    }
+
     internal::HistTreeParams<Scalar> make_params() const {
         internal::HistTreeParams<Scalar> params;
         params.max_leaf_nodes = max_leaf_nodes_.value_or(0);
@@ -494,6 +667,7 @@ private:
         params.l2_regularization = l2_regularization_;
         params.n_bins = max_bins_;
         if (monotonic_cst_.has_value()) params.monotonic_cst = *monotonic_cst_;
+        params.categorical_features = is_categorical_;
         return params;
     }
 
@@ -525,6 +699,7 @@ private:
     Scalar l2_regularization_;
     int max_bins_;
     std::optional<std::vector<int>> monotonic_cst_;
+    std::optional<std::vector<int>> categorical_features_;
     bool early_stopping_;
     Scalar validation_fraction_;
     int n_iter_no_change_;
@@ -535,6 +710,7 @@ private:
     VectorType init_;
     Eigen::VectorXi classes_;
     std::vector<std::vector<Scalar>> bin_edges_;
+    std::vector<int> is_categorical_;                   // per-feature flag
     // estimators_[k] is the additive sequence of trees for class k
     // (binary uses a single sequence in estimators_[0]).
     std::vector<std::vector<internal::HistTree<Scalar>>> estimators_;

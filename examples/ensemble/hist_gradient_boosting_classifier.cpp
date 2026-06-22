@@ -42,7 +42,8 @@ int main() {
     HGBC hgb(HGBC::Loss::LogLoss, /*lr=*/0.1, /*max_iter=*/100,
              /*max_leaf_nodes=*/31, /*max_depth=*/std::nullopt,
              /*min_samples_leaf=*/2, /*l2=*/0.0, /*max_bins=*/64,
-             /*monotonic_cst=*/std::nullopt, /*early_stopping=*/false,
+             /*monotonic_cst=*/std::nullopt,
+             /*categorical_features=*/std::nullopt, /*early_stopping=*/false,
              /*validation_fraction=*/0.1, /*n_iter_no_change=*/10,
              /*tol=*/1e-7, std::optional<uint64_t>(11));
     hgb.fit(X, y);
