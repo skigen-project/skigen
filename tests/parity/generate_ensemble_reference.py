@@ -38,6 +38,25 @@ def reg_data(seed):
     return X[perm], y[perm]
 
 
+def clf3_data(seed):
+    """Three-class fixture for multiclass boosting parity."""
+    rng = np.random.default_rng(seed)
+    n = 150
+    X = rng.normal(size=(n, 4))
+    score = X @ np.array([1.5, -1.0, 0.8, 0.5])
+    y = np.digitize(score, np.quantile(score, [1 / 3, 2 / 3])).astype(np.int64)
+    perm = rng.permutation(n)
+    return X[perm], y[perm]
+
+
+def emit_clf3(name, model, seed):
+    X, y = clf3_data(seed)
+    Xtr, ytr, Xte, yte = split(X, y)
+    model.fit(Xtr, ytr)
+    save(name, X_train=Xtr, y_train=ytr, X_test=Xte, y_test=yte,
+         score=np.array([model.score(Xte, yte)]))
+
+
 def emit_clf(name, model, seed):
     X, y = clf_data(seed)
     Xtr, ytr, Xte, yte = split(X, y)
@@ -67,12 +86,44 @@ def main():
              HistGradientBoostingClassifier(random_state=0), 34)
     emit_reg("hist_gradient_boosting_regressor",
              HistGradientBoostingRegressor(random_state=0), 35)
+
+    # --- Non-default parameter branches (v1.2.0 §4.8 / §4.11) ---
+    # GradientBoostingRegressor alternative losses.
+    emit_reg("gradient_boosting_regressor_absolute_error",
+             GradientBoostingRegressor(loss="absolute_error",
+                                       random_state=0), 36)
+    emit_reg("gradient_boosting_regressor_huber",
+             GradientBoostingRegressor(loss="huber", random_state=0), 37)
+    emit_reg("gradient_boosting_regressor_quantile",
+             GradientBoostingRegressor(loss="quantile", alpha=0.5,
+                                       random_state=0), 38)
+    # Stochastic gradient boosting (subsample < 1).
+    emit_reg("gradient_boosting_regressor_subsample",
+             GradientBoostingRegressor(subsample=0.7, random_state=0), 39)
+    # Multiclass boosting.
+    emit_clf3("gradient_boosting_classifier_multiclass",
+              GradientBoostingClassifier(random_state=0), 40)
+    emit_clf3("hist_gradient_boosting_classifier_multiclass",
+              HistGradientBoostingClassifier(random_state=0), 41)
+    # HistGB leaf-wise growth bound and L2.
+    emit_reg("hist_gradient_boosting_regressor_leafwise",
+             HistGradientBoostingRegressor(max_leaf_nodes=8,
+                                           l2_regularization=1.0,
+                                           random_state=0), 42)
+
     for n in ["random_forest_classifier", "gradient_boosting_classifier",
-              "hist_gradient_boosting_classifier"]:
-        save_params(n, {"note": "default params; behavioural parity on accuracy"})
+              "hist_gradient_boosting_classifier",
+              "gradient_boosting_classifier_multiclass",
+              "hist_gradient_boosting_classifier_multiclass"]:
+        save_params(n, {"note": "behavioural parity on accuracy"})
     for n in ["random_forest_regressor", "gradient_boosting_regressor",
-              "hist_gradient_boosting_regressor"]:
-        save_params(n, {"note": "default params; behavioural parity on R^2"})
+              "hist_gradient_boosting_regressor",
+              "gradient_boosting_regressor_absolute_error",
+              "gradient_boosting_regressor_huber",
+              "gradient_boosting_regressor_quantile",
+              "gradient_boosting_regressor_subsample",
+              "hist_gradient_boosting_regressor_leafwise"]:
+        save_params(n, {"note": "behavioural parity on R^2"})
 
 
 if __name__ == "__main__":

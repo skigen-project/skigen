@@ -47,8 +47,11 @@ namespace Skigen {
 /// Same constructor signature as sklearn's. Defaults: `loss=LogLoss`,
 /// `learning_rate=0.1`, `n_estimators=100`, `subsample=1.0`,
 /// `criterion=FriedmanMSE`, `min_samples_split=2`, `min_samples_leaf=1`,
-/// `max_depth=3`, `validation_fraction=0.1`, `tol=1e-4`. Multiclass,
-/// stochastic boosting, and early stopping are not implemented.
+/// `max_depth=3`, `validation_fraction=0.1`, `tol=1e-4`. Binary and
+/// **multiclass** log-loss are supported (multiclass uses the
+/// multinomial-deviance scheme: one regression tree per class per stage).
+/// The `exponential` loss is binary-only. Stochastic boosting and early
+/// stopping are not implemented.
 ///
 /// ### Attributes (after fitting)
 ///
@@ -183,15 +186,26 @@ public:
         std::sort(uniq.begin(), uniq.end());
         uniq.erase(std::unique(uniq.begin(), uniq.end()), uniq.end());
 
-        if (uniq.size() != 2) {
+        if (uniq.size() < 2) {
             throw std::invalid_argument(
-                "GradientBoostingClassifier: only binary "
-                "classification (n_classes=2) is supported; got " +
-                std::to_string(uniq.size()) + " classes.");
+                "GradientBoostingClassifier: need at least 2 classes; got " +
+                std::to_string(uniq.size()) + ".");
         }
-        classes_ = Eigen::VectorXi(2);
-        classes_(0) = uniq[0];
-        classes_(1) = uniq[1];
+        const int K = static_cast<int>(uniq.size());
+        classes_ = Eigen::VectorXi(K);
+        for (int k = 0; k < K; ++k) classes_(k) = uniq[k];
+
+        // Multiclass (K > 2) uses the multinomial-deviance scheme: one tree
+        // per class per stage against the softmax pseudo-residuals.
+        if (K > 2) {
+            if (loss_ == Loss::Exponential)
+                throw std::invalid_argument(
+                    "GradientBoostingClassifier: exponential loss supports "
+                    "binary classification only.");
+            fit_multiclass(X, y, K);
+            this->fitted_ = true;
+            return *this;
+        }
 
         // Encode targets as 0/1 against classes_(1) being the positive class.
         VectorType y01(n);
@@ -280,6 +294,17 @@ public:
 
     [[nodiscard]] LabelType predict_impl(
         const Eigen::Ref<const MatrixType>& X) const {
+        if (!multiclass_estimators_.empty()) {
+            const MatrixType P = predict_proba(X);
+            LabelType out(X.rows());
+            for (Eigen::Index i = 0; i < X.rows(); ++i) {
+                Eigen::Index best = 0;
+                for (Eigen::Index k = 1; k < P.cols(); ++k)
+                    if (P(i, k) > P(i, best)) best = k;
+                out(i) = classes_(best);
+            }
+            return out;
+        }
         VectorType F = decision_function(X);
         LabelType out(X.rows());
         for (Eigen::Index i = 0; i < X.rows(); ++i) {
@@ -288,7 +313,8 @@ public:
         return out;
     }
 
-    /// @brief Raw additive score @f$ F(x) @f$ (log-odds). Length n_samples.
+    /// @brief Raw additive score @f$ F(x) @f$ (log-odds). Length n_samples
+    ///   for binary; for multiclass use `decision_function_multi`.
     [[nodiscard]] VectorType decision_function(
         const Eigen::Ref<const MatrixType>& X) const {
         this->check_is_fitted();
@@ -299,10 +325,44 @@ public:
         return F;
     }
 
-    /// @brief Probability estimates of shape (n_samples, 2). Column ordering
-    ///   matches `classes()`.
+    /// @brief Per-class raw scores, shape (n_samples, n_classes). For binary
+    ///   problems returns the two complementary log-odds columns.
+    [[nodiscard]] MatrixType decision_function_multi(
+        const Eigen::Ref<const MatrixType>& X) const {
+        this->check_is_fitted();
+        const int K = static_cast<int>(classes_.size());
+        MatrixType F(X.rows(), K);
+        for (int k = 0; k < K; ++k) {
+            VectorType fk = VectorType::Constant(X.rows(),
+                                                 init_multi_(k));
+            for (const auto& tree :
+                 multiclass_estimators_[static_cast<std::size_t>(k)])
+                fk.noalias() += learning_rate_ * tree.predict(X);
+            F.col(k) = fk;
+        }
+        return F;
+    }
+
+    /// @brief Probability estimates of shape (n_samples, n_classes). Column
+    ///   ordering matches `classes()`.
     [[nodiscard]] MatrixType predict_proba(
         const Eigen::Ref<const MatrixType>& X) const {
+        if (!multiclass_estimators_.empty()) {
+            const MatrixType D = decision_function_multi(X);
+            const int K = static_cast<int>(classes_.size());
+            MatrixType P(X.rows(), K);
+            for (Eigen::Index i = 0; i < X.rows(); ++i) {
+                Scalar mx = D(i, 0);
+                for (int k = 1; k < K; ++k) mx = std::max(mx, D(i, k));
+                Scalar denom{0};
+                for (int k = 0; k < K; ++k) {
+                    P(i, k) = std::exp(D(i, k) - mx);
+                    denom += P(i, k);
+                }
+                for (int k = 0; k < K; ++k) P(i, k) /= denom;
+            }
+            return P;
+        }
         VectorType F = decision_function(X);
         MatrixType P(X.rows(), 2);
         for (Eigen::Index i = 0; i < X.rows(); ++i) {
@@ -317,6 +377,96 @@ public:
     }
 
 private:
+    // Multinomial-deviance boosting: one regression tree per class per stage
+    // against the softmax pseudo-residual y_onehot - softmax(F).
+    void fit_multiclass(const Eigen::Ref<const MatrixType>& X,
+                        const Eigen::Ref<const Eigen::VectorXi>& y, int K) {
+        const Eigen::Index n = X.rows();
+        std::vector<int> y_idx(static_cast<std::size_t>(n));
+        for (Eigen::Index i = 0; i < n; ++i) {
+            const int* begin = classes_.data();
+            const int* it = std::lower_bound(begin, begin + K, y(i));
+            y_idx[static_cast<std::size_t>(i)] = static_cast<int>(it - begin);
+        }
+
+        // Prior log-probabilities as init scores.
+        init_multi_ = VectorType::Zero(K);
+        std::vector<VectorType> F(static_cast<std::size_t>(K),
+                                  VectorType::Zero(n));
+        for (int k = 0; k < K; ++k) {
+            Scalar cnt{0};
+            for (Eigen::Index i = 0; i < n; ++i)
+                if (y_idx[static_cast<std::size_t>(i)] == k) cnt += 1;
+            const Scalar pk = std::clamp(
+                cnt / static_cast<Scalar>(n),
+                std::numeric_limits<Scalar>::epsilon(), Scalar{1});
+            init_multi_(k) = std::log(pk);
+            F[static_cast<std::size_t>(k)] = VectorType::Constant(n, init_multi_(k));
+        }
+
+        multiclass_estimators_.clear();
+        multiclass_estimators_.resize(static_cast<std::size_t>(K));
+        feature_importances_ = RowVectorType::Zero(X.cols());
+        train_score_ = VectorType::Zero(n_estimators_);
+        const uint64_t base_seed = random_state_.value_or(0ULL);
+
+        for (int stage = 0; stage < n_estimators_; ++stage) {
+            // Softmax probabilities per sample.
+            std::vector<VectorType> P(static_cast<std::size_t>(K),
+                                      VectorType::Zero(n));
+            for (Eigen::Index i = 0; i < n; ++i) {
+                Scalar mx = F[0](i);
+                for (int k = 1; k < K; ++k)
+                    mx = std::max(mx, F[static_cast<std::size_t>(k)](i));
+                Scalar denom{0};
+                std::vector<Scalar> e(static_cast<std::size_t>(K));
+                for (int k = 0; k < K; ++k) {
+                    e[static_cast<std::size_t>(k)] =
+                        std::exp(F[static_cast<std::size_t>(k)](i) - mx);
+                    denom += e[static_cast<std::size_t>(k)];
+                }
+                for (int k = 0; k < K; ++k)
+                    P[static_cast<std::size_t>(k)](i) =
+                        e[static_cast<std::size_t>(k)] / denom;
+            }
+
+            Scalar loss_sum{0};
+            for (int k = 0; k < K; ++k) {
+                VectorType residuals(n);
+                for (Eigen::Index i = 0; i < n; ++i) {
+                    const Scalar yk =
+                        (y_idx[static_cast<std::size_t>(i)] == k) ? Scalar{1}
+                                                                  : Scalar{0};
+                    residuals(i) = yk - P[static_cast<std::size_t>(k)](i);
+                }
+                DecisionTreeRegressor<Scalar> tree(
+                    max_depth_, min_samples_split_, 0, 0.0,
+                    random_state_.has_value()
+                        ? std::optional<uint64_t>(
+                              base_seed ^ static_cast<uint64_t>(stage * K + k))
+                        : std::nullopt);
+                tree.fit(X, residuals);
+                F[static_cast<std::size_t>(k)].noalias() +=
+                    learning_rate_ * tree.predict(X);
+                feature_importances_ += tree.feature_importances();
+                multiclass_estimators_[static_cast<std::size_t>(k)].push_back(
+                    std::move(tree));
+            }
+            for (Eigen::Index i = 0; i < n; ++i) {
+                const Scalar pk = std::clamp(
+                    P[static_cast<std::size_t>(
+                        y_idx[static_cast<std::size_t>(i)])](i),
+                    std::numeric_limits<Scalar>::epsilon(), Scalar{1});
+                loss_sum += -std::log(pk);
+            }
+            train_score_(stage) = loss_sum / static_cast<Scalar>(n);
+        }
+        if (n_estimators_ > 0) {
+            const Scalar fi_sum = feature_importances_.sum();
+            if (fi_sum > Scalar{0}) feature_importances_ /= fi_sum;
+        }
+    }
+
     static Scalar sigmoid(Scalar x) {
         if (x >= Scalar{0}) {
             const Scalar z = std::exp(-x);
@@ -346,8 +496,12 @@ private:
     Scalar ccp_alpha_;
 
     Scalar init_{0};
+    VectorType init_multi_;  // per-class init scores (multiclass only)
     Eigen::VectorXi classes_;
     std::vector<DecisionTreeRegressor<Scalar>> estimators_storage_;
+    // Per-class additive tree sequences for multiclass (empty for binary).
+    std::vector<std::vector<DecisionTreeRegressor<Scalar>>>
+        multiclass_estimators_;
     RowVectorType feature_importances_;
     VectorType train_score_;
 };

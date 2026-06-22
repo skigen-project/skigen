@@ -726,11 +726,40 @@ void test_gbc_classes_recorded() {
     ASSERT_TRUE(gb.n_classes() == 2);
 }
 
-void test_gbc_multiclass_throws() {
+void test_gbc_multiclass_separates_clusters() {
+    // Three Gaussian clusters; multinomial-deviance GB must classify them.
+    constexpr int n = 150;
+    Eigen::MatrixXd X(n, 2);
+    Eigen::VectorXi y(n);
+    std::mt19937_64 rng(7);
+    std::normal_distribution<double> ns(0.0, 0.4);
+    const double cx[3] = {0.0, 3.0, -3.0};
+    const double cy[3] = {0.0, 3.0, 3.0};
+    for (int i = 0; i < n; ++i) {
+        const int k = i % 3;
+        X(i, 0) = cx[k] + ns(rng);
+        X(i, 1) = cy[k] + ns(rng);
+        y(i)    = k;
+    }
+    Skigen::GradientBoostingClassifier<double> gb(
+        Skigen::GradientBoostingClassifier<double>::Loss::LogLoss, 0.2, 60);
+    gb.fit(X, y);
+    ASSERT_TRUE(gb.n_classes() == 3);
+    Eigen::MatrixXd P = gb.predict_proba(X);
+    ASSERT_TRUE(P.cols() == 3);
+    for (int i = 0; i < n; ++i)
+        ASSERT_NEAR(P.row(i).sum(), 1.0, 1e-9);
+    auto preds = gb.predict(X);
+    int correct = 0;
+    for (int i = 0; i < n; ++i) if (preds(i) == y(i)) ++correct;
+    ASSERT_TRUE(static_cast<double>(correct) / n > 0.9);
+}
+
+void test_gbc_exponential_multiclass_throws() {
     Eigen::MatrixXd X(6, 1); X << 0, 1, 2, 3, 4, 5;
     Eigen::VectorXi y(6);    y << 0, 1, 2, 0, 1, 2;
     Skigen::GradientBoostingClassifier<double> gb(
-        Skigen::GradientBoostingClassifier<double>::Loss::LogLoss, 0.1, 5);
+        Skigen::GradientBoostingClassifier<double>::Loss::Exponential, 0.1, 5);
     bool threw = false;
     try { gb.fit(X, y); }
     catch (const std::invalid_argument&) { threw = true; }
@@ -1217,7 +1246,8 @@ int main() {
     run_test("gbc_init_log_odds",                             test_gbc_init_log_odds);
     run_test("gbc_train_score_decreases",                     test_gbc_train_score_decreases);
     run_test("gbc_classes_recorded",                          test_gbc_classes_recorded);
-    run_test("gbc_multiclass_throws",                         test_gbc_multiclass_throws);
+    run_test("gbc_multiclass_separates_clusters",            test_gbc_multiclass_separates_clusters);
+    run_test("gbc_exponential_multiclass_throws",            test_gbc_exponential_multiclass_throws);
     run_test("gbc_exponential_loss_high_accuracy",            test_gbc_exponential_loss_high_accuracy);
     run_test("gbc_exponential_init_half_log_odds",            test_gbc_exponential_init_half_log_odds);
 
