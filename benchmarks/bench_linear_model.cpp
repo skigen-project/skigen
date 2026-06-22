@@ -87,6 +87,29 @@ int main() {
     }
 
     // -------------------------------------------------------------------
+    // QuantileRegressor (LP interior-point) — benchmarked separately on a
+    // small structured problem. The standard-form LP has one equality
+    // constraint per sample, so the per-iteration dense Cholesky is
+    // O(n_samples^3); a sparse / specialised LP backend for large n is
+    // tracked as future work.
+    // -------------------------------------------------------------------
+    {
+        constexpr int qn = 200, qp = 5;
+        Eigen::MatrixXd Xq(qn, qp);
+        Eigen::VectorXd yq(qn);
+        for (int i = 0; i < qn; ++i) {
+            for (int j = 0; j < qp; ++j)
+                Xq(i, j) = static_cast<double>((i * (j + 1)) % 13) / 13.0;
+            yq(i) = 2.0 * Xq(i, 0) - Xq(i, 1) + 0.5;
+        }
+        Skigen::QuantileRegressor<double> est(0.5, 0.0);
+        double fit_us = bench([&] { est.fit(Xq, yq); }, 3);
+        std::cout << "--- QuantileRegressor (" << qn << " x " << qp << ") ---\n";
+        std::cout << "  QuantileRegressor fit: " << std::setw(10) << fit_us
+                  << " us\n\n";
+    }
+
+    // -------------------------------------------------------------------
     // Throughput summary (elements/sec on largest problem)
     // -------------------------------------------------------------------
     constexpr int N = 10000;

@@ -4,6 +4,7 @@
 #include <Skigen/Dense>
 #include <Eigen/Core>
 #include <chrono>
+#include <cmath>
 #include <iostream>
 
 int main() {
@@ -48,6 +49,37 @@ int main() {
         });
         bench("GradientBoostingClassifier(100).predict", [&]() {
             auto yh = gbc.predict(X);
+            static_cast<void>(yh);
+        });
+    }
+
+    {
+        // Histogram gradient boosting (native leaf-wise histogram grower).
+        Eigen::VectorXd yr(rows);
+        for (int i = 0; i < rows; ++i)
+            yr(i) = std::sin(0.01 * i) + 0.001 * (i % 7);
+
+        Skigen::HistGradientBoostingRegressor<double> hgb(
+            Skigen::HistGradientBoostingRegressor<double>::Loss::SquaredError,
+            0.1, 100);
+        bench("HistGradientBoostingRegressor(100).fit", [&]() {
+            hgb.fit(X, yr);
+        });
+        bench("HistGradientBoostingRegressor(100).predict", [&]() {
+            auto yh = hgb.predict(X);
+            static_cast<void>(yh);
+        });
+
+        Eigen::VectorXi yb(rows);
+        for (int i = 0; i < rows; ++i) yb(i) = i % 2;
+        Skigen::HistGradientBoostingClassifier<double> hgc(
+            Skigen::HistGradientBoostingClassifier<double>::Loss::LogLoss,
+            0.1, 100);
+        bench("HistGradientBoostingClassifier(100).fit", [&]() {
+            hgc.fit(X, yb);
+        });
+        bench("HistGradientBoostingClassifier(100).predict", [&]() {
+            auto yh = hgc.predict(X);
             static_cast<void>(yh);
         });
     }
