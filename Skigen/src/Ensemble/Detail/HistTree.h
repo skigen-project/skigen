@@ -17,15 +17,18 @@ namespace internal {
 
 /// @brief A single node in a histogram gradient-boosting tree.
 ///
-/// Internal nodes split on `feature` at bin threshold `bin_threshold`:
-/// a sample goes left when its binned feature value is
-/// `<= bin_threshold`. Leaves carry a `value` (the Newton step
-/// @f$-G/(H+\lambda)@f$ for the samples they cover).
+/// Internal nodes split on `feature`. For an **ordered** (numerical) feature
+/// a sample goes left when its binned value is `<= bin_threshold`. For a
+/// **categorical** feature (`is_categorical`), a sample goes left when its bin
+/// is a member of `cat_left` (a per-bin membership mask). Leaves carry a
+/// `value` (the Newton step @f$-G/(H+\lambda)@f$ for the samples they cover).
 template <typename Scalar>
 struct HistTreeNode {
     bool is_leaf = true;
     int feature = -1;
     uint8_t bin_threshold = 0;
+    bool is_categorical = false;
+    std::vector<uint8_t> cat_left;  // bin -> goes-left (categorical only)
     int left = -1;
     int right = -1;
     Scalar value = Scalar{0};
@@ -43,6 +46,9 @@ struct HistTreeParams {
     // Per-feature monotonic constraint: +1 increasing, -1 decreasing,
     // 0 none. Empty means no constraints.
     std::vector<int> monotonic_cst;
+    // Per-feature categorical flag (1 = categorical / unordered bins).
+    // Empty means all features are ordered (numerical).
+    std::vector<int> categorical_features;
 };
 
 /// @brief A histogram-based, leaf-wise gradient-boosting regression tree.
@@ -105,15 +111,16 @@ public:
             frontier.pop();
             if (!c.has_split) continue;
 
-            // Partition samples by the chosen split.
+            // Partition samples by the chosen split (ordered or categorical).
             std::vector<int> left_idx, right_idx;
             left_idx.reserve(c.samples.size());
             right_idx.reserve(c.samples.size());
             for (int s : c.samples) {
-                if (X_binned(s, c.feature) <= c.bin_threshold)
-                    left_idx.push_back(s);
-                else
-                    right_idx.push_back(s);
+                const bool go_left = c.is_categorical
+                    ? (c.cat_left[X_binned(s, c.feature)] != 0)
+                    : (X_binned(s, c.feature) <= c.bin_threshold);
+                if (go_left) left_idx.push_back(s);
+                else right_idx.push_back(s);
             }
 
             // Materialise the split into the node tree.
@@ -125,6 +132,8 @@ public:
             nodes_[c.node].is_leaf = false;
             nodes_[c.node].feature = c.feature;
             nodes_[c.node].bin_threshold = c.bin_threshold;
+            nodes_[c.node].is_categorical = c.is_categorical;
+            nodes_[c.node].cat_left = c.cat_left;
             nodes_[c.node].left = li;
             nodes_[c.node].right = ri;
 
@@ -157,9 +166,10 @@ public:
             int node = 0;
             while (!nodes_[static_cast<std::size_t>(node)].is_leaf) {
                 const auto& nd = nodes_[static_cast<std::size_t>(node)];
-                node = (X_binned(i, nd.feature) <= nd.bin_threshold)
-                           ? nd.left
-                           : nd.right;
+                const bool go_left = nd.is_categorical
+                    ? (nd.cat_left[X_binned(i, nd.feature)] != 0)
+                    : (X_binned(i, nd.feature) <= nd.bin_threshold);
+                node = go_left ? nd.left : nd.right;
             }
             out(i) = nodes_[static_cast<std::size_t>(node)].value;
         }
@@ -190,6 +200,8 @@ private:
         Scalar gain = -std::numeric_limits<Scalar>::infinity();
         int feature = -1;
         uint8_t bin_threshold = 0;
+        bool is_categorical = false;
+        std::vector<uint8_t> cat_left;
         Scalar left_value = Scalar{0};
         Scalar right_value = Scalar{0};
         // Value bounds propagated to each child for monotonic constraints.
@@ -241,6 +253,7 @@ private:
         const Scalar parent_obj = (G * G) / (H + lambda);
         const Eigen::Index p = X_binned.cols();
         const bool has_mono = !params_.monotonic_cst.empty();
+        const bool has_cat = !params_.categorical_features.empty();
 
         for (Eigen::Index f = 0; f < p; ++f) {
             // Build gradient/hessian histograms over the bins of feature f.
@@ -260,6 +273,60 @@ private:
             const int mono = has_mono
                 ? params_.monotonic_cst[static_cast<std::size_t>(f)]
                 : 0;
+            const bool is_cat =
+                has_cat &&
+                params_.categorical_features[static_cast<std::size_t>(f)] != 0;
+
+            if (is_cat) {
+                // Categorical (unordered) split: sort the present bins by
+                // their gradient/hessian ratio, then scan the prefix as the
+                // left child (LightGBM / sklearn's one-hot-free strategy).
+                // Monotonic constraints do not apply to categoricals.
+                std::vector<int> bins;
+                for (int b = 0; b < params_.n_bins; ++b)
+                    if (hist_c[static_cast<std::size_t>(b)] > 0) bins.push_back(b);
+                std::sort(bins.begin(), bins.end(), [&](int a, int b) {
+                    const Scalar ra = hist_g[static_cast<std::size_t>(a)] /
+                        (hist_h[static_cast<std::size_t>(a)] + lambda);
+                    const Scalar rb = hist_g[static_cast<std::size_t>(b)] /
+                        (hist_h[static_cast<std::size_t>(b)] + lambda);
+                    return ra < rb;
+                });
+
+                Scalar gl{0}, hl{0};
+                int cl = 0;
+                for (std::size_t t = 0; t + 1 < bins.size(); ++t) {
+                    const int b = bins[t];
+                    gl += hist_g[static_cast<std::size_t>(b)];
+                    hl += hist_h[static_cast<std::size_t>(b)];
+                    cl += hist_c[static_cast<std::size_t>(b)];
+                    if (cl < params_.min_samples_leaf) continue;
+                    const int cr = n_node - cl;
+                    if (cr < params_.min_samples_leaf) break;
+
+                    const Scalar gr = G - gl;
+                    const Scalar hr = H - hl;
+                    const Scalar gain =
+                        (gl * gl) / (hl + lambda) +
+                        (gr * gr) / (hr + lambda) - parent_obj;
+                    if (gain <= params_.min_gain_to_split || gain <= c.gain)
+                        continue;
+
+                    c.has_split = true;
+                    c.gain = gain;
+                    c.feature = static_cast<int>(f);
+                    c.is_categorical = true;
+                    c.cat_left.assign(
+                        static_cast<std::size_t>(params_.n_bins), 0);
+                    for (std::size_t u = 0; u <= t; ++u)
+                        c.cat_left[static_cast<std::size_t>(bins[u])] = 1;
+                    c.left_value = clamp(leaf_value(gl, hl), lower, upper);
+                    c.right_value = clamp(leaf_value(gr, hr), lower, upper);
+                    c.left_lower = lower;  c.left_upper = upper;
+                    c.right_lower = lower; c.right_upper = upper;
+                }
+                continue;
+            }
 
             // Sweep bins left to right, accumulating the left child.
             Scalar gl{0}, hl{0};
@@ -292,6 +359,8 @@ private:
                 c.has_split = true;
                 c.gain = gain;
                 c.feature = static_cast<int>(f);
+                c.is_categorical = false;
+                c.cat_left.clear();
                 c.bin_threshold = static_cast<uint8_t>(b);
                 c.left_value = vl;
                 c.right_value = vr;

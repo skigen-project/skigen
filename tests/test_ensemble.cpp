@@ -942,6 +942,40 @@ void test_hgbr_monotonic_increasing() {
         ASSERT_TRUE(pred(i) >= pred(i - 1) - 1e-9);
 }
 
+void test_hgbr_native_categorical_split() {
+    // A categorical feature whose target mapping is NON-monotonic in the
+    // category code: cats {0, 2} -> +5, cats {1, 3} -> -5. An ordinal
+    // (threshold) split cannot cleanly separate these, but the native
+    // categorical (gradient-sorted subset) split can.
+    constexpr int n = 160;
+    Eigen::MatrixXd X(n, 1);
+    Eigen::VectorXd y(n);
+    std::mt19937_64 rng(4);
+    std::normal_distribution<double> ns(0.0, 0.1);
+    for (int i = 0; i < n; ++i) {
+        const int cat = i % 4;
+        X(i, 0) = static_cast<double>(cat);
+        y(i) = ((cat == 0 || cat == 2) ? 5.0 : -5.0) + ns(rng);
+    }
+    using HGBR = Skigen::HistGradientBoostingRegressor<double>;
+    // Mark feature 0 as categorical.
+    HGBR cat(HGBR::Loss::SquaredError, 0.3, 60, 15, std::nullopt, 5, 0.0, 8,
+             /*categorical_features=*/std::vector<int>{0},
+             /*monotonic_cst=*/std::nullopt, false, 0.1, 10, 1e-7,
+             std::optional<uint64_t>(0));
+    cat.fit(X, y);
+    // High R² requires resolving the non-monotonic category grouping.
+    ASSERT_TRUE(cat.score(X, y) > 0.95);
+
+    // The same data fit as ORDINAL cannot separate {0,2} from {1,3} well.
+    HGBR ord(HGBR::Loss::SquaredError, 0.3, 60, 15, std::nullopt, 5, 0.0, 8,
+             /*categorical_features=*/std::nullopt,
+             /*monotonic_cst=*/std::nullopt, false, 0.1, 10, 1e-7,
+             std::optional<uint64_t>(0));
+    ord.fit(X, y);
+    ASSERT_TRUE(cat.score(X, y) >= ord.score(X, y));
+}
+
 void test_hgbr_early_stopping_truncates() {
     // With early stopping on a learnable signal, fitting should stop before
     // exhausting max_iter once the holdout stops improving.
@@ -1117,6 +1151,7 @@ int main() {
     run_test("hgbr_max_leaf_nodes_honoured",      test_hgbr_max_leaf_nodes_honoured);
     run_test("hgbr_l2_regularization_runs",       test_hgbr_l2_regularization_runs);
     run_test("hgbr_monotonic_increasing",         test_hgbr_monotonic_increasing);
+    run_test("hgbr_native_categorical_split",     test_hgbr_native_categorical_split);
     run_test("hgbr_early_stopping_truncates",      test_hgbr_early_stopping_truncates);
 
     std::cout << "\n=== HistGradientBoostingClassifier Tests ===\n";

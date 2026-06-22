@@ -72,9 +72,10 @@ namespace Skigen {
 /// gradient/hessian **histogram** finder with a second-order (Newton)
 /// split-gain criterion, best-first **leaf-wise** growth bounded by
 /// `max_leaf_nodes`, L2 regularisation, monotonic constraints, and
-/// holdout-based early stopping. Native categorical features and a
-/// native sparse input path remain deferred — `categorical_features` is
-/// accepted but treated as ordinal.
+/// holdout-based early stopping. **Native categorical features** are
+/// supported: features listed in `categorical_features` are integer-coded,
+/// binned by identity, and split by the unordered gradient-sorted strategy
+/// (LightGBM / sklearn). A native sparse input path remains deferred.
 template <typename Scalar = double>
 class HistGradientBoostingRegressor
     : public Predictor<HistGradientBoostingRegressor<Scalar>, Scalar> {
@@ -279,15 +280,37 @@ private:
     using BinnedMatrix = typename internal::HistTree<Scalar>::BinnedMatrix;
 
     // Build per-feature quantile thresholds and the binned matrix.
+    // Categorical features (listed in `categorical_features_`) are binned by
+    // identity: integer-coded category `k` maps to bin `k` via threshold
+    // edges at the half-integers `0.5, 1.5, ...`. Numerical features use
+    // quantile edges as before.
     BinnedMatrix build_bins(const Eigen::Ref<const MatrixType>& X) {
         const Eigen::Index n = X.rows();
         const Eigen::Index p = X.cols();
         bin_edges_.assign(static_cast<std::size_t>(p), {});
+        is_categorical_.assign(static_cast<std::size_t>(p), 0);
+        if (categorical_features_.has_value())
+            for (int f : *categorical_features_)
+                if (f >= 0 && f < static_cast<int>(p))
+                    is_categorical_[static_cast<std::size_t>(f)] = 1;
+
         for (Eigen::Index j = 0; j < p; ++j) {
+            std::vector<Scalar> thresholds;
+            if (is_categorical_[static_cast<std::size_t>(j)]) {
+                // Identity binning: find the max integer category present.
+                Scalar max_cat{0};
+                for (Eigen::Index i = 0; i < n; ++i)
+                    max_cat = std::max(max_cat, X(i, j));
+                const int k = std::min(static_cast<int>(max_cat) + 1,
+                                       max_bins_);
+                for (int b = 1; b < k; ++b)
+                    thresholds.push_back(static_cast<Scalar>(b) - Scalar{0.5});
+                bin_edges_[static_cast<std::size_t>(j)] = thresholds;
+                continue;
+            }
             std::vector<Scalar> sorted_col(static_cast<std::size_t>(n));
             for (Eigen::Index i = 0; i < n; ++i) sorted_col[i] = X(i, j);
             std::sort(sorted_col.begin(), sorted_col.end());
-            std::vector<Scalar> thresholds;
             const int n_thresh = max_bins_ - 1;
             for (int b = 1; b <= n_thresh; ++b) {
                 const std::size_t idx = std::min(
@@ -329,6 +352,7 @@ private:
         params.l2_regularization = l2_regularization_;
         params.n_bins = max_bins_;
         if (monotonic_cst_.has_value()) params.monotonic_cst = *monotonic_cst_;
+        params.categorical_features = is_categorical_;
         return params;
     }
 
@@ -369,6 +393,7 @@ private:
 
     Scalar init_{0};
     std::vector<std::vector<Scalar>> bin_edges_;        // per-feature
+    std::vector<int> is_categorical_;                   // per-feature flag
     std::vector<internal::HistTree<Scalar>> estimators_;
     VectorType train_score_;
 };
