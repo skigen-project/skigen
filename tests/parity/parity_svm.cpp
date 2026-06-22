@@ -40,6 +40,31 @@ void reg(const std::string& e) {
     expect_score(r2_score(model.predict(Xte), yte), ref, kRegBand, e + ".r2");
 }
 
+template <typename Clf, typename Factory>
+void clf_with(const std::string& e, Factory make) {
+    Eigen::MatrixXd Xtr = load_matrix(e, "X_train.csv");
+    Eigen::VectorXi ytr = to_int(load_vector(e, "y_train.csv"));
+    Eigen::MatrixXd Xte = load_matrix(e, "X_test.csv");
+    Eigen::VectorXi yte = to_int(load_vector(e, "y_test.csv"));
+    const double ref = load_vector(e, "score.csv")(0);
+    Clf model = make();
+    model.fit(Xtr, ytr);
+    expect_score(accuracy(model.predict(Xte), yte), ref, kClfBand,
+                 e + ".accuracy");
+}
+
+template <typename Reg, typename Factory>
+void reg_with(const std::string& e, Factory make) {
+    Eigen::MatrixXd Xtr = load_matrix(e, "X_train.csv");
+    Eigen::VectorXd ytr = load_vector(e, "y_train.csv");
+    Eigen::MatrixXd Xte = load_matrix(e, "X_test.csv");
+    Eigen::VectorXd yte = load_vector(e, "y_test.csv");
+    const double ref = load_vector(e, "score.csv")(0);
+    Reg model = make();
+    model.fit(Xtr, ytr);
+    expect_score(r2_score(model.predict(Xte), yte), ref, kRegBand, e + ".r2");
+}
+
 }  // namespace
 
 void parity_svm() {
@@ -47,6 +72,23 @@ void parity_svm() {
     run("LinearSVC", [] { clf<Skigen::LinearSVC<double>>("linear_svc"); });
     run("SVR", [] { reg<Skigen::SVR<double>>("svr"); });
     run("LinearSVR", [] { reg<Skigen::LinearSVR<double>>("linear_svr"); });
+
+    // --- Non-default kernel / C branches (§4.8) ---
+    using SVCd = Skigen::SVC<double>;
+    run("SVC[linear,C=10]", [] {
+        clf_with<SVCd>("svc_linear",
+                       [] { return SVCd(10.0, SVCd::Kernel::Linear); });
+    });
+    run("SVC[poly]", [] {
+        clf_with<SVCd>("svc_poly", [] {
+            return SVCd(1.0, SVCd::Kernel::Poly, /*degree=*/3, /*gamma=*/0.0);
+        });
+    });
+    using SVRd = Skigen::SVR<double>;
+    run("SVR[linear,C=5]", [] {
+        reg_with<SVRd>("svr_linear",
+                       [] { return SVRd(/*C=*/5.0, SVRd::Kernel::Linear); });
+    });
     run("NuSVC", [] {
         // Two well-separated clusters; NuSVC should classify them.
         Eigen::MatrixXd X(20, 2);

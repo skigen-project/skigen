@@ -49,6 +49,12 @@ def main():
     emit("svr", SVR(), reg_data, 42)
     emit("linear_svr", LinearSVR(max_iter=5000), reg_data, 43)
 
+    # --- Non-default kernel / C branches (§4.8) ---
+    emit("svc_linear", SVC(kernel="linear", C=10.0), clf_data, 44)
+    emit("svc_poly", SVC(kernel="poly", degree=3, gamma="scale"),
+         clf_data, 45)
+    emit("svr_linear", SVR(kernel="linear", C=5.0), reg_data, 46)
+
 
 if __name__ == "__main__":
     main()
