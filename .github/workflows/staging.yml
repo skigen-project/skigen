@@ -160,18 +160,14 @@ jobs:
           repository: skigen-project/skigen-plot
           path: skigen-plot
 
-      - name: Load external dependency versions
-        shell: bash
-        run: bash scripts/ci/load_external_deps.sh
-
-      - name: Download Qt (mne-cpp pre-built binaries)
+      - name: Download Qt6 (mne-cpp pre-built binaries)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release download qt_binaries -R mne-tools/mne-cpp \
-            -p "qt6_${QT_VERSION_TOKEN}_dynamic_binaries_linux.tar.gz" -D /tmp
+            -p 'qt6_6111_dynamic_binaries_linux.tar.gz' -D /tmp
           mkdir -p "$RUNNER_TEMP/qt"
-          tar xzf "/tmp/qt6_${QT_VERSION_TOKEN}_dynamic_binaries_linux.tar.gz" -C "$RUNNER_TEMP/qt"
+          tar xzf /tmp/qt6_6111_dynamic_binaries_linux.tar.gz -C "$RUNNER_TEMP/qt"
           echo "QT_ROOT_DIR=$RUNNER_TEMP/qt" >> "$GITHUB_ENV"
           echo "Qt6_DIR=$RUNNER_TEMP/qt/lib/cmake/Qt6" >> "$GITHUB_ENV"
           echo "CMAKE_PREFIX_PATH=$RUNNER_TEMP/qt" >> "$GITHUB_ENV"
